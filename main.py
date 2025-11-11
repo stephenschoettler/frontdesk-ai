@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI):
     llm = OpenAILLMService(
         api_key=os.environ["OPENROUTER_API_KEY"],
         base_url="https://openrouter.ai/api/v1",
+        model="google/gemma-7b-it", # Placeholder for "grok 4 fast"
         system_prompt="You are a friendly and professional receptionist."
     )
     tts = ElevenLabsTTSService(

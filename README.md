@@ -1,35 +1,45 @@
-# **Front Desk: AI Receptionist**
+# Front Desk: AI Receptionist
+
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
 
 Front Desk is an open-source, real-time, conversational AI receptionist built to run on a local server. It uses Pipecat to orchestrate multiple AI services and connects to a public phone number via Twilio.
 
 This project is designed to be a foundation for a fully-featured AI agent that can be customized to handle real-world business tasks, such as calendar management and lead capture.
 
-### **Core Tech Stack**
+## Table of Contents
 
-* **Orchestration:** [Pipecat](https://www.google.com/search?q=https://pipecat.ai/)  
-* **Web Server:** [FastAPI](https://fastapi.tiangolo.com/) & Uvicorn  
-* **Telephony:** [Twilio](https://www.twilio.com/) (Voice Webhooks)  
-* **Database:** [Supabase](https://supabase.com/) (Postgres)  
-* **Tunneling (Dev):** [ngrok](https://ngrok.com/)  
-* **AI Services:**  
-  * **LLM:** [OpenRouter](https://openrouter.ai/) (for access to Grok, Llama, GPT, etc.)  
-  * **STT:** [Deepgram](https://deepgram.com/) (Real-time transcription)  
-  * **TTS:** [ElevenLabs](https://elevenlabs.io/) (Real-time voice generation)  
-  * **Calendar:** [Google Calendar API](https://developers.google.com/calendar/api)
+- [Core Tech Stack](#core-tech-stack)
+- [Service Provisioning](#1-service-provisioning-the-gathering-phase)
+- [Project Installation & Setup](#2-project-installation--setup)
+- [Running the Receptionist](#3-running-the-receptionist)
 
-## **1\. Service Provisioning (The "Gathering" Phase)**
+## Core Tech Stack
+
+- **Orchestration:** [Pipecat](https://pipecat.ai/)
+- **Web Server:** [FastAPI](https://fastapi.tiangolo.com/) & Uvicorn
+- **Telephony:** [Twilio](https://www.twilio.com/) (Voice Webhooks)
+- **Database:** [Supabase](https://supabase.com/) (Postgres)
+- **Tunneling (Dev):** [ngrok](https://ngrok.com/)
+- **AI Services:**
+  - **LLM:** [OpenRouter](https://openrouter.ai/) (for access to Grok, Llama, GPT, etc.)
+  - **STT:** [Deepgram](https://deepgram.com/) (Real-time transcription)
+  - **TTS:** [ElevenLabs](https://elevenlabs.io/) (Real-time voice generation)
+  - **Calendar:** [Google Calendar API](https://developers.google.com/calendar/api)
+
+## 1. Service Provisioning (The "Gathering" Phase)
 
 Before you can run this application, you must sign up for all of the following services and acquire the necessary API keys and credentials.
 
-### **☐ 1.1. Twilio (The Phone Number)**
+### ☐ 1.1. Twilio (The Phone Number)
 
-1. **Create Account:** Sign up for a [Twilio](https://www.twilio.com/) account.  
-2. **Upgrade Account:** You **must** upgrade from a trial account by adding a payment method and a starting balance (e.g., $20). This is required to remove the "trial account" message from calls.  
-3. **Buy a Number:** Navigate to "Phone Numbers" \-\> "Manage" \-\> "Buy a number" and purchase a local number with **Voice** capability.  
-4. **Get Credentials:** From your main Account Dashboard, find and save your:  
-   * TWILIO\_ACCOUNT\_SID  
-   * TWILIO\_AUTH\_TOKEN  
-   * TWILIO\_PHONE\_NUMBER (the number you just bought, in \+1... format)
+1. **Create Account:** Sign up for a [Twilio](https://www.twilio.com/) account.
+2. **Upgrade Account:** You **must** upgrade from a trial account by adding a payment method and a starting balance (e.g., $20). This is required to remove the "trial account" message from calls.
+3. **Buy a Number:** Navigate to "Phone Numbers" → "Manage" → "Buy a number" and purchase a local number with **Voice** capability.
+4. **Get Credentials:** From your main Account Dashboard, find and save your:
+   - `TWILIO_ACCOUNT_SID`
+   - `TWILIO_AUTH_TOKEN`
+   - `TWILIO_PHONE_NUMBER` (the number you just bought, in +1... format)
 
 ### **☐ 1.2. Supabase (The "Memory")**
 
@@ -40,51 +50,53 @@ Before you can run this application, you must sign up for all of the following s
    * Save both for your .env file.  
 3. **Create Tables:** Go to the **SQL Editor** in your project, paste the contents of setup.sql (see below), and click **RUN**.
 
-#### **setup.sql**
+#### setup.sql
 
-\-- 1\. Create the 'users' table (your clients)  
-CREATE TABLE users (  
-    id UUID PRIMARY KEY DEFAULT gen\_random\_uuid(),  
-    full\_name TEXT,  
-    calendar\_id TEXT NOT NULL,  
-    twilio\_phone TEXT NOT NULL UNIQUE,  
-    forward\_phone TEXT NOT NULL,  
-    created\_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()  
+```sql
+-- 1. Create the 'users' table (your clients)
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name TEXT,
+    calendar_id TEXT NOT NULL,
+    twilio_phone TEXT NOT NULL UNIQUE,
+    forward_phone TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-\-- 2\. Create the 'contacts' table (your clients' callers)  
-CREATE TABLE contacts (  
-    id UUID PRIMARY KEY DEFAULT gen\_random\_uuid(),  
-    phone\_number TEXT NOT NULL UNIQUE,  
-    full\_name TEXT,  
-    address TEXT,  
-    last\_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW()  
+-- 2. Create the 'contacts' table (your clients' callers)
+CREATE TABLE contacts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone_number TEXT NOT NULL UNIQUE,
+    full_name TEXT,
+    address TEXT,
+    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-\-- 3\. Create the 'conversations' table (the call logs)  
-CREATE TABLE conversations (  
-    id UUID PRIMARY KEY DEFAULT gen\_random\_uuid(),  
-    user\_id UUID REFERENCES users(id),  
-    contact\_id UUID REFERENCES contacts(id),  
-    transcript JSONB,  
-    summary TEXT,  
-    created\_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()  
+-- 3. Create the 'conversations' table (the call logs)
+CREATE TABLE conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id),
+    contact_id UUID REFERENCES contacts(id),
+    transcript JSONB,
+    summary TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-\-- 4\. Enable Row Level Security (RLS)  
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;  
-ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;  
+-- 4. Enable Row Level Security (RLS)
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 
-\-- 5\. Create basic "allow all" policies for development  
-CREATE POLICY "Allow anon access"  
+-- 5. Create basic "allow all" policies for development
+CREATE POLICY "Allow anon access"
 ON users FOR ALL USING (true) WITH CHECK (true);
 
-CREATE POLICY "Allow anon access"  
+CREATE POLICY "Allow anon access"
 ON contacts FOR ALL USING (true) WITH CHECK (true);
 
-CREATE POLICY "Allow anon access"  
+CREATE POLICY "Allow anon access"
 ON conversations FOR ALL USING (true) WITH CHECK (true);
+```
 
 ### **☐ 1.3. Google Calendar (The "Tool")**
 

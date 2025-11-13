@@ -1,11 +1,12 @@
 import os
 import asyncio
 import logging
+import argparse
 import signal
-import argparse # Added
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, Request, Response
+from starlette.websockets import WebSocketState
 import uvicorn
 
 from pipecat.pipeline.pipeline import Pipeline
@@ -39,9 +40,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
-# Global flag for test mode
-test_mode_enabled = False
 
 #
 # AI Services
@@ -84,6 +82,9 @@ async def voice_handler(request: Request):
 async def websocket_endpoint(websocket: WebSocket):
     """Main websocket endpoint for the Pipecat service."""
     runner: PipelineRunner = websocket.app.state.runner
+    test_mode: bool = websocket.app.state.test_mode
+    shutdown_event: asyncio.Event = websocket.app.state.shutdown_event
+
     logger.info("New websocket connection established.")
     await websocket.accept()
 
@@ -136,13 +137,28 @@ async def websocket_endpoint(websocket: WebSocket):
         TextFrame("Hi, I'm Front Desk — your friendly AI receptionist. How can I help you today?"),
     ])
 
-    await runner.run(task)
-    logger.info("Pipeline runner for this call has finished.")
+    runner_task = asyncio.create_task(runner.run(task))
 
-    # If in test mode, signal that the call is completed
-    if websocket.app.state.test_mode_enabled:
-        logger.info("Test mode: Call processing finished. Setting call_completed_event.")
-        websocket.app.state.call_completed_event.set()
+    # Wait for the websocket to disconnect.
+    # We can't just loop on `websocket.receive_text()` because the transport
+    # is already doing that. Instead, we'll poll the connection state.
+    try:
+        while websocket.client_state == WebSocketState.CONNECTED:
+            await asyncio.sleep(0.1)
+    except asyncio.CancelledError:
+        # This can happen if the server is shutting down.
+        pass
+    finally:
+        logger.info("Websocket disconnected. Cancelling pipeline task.")
+        # This will cause the runner_task to finish.
+        if not runner_task.done():
+            await task.cancel()
+        # Wait for the runner to finish cleaning up.
+        await runner_task
+
+    if test_mode:
+        logger.info("Test mode: First call finished. Shutting down.")
+        shutdown_event.set()
 
 
 async def main():
@@ -150,21 +166,16 @@ async def main():
     Main function to run the FastAPI server and the Pipecat runner.
     This approach allows for graceful shutdown of both the server and the runner.
     """
-    parser = argparse.ArgumentParser(description="Run the Front Desk AI receptionist.")
-    parser.add_argument(
-        "--test-mode",
-        action="store_true",
-        help="Run in test mode: handle one call and then exit."
-    )
+    parser = argparse.ArgumentParser(description="Front Desk AI Receptionist")
+    parser.add_argument("--test-mode", action="store_true", help="Run in test mode, handling one call and then exiting.")
     args = parser.parse_args()
 
-    global test_mode_enabled
-    test_mode_enabled = args.test_mode
-
     runner = PipelineRunner()
+    shutdown_event = asyncio.Event()
+
     app.state.runner = runner
-    app.state.test_mode_enabled = test_mode_enabled # Pass to app state
-    app.state.call_completed_event = asyncio.Event() # Event for test mode
+    app.state.test_mode = args.test_mode
+    app.state.shutdown_event = shutdown_event
 
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
     server = uvicorn.Server(config)
@@ -173,7 +184,6 @@ async def main():
     server_task = asyncio.create_task(server.serve())
 
     # Set up a signal handler for graceful shutdown
-    shutdown_event = asyncio.Event()
     def signal_handler(*args):
         shutdown_event.set()
 
@@ -182,12 +192,9 @@ async def main():
     loop.add_signal_handler(signal.SIGTERM, signal_handler)
 
     try:
-        if test_mode_enabled:
-            logger.info("Running in test mode. Waiting for one call to complete...")
-            await app.state.call_completed_event.wait()
-            logger.info("Call completed in test mode. Initiating shutdown.")
-        else:
-            await shutdown_event.wait()
+        if args.test_mode:
+            logger.info("Running in test mode. The server will shut down after the first call.")
+        await shutdown_event.wait()
     finally:
         logger.info("Shutdown signal received. Stopping server and runner concurrently.")
         # Set the server to exit

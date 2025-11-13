@@ -137,6 +137,7 @@ async def websocket_endpoint(websocket: WebSocket):
     ])
 
     await runner.run(task)
+    logger.info("Pipeline runner for this call has finished.")
 
     # If in test mode, signal that the call is completed
     if websocket.app.state.test_mode_enabled:

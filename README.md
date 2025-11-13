@@ -124,7 +124,7 @@ Sign up for the following services and get an API key from each:
 1. **Create Account:** Sign up for a free account at [ngrok](https://ngrok.com/).  
 2. **Get Authtoken:** Follow the "Getting Started" steps to get your authtoken.  
 3. **Configure ngrok:** Authenticate your ngrok CLI (this is a one-time setup):  
-   ngrok config add-authtoken \<YOUR\_NGROK\_AUTHTOKEN\>
+   ngrok config add-authtoken <YOUR_NGROK_AUTHTOKEN>
 
 ## **2\. Project Installation & Setup**
 
@@ -148,29 +148,12 @@ Sign up for the following services and get an API key from each:
    \*.json  
    app.log
 
-5. Create .env File:  
-   Create a file named .env and fill it with all the credentials you gathered in Step 1\.  
-   \# OpenRouter  
-   OPENROUTER\_API\_KEY="YOUR\_OPENROUTER\_KEY"
-
-   \# Deepgram  
-   DEEPGRAM\_API\_KEY="YOUR\_DEEPGRAM\_KEY"
-
-   \# ElevenLabs  
-   ELEVENLABS\_API\_KEY="YOUR\_ELEVENLABS\_KEY"
-
-   \# Twilio (Must be upgraded account)  
-   TWILIO\_ACCOUNT\_SID="YOUR\_TWILIO\_SID"  
-   TWILIO\_AUTH\_TOKEN="YOUR\_TWILIO\_TOKEN"  
-   TWILIO\_PHONE\_NUMBER="+1..."
-
-   \# Supabase  
-   SUPABASE\_URL="https://\[YOUR-PROJECT-ID\].supabase.co"  
-   SUPABASE\_ANON\_KEY="YOUR\_SUPABASE\_ANON\_KEY"
-
-   \# Google Calendar  
-   \# Use the filename of the key you downloaded  
-   GOOGLE\_SERVICE\_ACCOUNT\_FILE\_PATH="google-service-key.json"
+5. Create .env File:
+   Copy the `.env.example` file to `.env`. This file will hold your secret keys.
+   ```sh
+   cp .env.example .env
+   ```
+   Next, open `.env` and fill it with all the credentials you gathered in Step 1.
 
 ## **3\. Running the Receptionist**
 

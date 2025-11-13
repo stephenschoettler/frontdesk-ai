@@ -1,6 +1,8 @@
 import os
 import asyncio
 import logging
+import signal
+import argparse # Added
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, Request, Response
@@ -10,7 +12,7 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.llm_context import LLMContext
-from pipecat.frames.frames import LLMRunFrame
+from pipecat.frames.frames import LLMRunFrame, TextFrame
 from pipecat.serializers.twilio import TwilioFrameSerializer
 from pipecat.services.deepgram.stt import DeepgramSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
@@ -28,33 +30,44 @@ from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("frontdesk.log"),
+        logging.StreamHandler() # Keep console output for immediate feedback
+    ]
+)
+logger = logging.getLogger(__name__)
 
-runner: PipelineRunner
+# Global flag for test mode
+test_mode_enabled = False
 
-# Create FastAPI app
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Load AI services and runner on startup and shutdown."""
-    global stt, llm, tts, runner
-    stt = DeepgramSTTService(
-        api_key=os.environ["DEEPGRAM_API_KEY"]
-    )
-    llm = OpenAILLMService(
-        api_key=os.environ["OPENROUTER_API_KEY"],
-        base_url="https://openrouter.ai/api/v1",
-        model="google/gemma-7b-it", # Placeholder for "grok 4 fast"
-        system_prompt="You are a friendly and professional receptionist."
-    )
-    tts = ElevenLabsTTSService(
-        api_key=os.environ["ELEVENLABS_API_KEY"],
-        voice_id="21m00Tcm4TlvDq8ikWAM" # Rachel
-    )
-    runner = PipelineRunner()
-    yield
-    await runner.stop()
+#
+# AI Services
+#
+stt = DeepgramSTTService(
+    api_key=os.environ["DEEPGRAM_API_KEY"],
+    model="nova-2-phonecall",
+    vad_events=True
+)
+llm = OpenAILLMService(
+    api_key=os.environ["OPENROUTER_API_KEY"],
+    base_url="https://openrouter.ai/api/v1",
+    model="google/gemini-2.0-flash-lite-001",
+    system_prompt="You are Front Desk, an AI receptionist. Made to handle the little things so I don't have to. Whether it's booking an appointment, answering a quick question, or routing me to the right person, you are here to make it seamless. Stay concise, conversational, and proactive."
+)
+tts = ElevenLabsTTSService(
+    api_key=os.environ["ELEVENLABS_API_KEY"],
+    voice_id="21m00Tcm4TlvDq8ikWAM", # Rachel
+    model_id="eleven_flash_v2_5",
+    optimize_streaming_latency=4  # 0-4 scale
+)
 
-app = FastAPI(lifespan=lifespan)
+#
+# FastAPI App
+#
+app = FastAPI()
 
 @app.post("/voice")
 async def voice_handler(request: Request):
@@ -70,6 +83,8 @@ async def voice_handler(request: Request):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """Main websocket endpoint for the Pipecat service."""
+    runner: PipelineRunner = websocket.app.state.runner
+    logger.info("New websocket connection established.")
     await websocket.accept()
 
     _, call_data = await parse_telephony_websocket(websocket)
@@ -116,16 +131,75 @@ async def websocket_endpoint(websocket: WebSocket):
         ),
     )
 
-    @transport.event_handler("on_client_connected")
-    async def on_client_connected(transport, client):
-        await task.queue_frames([LLMRunFrame()])
-
-    @transport.event_handler("on_client_disconnected")
-    async def on_client_disconnected(transport, client):
-        await task.cancel()
+    # Send an initial greeting
+    await task.queue_frames([
+        TextFrame("Hi, I'm Front Desk — your friendly AI receptionist. How can I help you today?"),
+    ])
 
     await runner.run(task)
 
+    # If in test mode, signal that the call is completed
+    if websocket.app.state.test_mode_enabled:
+        logger.info("Test mode: Call processing finished. Setting call_completed_event.")
+        websocket.app.state.call_completed_event.set()
+
+
+async def main():
+    """
+    Main function to run the FastAPI server and the Pipecat runner.
+    This approach allows for graceful shutdown of both the server and the runner.
+    """
+    parser = argparse.ArgumentParser(description="Run the Front Desk AI receptionist.")
+    parser.add_argument(
+        "--test-mode",
+        action="store_true",
+        help="Run in test mode: handle one call and then exit."
+    )
+    args = parser.parse_args()
+
+    global test_mode_enabled
+    test_mode_enabled = args.test_mode
+
+    runner = PipelineRunner()
+    app.state.runner = runner
+    app.state.test_mode_enabled = test_mode_enabled # Pass to app state
+    app.state.call_completed_event = asyncio.Event() # Event for test mode
+
+    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+    server = uvicorn.Server(config)
+
+    # Start the server in the background
+    server_task = asyncio.create_task(server.serve())
+
+    # Set up a signal handler for graceful shutdown
+    shutdown_event = asyncio.Event()
+    def signal_handler(*args):
+        shutdown_event.set()
+
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGINT, signal_handler)
+    loop.add_signal_handler(signal.SIGTERM, signal_handler)
+
+    try:
+        if test_mode_enabled:
+            logger.info("Running in test mode. Waiting for one call to complete...")
+            await app.state.call_completed_event.wait()
+            logger.info("Call completed in test mode. Initiating shutdown.")
+        else:
+            await shutdown_event.wait()
+    finally:
+        logger.info("Shutdown signal received. Stopping server and runner concurrently.")
+        # Set the server to exit
+        server.should_exit = True
+        # Concurrently shut down the server and cancel the runner
+        shutdown_tasks = [
+            server_task,
+            runner.cancel()
+        ]
+        await asyncio.gather(*shutdown_tasks, return_exceptions=True)
+        logger.info("Server and runner stopped gracefully.")
+
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    asyncio.run(main())
+    logger.info("Application exited.")

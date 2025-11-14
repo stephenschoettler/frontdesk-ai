@@ -9,3 +9,4 @@ deepgram-sdk
 elevenlabs
 fastapi
 uvicorn
+python-multipart

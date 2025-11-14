@@ -53,8 +53,8 @@ Before you can run this application, you must sign up for all of the following s
 #### setup.sql
 
 ```sql
--- 1. Create the 'users' table (your clients)
-CREATE TABLE users (
+-- 1. Create the 'clients' table (your clients)
+CREATE TABLE clients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     full_name TEXT,
     calendar_id TEXT NOT NULL,
@@ -75,7 +75,7 @@ CREATE TABLE contacts (
 -- 3. Create the 'conversations' table (the call logs)
 CREATE TABLE conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id),
+    client_id UUID REFERENCES clients(id),
     contact_id UUID REFERENCES contacts(id),
     transcript JSONB,
     summary TEXT,
@@ -83,13 +83,13 @@ CREATE TABLE conversations (
 );
 
 -- 4. Enable Row Level Security (RLS)
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 
 -- 5. Create basic "allow all" policies for development
 CREATE POLICY "Allow anon access"
-ON users FOR ALL USING (true) WITH CHECK (true);
+ON clients FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Allow anon access"
 ON contacts FOR ALL USING (true) WITH CHECK (true);

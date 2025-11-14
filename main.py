@@ -3,6 +3,7 @@ import asyncio
 import logging
 import argparse
 import signal
+import urllib.parse
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, Request, Response
@@ -24,6 +25,7 @@ from pipecat.transports.websocket.fastapi import (
 )
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
 from pipecat.runner.utils import parse_telephony_websocket
+from services.supabase_client import log_call
 from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 
 
@@ -44,6 +46,9 @@ logger = logging.getLogger(__name__)
 #
 # AI Services
 #
+with open("system_prompt.txt", "r") as f:
+    system_prompt = f.read()
+
 stt = DeepgramSTTService(
     api_key=os.environ["DEEPGRAM_API_KEY"],
     model="nova-2-phonecall",
@@ -53,7 +58,6 @@ llm = OpenAILLMService(
     api_key=os.environ["OPENROUTER_API_KEY"],
     base_url="https://openrouter.ai/api/v1",
     model="google/gemini-2.0-flash-lite-001",
-    system_prompt="You are Front Desk, an AI receptionist. Made to handle the little things so I don't have to. Whether it's booking an appointment, answering a quick question, or routing me to the right person, you are here to make it seamless. Stay concise, conversational, and proactive."
 )
 tts = ElevenLabsTTSService(
     api_key=os.environ["ELEVENLABS_API_KEY"],
@@ -71,15 +75,24 @@ app = FastAPI()
 async def voice_handler(request: Request):
     """Handle Twilio's initial POST request and return TwiML to connect to WebSocket."""
     host = request.headers.get("host")
+    form_data = await request.form()
+    from_number = form_data.get("From")
+    logger.info(f"Received call from: {from_number}")
+
+    # URL-encode the phone number to handle the '+' sign
+    encoded_from_number = urllib.parse.quote(from_number) if from_number else ""
+
     response = VoiceResponse()
     connect = Connect()
-    stream = Stream(url=f"wss://{host}/ws")
+    stream_url = f"wss://{host}/ws/{encoded_from_number}"
+    logger.info(f"Streaming to: {stream_url}")
+    stream = Stream(url=stream_url)
     connect.append(stream)
     response.append(connect)
     return Response(content=str(response), media_type="application/xml")
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+@app.websocket("/ws/{caller_phone:path}")
+async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
     """Main websocket endpoint for the Pipecat service."""
     runner: PipelineRunner = websocket.app.state.runner
     test_mode: bool = websocket.app.state.test_mode
@@ -89,6 +102,10 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
     _, call_data = await parse_telephony_websocket(websocket)
+
+    logger.info(f"Call data: {call_data}")
+    caller_phone = urllib.parse.unquote(caller_phone) if caller_phone else None
+    logger.info(f"Caller phone from path: {caller_phone}")
 
     serializer = TwilioFrameSerializer(
         stream_sid=call_data["stream_id"],
@@ -107,7 +124,13 @@ async def websocket_endpoint(websocket: WebSocket):
         ),
     )
 
-    context = LLMContext()
+    messages = [
+        {
+            "role": "system",
+            "content": system_prompt,
+        },
+    ]
+    context = LLMContext(messages)
     context_aggregator = LLMContextAggregatorPair(context)
 
     pipeline = Pipeline(
@@ -134,7 +157,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
     # Send an initial greeting
     await task.queue_frames([
-        TextFrame("Hi, I'm Front Desk — your friendly AI receptionist. How can I help you today?"),
+        TextFrame("Hi, I'm Front Desk — your friendly AI receptionist."),
+        TextFrame("How can I help you today?"),
     ])
 
     runner_task = asyncio.create_task(runner.run(task))
@@ -149,6 +173,22 @@ async def websocket_endpoint(websocket: WebSocket):
         # This can happen if the server is shutting down.
         pass
     finally:
+        try:
+            if caller_phone:
+                logger.info("Logging call to Supabase...")
+                # NOTE: This is the 'id' (UUID) you copied from your 'clients' table
+                hardcoded_client_id = "ec8e7bfb-edce-407e-aaab-a2564644a0c9" 
+                
+                await log_call(
+                    client_id=hardcoded_client_id,
+                    caller_phone=caller_phone,
+                    transcript=context.messages # This will be stored as JSON
+                )
+                logger.info("Call logged successfully.")
+            else:
+                logger.warning("No caller phone found, skipping call log.")
+        except Exception as e:
+            logger.error(f"Failed to log call: {e}")
         logger.info("Websocket disconnected. Cancelling pipeline task.")
         # This will cause the runner_task to finish.
         if not runner_task.done():

@@ -25,7 +25,13 @@ from pipecat.transports.websocket.fastapi import (
 )
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
 from pipecat.runner.utils import parse_telephony_websocket
-from services.supabase_client import log_call
+from services.supabase_client import get_or_create_contact, log_conversation
+# Import our new tool handlers
+from services.llm_tools import (
+    handle_get_available_slots,
+    handle_book_appointment,
+    handle_save_contact_name
+)
 from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 
 
@@ -64,17 +70,24 @@ stt = DeepgramSTTService(
     model="nova-2-phonecall",
     vad_events=True
 )
-llm = OpenAILLMService(
-    api_key=os.environ["OPENROUTER_API_KEY"],
-    base_url="https://openrouter.ai/api/v1",
-    model="google/gemini-2.0-flash-lite-001",
-)
 tts = ElevenLabsTTSService(
     api_key=os.environ["ELEVENLABS_API_KEY"],
     voice_id="21m00Tcm4TlvDq8ikWAM", # Rachel
     model_id="eleven_flash_v2_5",
     optimize_streaming_latency=4  # 0-4 scale
 )
+
+llm = OpenAILLMService(
+    api_key=os.environ["OPENROUTER_API_KEY"],
+    base_url="https://openrouter.ai/api/v1",
+    model="google/gemini-2.0-flash-lite-001",
+)
+
+# Register our tool handlers as "direct functions"
+# Pipecat will auto-generate the schema from the function's docstring and type hints.
+llm.register_direct_function(handle_get_available_slots)
+llm.register_direct_function(handle_book_appointment)
+llm.register_direct_function(handle_save_contact_name)
 
 #
 # FastAPI App
@@ -114,8 +127,23 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
     _, call_data = await parse_telephony_websocket(websocket)
 
     logger.info(f"Call data: {call_data}")
+
+    contact = None
     caller_phone = urllib.parse.unquote(caller_phone) if caller_phone else None
-    logger.info(f"Caller phone from path: {caller_phone}")
+    if caller_phone:
+        contact = await get_or_create_contact(caller_phone)
+
+    contact_context_message = ""
+    if contact:
+        if contact.get("name"):
+            contact_context_message = f"Known caller: {contact['name']} ({contact['phone']})."
+        else:
+            contact_context_message = f"Returning caller (name unknown): {contact['phone']}."
+    elif caller_phone:
+        contact_context_message = f"New caller. Phone: {caller_phone}. (Error retrieving/creating contact)"
+    
+    if contact_context_message:
+        logger.info(contact_context_message)
 
     serializer = TwilioFrameSerializer(
         stream_sid=call_data["stream_id"],
@@ -139,6 +167,10 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
             "role": "system",
             "content": system_prompt,
         },
+        {
+            "role": "system",
+            "content": f"CALLER CONTEXT: {contact_context_message}"
+        }
     ]
     context = LLMContext(messages)
     context_aggregator = LLMContextAggregatorPair(context)
@@ -184,21 +216,20 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
         pass
     finally:
         try:
-            if caller_phone:
-                logger.info("Logging call to Supabase...")
+            if contact and contact.get("id"):
+                logger.info(f"Logging conversation for contact ID: {contact['id']}...")
                 # NOTE: This is the 'id' (UUID) you copied from your 'clients' table
-                hardcoded_client_id = "ec8e7bfb-edce-407e-aaab-a2564644a0c9" 
-                
-                await log_call(
+                hardcoded_client_id = "53d895bd-1dfb-4636-9d53-c49cb143ab2d"
+                await log_conversation(
+                    contact_id=contact["id"],
                     client_id=hardcoded_client_id,
-                    caller_phone=caller_phone,
-                    transcript=context.messages # This will be stored as JSON
+                    transcript=context.messages
                 )
-                logger.info("Call logged successfully.")
+                logger.info("Conversation logged successfully.")
             else:
-                logger.warning("No caller phone found, skipping call log.")
+                logger.warning("No contact with ID found, skipping conversation log.")
         except Exception as e:
-            logger.error(f"Failed to log call: {e}")
+            logger.error(f"Failed to log conversation: {e}")
         logger.info("Websocket disconnected. Cancelling pipeline task.")
         # This will cause the runner_task to finish.
         if not runner_task.done():

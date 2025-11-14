@@ -1,6 +1,9 @@
 import os
+import logging
 from typing import Any
 from supabase import create_client, Client
+
+logger = logging.getLogger(__name__)
 
 def get_supabase_client() -> Client:
     supabase_url: str = os.environ.get("SUPABASE_URL")
@@ -16,5 +19,5 @@ async def log_call(client_id: str, caller_phone: str, transcript: Any):
         "phone": caller_phone,
         "transcript": transcript,
     }
-    response = await supabase.table('bookings').insert(data_to_insert).execute()
+    response = supabase.table('bookings').insert(data_to_insert).execute()
     return response

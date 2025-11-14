@@ -48,55 +48,9 @@ Before you can run this application, you must sign up for all of the following s
    * Find the **Project ID** (e.g., your-project-id). Your URL is https://\[your-project-id\].supabase.co.  
    * Find the **anon public Key**.  
    * Save both for your .env file.  
-3. **Create Tables:** Go to the **SQL Editor** in your project, paste the contents of setup.sql (see below), and click **RUN**.
+3. **Create Tables:** Go to the **SQL Editor** in your project, paste the contents of `setup.sql` (located in the project root), and click **RUN**.
 
-#### setup.sql
-
-```sql
--- 1. Create the 'clients' table (your clients)
-CREATE TABLE clients (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    full_name TEXT,
-    calendar_id TEXT NOT NULL,
-    twilio_phone TEXT NOT NULL UNIQUE,
-    forward_phone TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 2. Create the 'contacts' table (your clients' callers)
-CREATE TABLE contacts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    phone_number TEXT NOT NULL UNIQUE,
-    full_name TEXT,
-    address TEXT,
-    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 3. Create the 'conversations' table (the call logs)
-CREATE TABLE conversations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    client_id UUID REFERENCES clients(id),
-    contact_id UUID REFERENCES contacts(id),
-    transcript JSONB,
-    summary TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 4. Enable Row Level Security (RLS)
-ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
-
--- 5. Create basic "allow all" policies for development
-CREATE POLICY "Allow anon access"
-ON clients FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Allow anon access"
-ON contacts FOR ALL USING (true) WITH CHECK (true);
-
-CREATE POLICY "Allow anon access"
-ON conversations FOR ALL USING (true) WITH CHECK (true);
-```
+See `setup.sql` in the project root for the SQL schema.
 
 ### **☐ 1.3. Google Calendar (The "Tool")**
 

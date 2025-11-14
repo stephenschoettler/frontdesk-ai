@@ -32,6 +32,7 @@ from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 # Load environment variables
 load_dotenv()
 
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -42,6 +43,15 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# --- Diagnostic ---
+logger.info(f"DIAGNOSTIC: Loaded SUPABASE_URL: {os.environ.get('SUPABASE_URL')}")
+key_check = os.environ.get('SUPABASE_ANON_KEY')
+if key_check:
+    logger.info(f"DIAGNOSTIC: Loaded SUPABASE_ANON_KEY ends with: ...{key_check[-4:]}")
+else:
+    logger.info("DIAGNOSTIC: SUPABASE_ANON_KEY IS NOT LOADED (None).")
+# ------------------
 
 #
 # AI Services

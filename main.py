@@ -4,7 +4,6 @@ import logging
 import argparse
 import signal
 import urllib.parse
-from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, Request, Response
 from starlette.websockets import WebSocketState
@@ -14,7 +13,7 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.llm_context import LLMContext
-from pipecat.frames.frames import LLMRunFrame, TextFrame
+from pipecat.frames.frames import TextFrame
 from pipecat.serializers.twilio import TwilioFrameSerializer
 from pipecat.services.deepgram.stt import DeepgramSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
@@ -23,15 +22,19 @@ from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketParams,
     FastAPIWebsocketTransport,
 )
-from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
+from pipecat.processors.aggregators.llm_response_universal import (
+    LLMContextAggregatorPair,
+)
 from pipecat.runner.utils import parse_telephony_websocket
 from services.supabase_client import get_or_create_contact, log_conversation
+
 # Import our new tool handlers
 from services.llm_tools import (
     handle_get_available_slots,
     handle_book_appointment,
-    handle_save_contact_name
+    handle_save_contact_name,
 )
+from services.response_filter import ToolStrippingAssistantAggregator
 from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 
 
@@ -45,14 +48,14 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler("frontdesk.log"),
-        logging.StreamHandler() # Keep console output for immediate feedback
-    ]
+        logging.StreamHandler(),  # Keep console output for immediate feedback
+    ],
 )
 logger = logging.getLogger(__name__)
 
 # --- Diagnostic ---
 logger.info(f"DIAGNOSTIC: Loaded SUPABASE_URL: {os.environ.get('SUPABASE_URL')}")
-key_check = os.environ.get('SUPABASE_ANON_KEY')
+key_check = os.environ.get("SUPABASE_ANON_KEY")
 if key_check:
     logger.info(f"DIAGNOSTIC: Loaded SUPABASE_ANON_KEY ends with: ...{key_check[-4:]}")
 else:
@@ -66,15 +69,13 @@ with open("system_prompt.txt", "r") as f:
     system_prompt = f.read()
 
 stt = DeepgramSTTService(
-    api_key=os.environ["DEEPGRAM_API_KEY"],
-    model="nova-2-phonecall",
-    vad_events=True
+    api_key=os.environ["DEEPGRAM_API_KEY"], model="nova-2-phonecall", vad_events=True
 )
 tts = ElevenLabsTTSService(
     api_key=os.environ["ELEVENLABS_API_KEY"],
-    voice_id="21m00Tcm4TlvDq8ikWAM", # Rachel
+    voice_id="21m00Tcm4TlvDq8ikWAM",  # Rachel
     model_id="eleven_flash_v2_5",
-    optimize_streaming_latency=4  # 0-4 scale
+    optimize_streaming_latency=4,  # 0-4 scale
 )
 
 llm = OpenAILLMService(
@@ -93,6 +94,7 @@ llm.register_direct_function(handle_save_contact_name)
 # FastAPI App
 #
 app = FastAPI()
+
 
 @app.post("/voice")
 async def voice_handler(request: Request):
@@ -113,6 +115,7 @@ async def voice_handler(request: Request):
     connect.append(stream)
     response.append(connect)
     return Response(content=str(response), media_type="application/xml")
+
 
 @app.websocket("/ws/{caller_phone:path}")
 async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
@@ -136,12 +139,18 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
     contact_context_message = ""
     if contact:
         if contact.get("name"):
-            contact_context_message = f"Known caller: {contact['name']} ({contact['phone']})."
+            contact_context_message = (
+                f"Known caller: {contact['name']} ({contact['phone']})."
+            )
         else:
-            contact_context_message = f"Returning caller (name unknown): {contact['phone']}."
+            contact_context_message = (
+                f"Returning caller (name unknown): {contact['phone']}."
+            )
     elif caller_phone:
-        contact_context_message = f"New caller. Phone: {caller_phone}. (Error retrieving/creating contact)"
-    
+        contact_context_message = (
+            f"New caller. Phone: {caller_phone}. (Error retrieving/creating contact)"
+        )
+
     if contact_context_message:
         logger.info(contact_context_message)
 
@@ -167,10 +176,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
             "role": "system",
             "content": system_prompt,
         },
-        {
-            "role": "system",
-            "content": f"CALLER CONTEXT: {contact_context_message}"
-        }
+        {"role": "system", "content": f"CALLER CONTEXT: {contact_context_message}"},
     ]
     context = LLMContext(messages)
     context_aggregator = LLMContextAggregatorPair(context)
@@ -183,7 +189,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
             llm,
             tts,
             transport.output(),
-            context_aggregator.assistant(),
+            ToolStrippingAssistantAggregator(context_aggregator.assistant()),
         ]
     )
 
@@ -198,10 +204,12 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
     )
 
     # Send an initial greeting
-    await task.queue_frames([
-        TextFrame("Hi, I'm Front Desk — your friendly AI receptionist."),
-        TextFrame("How can I help you today?"),
-    ])
+    await task.queue_frames(
+        [
+            TextFrame("Hi, I'm Front Desk — your friendly AI receptionist."),
+            TextFrame("How can I help you today?"),
+        ]
+    )
 
     runner_task = asyncio.create_task(runner.run(task))
 
@@ -223,7 +231,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
                 await log_conversation(
                     contact_id=contact["id"],
                     client_id=hardcoded_client_id,
-                    transcript=context.messages
+                    transcript=context.messages,
                 )
                 logger.info("Conversation logged successfully.")
             else:
@@ -248,7 +256,11 @@ async def main():
     This approach allows for graceful shutdown of both the server and the runner.
     """
     parser = argparse.ArgumentParser(description="Front Desk AI Receptionist")
-    parser.add_argument("--test-mode", action="store_true", help="Run in test mode, handling one call and then exiting.")
+    parser.add_argument(
+        "--test-mode",
+        action="store_true",
+        help="Run in test mode, handling one call and then exiting.",
+    )
     args = parser.parse_args()
 
     runner = PipelineRunner()
@@ -274,17 +286,18 @@ async def main():
 
     try:
         if args.test_mode:
-            logger.info("Running in test mode. The server will shut down after the first call.")
+            logger.info(
+                "Running in test mode. The server will shut down after the first call."
+            )
         await shutdown_event.wait()
     finally:
-        logger.info("Shutdown signal received. Stopping server and runner concurrently.")
+        logger.info(
+            "Shutdown signal received. Stopping server and runner concurrently."
+        )
         # Set the server to exit
         server.should_exit = True
         # Concurrently shut down the server and cancel the runner
-        shutdown_tasks = [
-            server_task,
-            runner.cancel()
-        ]
+        shutdown_tasks = [server_task, runner.cancel()]
         await asyncio.gather(*shutdown_tasks, return_exceptions=True)
         logger.info("Server and runner stopped gracefully.")
 

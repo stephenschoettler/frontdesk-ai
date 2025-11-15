@@ -91,7 +91,9 @@ Sign up for the following services and get an API key from each:
    source venv/bin/activate
 
 3. **Install Dependencies:**  
-   pip install \-r requirements.txt
+    pip install \-r requirements.txt  
+    # For development  
+    pip install pytest ruff
 
 4. Create .gitignore:  
    Create a file named .gitignore and add the following to protect your keys:  
@@ -150,3 +152,11 @@ Example: https://abcd-1234.ngrok-free.dev
 ### **You are LIVE.**
 
 Call your Twilio number. Your AI receptionist will answer.
+
+### Testing
+
+Run unit tests:
+```bash
+pytest
+```
+This verifies that tool code is stripped from spoken responses.

@@ -1,4 +1,5 @@
-from unittest.mock import patch
+import asyncio
+from unittest.mock import patch, AsyncMock
 
 from pipecat.frames.frames import TextFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
@@ -20,9 +21,10 @@ def test_tool_code_stripping():
     # Mock super().process_frame to return [text_frame]
     with patch(
         "pipecat.processors.aggregators.llm_response_universal.LLMAssistantAggregator.process_frame",
+        new_callable=AsyncMock,
         return_value=[text_frame],
     ):
-        result = aggregator.process_frame(text_frame, "downstream")
+        result = asyncio.run(aggregator.process_frame(text_frame, "downstream"))
 
     # Asserts
     assert len(result) == 1

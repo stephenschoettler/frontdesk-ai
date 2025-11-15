@@ -1,14 +1,16 @@
 import os
 import logging
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Optional
+import pytz
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 logger = logging.getLogger(__name__)
 
-SCOPES = ['https://www.googleapis.com/auth/calendar']
+SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
 
 def get_calendar_service():
     """
@@ -16,23 +18,32 @@ def get_calendar_service():
     """
     key_file_path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE_PATH")
     if not key_file_path:
-        logger.critical("GOOGLE_SERVICE_ACCOUNT_FILE_PATH environment variable not set.")
+        logger.critical(
+            "GOOGLE_SERVICE_ACCOUNT_FILE_PATH environment variable not set."
+        )
         return None
 
     try:
-        creds = service_account.Credentials.from_service_account_file(key_file_path, scopes=SCOPES)
-        service = build('calendar', 'v3', credentials=creds)
+        creds = service_account.Credentials.from_service_account_file(
+            key_file_path, scopes=SCOPES
+        )
+        service = build("calendar", "v3", credentials=creds)
         logger.info("Google Calendar service created successfully.")
         return service
     except Exception as e:
         logger.error(f"Failed to create Google Calendar service: {e}")
         return None
 
-async def get_available_slots(calendar_id: str, start_time: datetime, end_time: datetime) -> list[dict]:
+
+async def get_available_slots(
+    calendar_id: str, start_time: datetime, end_time: datetime
+) -> list[dict]:
     """
     Fetches free/busy information and returns a list of available 30-minute slots.
     """
-    logger.info(f"Checking calendar [{calendar_id}] for slots between {start_time} and {end_time}")
+    logger.info(
+        f"Checking calendar [{calendar_id}] for slots between {start_time} and {end_time}"
+    )
 
     service = get_calendar_service()
     if not service:
@@ -46,8 +57,8 @@ async def get_available_slots(calendar_id: str, start_time: datetime, end_time: 
     freebusy_body = {
         "timeMin": start_rfc,
         "timeMax": end_rfc,
-        "timeZone": start_time.tzinfo.tzname(),
-        "items": [{"id": calendar_id}]
+        "timeZone": start_time.tzinfo.tzname(start_time),
+        "items": [{"id": calendar_id}],
     }
 
     def _run_query():
@@ -66,7 +77,11 @@ async def get_available_slots(calendar_id: str, start_time: datetime, end_time: 
     if not freebusy_response:
         return []
 
-    busy_times = freebusy_response.get('calendars', {}).get(calendar_id, {}).get('busy', [])
+    busy_times = (
+        freebusy_response.get("calendars", {}).get(calendar_id, {}).get("busy", [])
+    )
+
+    logger.debug(f"Busy intervals returned: {busy_times}")
 
     # --- Calculate Available Slots ---
     available_slots = []
@@ -78,19 +93,22 @@ async def get_available_slots(calendar_id: str, start_time: datetime, end_time: 
 
         # Check if this 30-min slot overlaps with any busy time
         for busy in busy_times:
-            busy_start = datetime.fromisoformat(busy['start'])
-            busy_end = datetime.fromisoformat(busy['end'])
+            # Google may return "Z" for UTC; normalize it
+            busy_start = datetime.fromisoformat(busy["start"].replace("Z", "+00:00"))
+            busy_end = datetime.fromisoformat(busy["end"].replace("Z", "+00:00"))
 
-            # Check for overlap: (StartA < EndB) and (EndA > StartB)
+            # Convert to UTC for reliable comparison
+            busy_start = busy_start.astimezone(pytz.utc)
+            busy_end = busy_end.astimezone(pytz.utc)
+
             if (current_time < busy_end) and (slot_end_time > busy_start):
                 is_busy = True
                 break
 
         if not is_busy:
-            available_slots.append({
-                "start": current_time.isoformat(),
-                "end": slot_end_time.isoformat()
-            })
+            available_slots.append(
+                {"start": current_time.isoformat(), "end": slot_end_time.isoformat()}
+            )
 
         # Move to the next slot
         current_time = slot_end_time
@@ -98,12 +116,13 @@ async def get_available_slots(calendar_id: str, start_time: datetime, end_time: 
     logger.info(f"Found {len(available_slots)} available slots.")
     return available_slots
 
+
 async def book_appointment(
     calendar_id: str,
     start_time: datetime,
     end_time: datetime,
     summary: str,
-    description: Optional[str] = None
+    description: Optional[str] = None,
 ) -> Optional[dict]:
     """
     Creates a new event on the Google Calendar.
@@ -116,15 +135,15 @@ async def book_appointment(
         return None
 
     event_body = {
-        'summary': summary,
-        'description': description,
-        'start': {
-            'dateTime': start_time.isoformat(),
-            'timeZone': str(start_time.tzinfo) if start_time.tzinfo else "UTC",
+        "summary": summary,
+        "description": description,
+        "start": {
+            "dateTime": start_time.isoformat(),
+            "timeZone": str(start_time.tzinfo) if start_time.tzinfo else "UTC",
         },
-        'end': {
-            'dateTime': end_time.isoformat(),
-            'timeZone': str(end_time.tzinfo) if end_time.tzinfo else "UTC",
+        "end": {
+            "dateTime": end_time.isoformat(),
+            "timeZone": str(end_time.tzinfo) if end_time.tzinfo else "UTC",
         },
         # We can add attendees here later if needed
         # 'attendees': [
@@ -136,7 +155,11 @@ async def book_appointment(
         """This synchronous function will be run in a separate thread."""
         try:
             logger.info("Executing sync Google Calendar events.insert query...")
-            return service.events().insert(calendarId=calendar_id, body=event_body).execute()
+            return (
+                service.events()
+                .insert(calendarId=calendar_id, body=event_body)
+                .execute()
+            )
         except Exception as e:
             logger.error(f"Error in Google Calendar API call (events.insert): {e}")
             return None

@@ -1,21 +1,30 @@
 import re
-from typing import List, Any
+from typing import List
 
-from pipecat.frames.frames import TextFrame, Frame
+from pipecat.frames.frames import TextFrame, Frame, BotStoppedSpeakingFrame
 from pipecat.processors.aggregators.llm_response_universal import LLMAssistantAggregator
 
 
 class ToolStrippingAssistantAggregator(LLMAssistantAggregator):
-    def process_frame(self, frame: Frame, direction: Any) -> List[Frame]:
-        frames = super().process_frame(frame, direction)
-        filtered_frames = []
-        for f in frames:
-            if isinstance(f, TextFrame):
-                cleaned_text = re.sub(r"```tool_code\s*[\s\S]*?```", "", f.text)
-                cleaned_text = cleaned_text.strip()
-                if cleaned_text:
-                    f.text = cleaned_text
-                    filtered_frames.append(f)
+    async def process_frame(self, frame: Frame, direction) -> List[Frame]:
+        await super().process_frame(frame, direction)
+        if isinstance(frame, TextFrame):
+            cleaned_text = re.sub(r"```tool_code\s*[\s\S]*?```", "", frame.text)
+            cleaned_text = cleaned_text.strip()
+            if cleaned_text:
+                frame.text = cleaned_text
+                return [frame]
             else:
-                filtered_frames.append(f)
-        return filtered_frames
+                return []
+        if isinstance(frame, BotStoppedSpeakingFrame):
+            return [frame]
+        else:
+            return [frame]
+
+    async def push_aggregation(self):
+        aggregation = self._aggregation
+        self._aggregation = []
+        if aggregation:
+            self._context.add_messages(
+                [{"role": "assistant", "content": " ".join(aggregation)}]
+            )

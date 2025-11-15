@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, Request, Response
 from starlette.websockets import WebSocketState
 import uvicorn
+import datetime
 
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
@@ -40,6 +41,8 @@ from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 
 # Load environment variables
 load_dotenv()
+
+CLIENT_ID = os.environ.get("CLIENT_ID")
 
 
 # Configure logging
@@ -78,10 +81,23 @@ tts = ElevenLabsTTSService(
     optimize_streaming_latency=4,  # 0-4 scale
 )
 
-llm = OpenAILLMService(
+
+# Debug: Log raw LLM responses
+class DebugLLM(OpenAILLMService):
+    async def run_llm(self, *args, **kwargs):
+        response = await super().run_llm(*args, **kwargs)
+        logger.info(
+            f"RAW LLM RESPONSE: {response}"
+        )  # <-- Logs full output (tools/text)
+        return response
+
+
+llm = DebugLLM(
     api_key=os.environ["OPENROUTER_API_KEY"],
     base_url="https://openrouter.ai/api/v1",
-    model="google/gemini-2.0-flash-lite-001",
+    model="openai/gpt-4o-2024-08-06",
+    temperature=0.0,
+    tool_choice="auto",  # <-- Change to "auto" (required can skip in realtime)
 )
 
 # Register our tool handlers as "direct functions"
@@ -140,16 +156,14 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
     if contact:
         if contact.get("name"):
             contact_context_message = (
-                f"Known caller: {contact['name']} ({contact['phone']})."
+                f"Known caller: {contact['name']} (phone: {contact['phone']})"
             )
         else:
             contact_context_message = (
-                f"Returning caller (name unknown): {contact['phone']}."
+                f"Returning caller (name unknown) (phone: {contact['phone']})"
             )
     elif caller_phone:
-        contact_context_message = (
-            f"New caller. Phone: {caller_phone}. (Error retrieving/creating contact)"
-        )
+        contact_context_message = f"New caller (phone: {caller_phone})"
 
     if contact_context_message:
         logger.info(contact_context_message)
@@ -171,14 +185,29 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
         ),
     )
 
+    current_date = datetime.date.today()
+    current_day = current_date.strftime("%A")
+    date_context = f"Current date: {current_date} ({current_day}). Use this to accurately calculate dates and days of the week."
+
     messages = [
         {
             "role": "system",
             "content": system_prompt,
         },
         {"role": "system", "content": f"CALLER CONTEXT: {contact_context_message}"},
+        {"role": "system", "content": date_context},
     ]
-    context = LLMContext(messages)
+    logger.info(f"LLM Messages: {messages}")
+    # Get tools from LLM
+    from pipecat.adapters.schemas.tools_schema import ToolsSchema
+    from pipecat.adapters.schemas.direct_function import DirectFunctionWrapper
+
+    tools_list = []
+    for item in llm._functions.values():
+        if isinstance(item.handler, DirectFunctionWrapper):
+            tools_list.append(item.handler.to_function_schema())
+    tools = ToolsSchema(standard_tools=tools_list)
+    context = LLMContext(messages, tools=tools)  # Pass tools explicitly as second arg
     context_aggregator = LLMContextAggregatorPair(context)
 
     pipeline = Pipeline(
@@ -227,10 +256,9 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
             if contact and contact.get("id"):
                 logger.info(f"Logging conversation for contact ID: {contact['id']}...")
                 # NOTE: This is the 'id' (UUID) you copied from your 'clients' table
-                hardcoded_client_id = "53d895bd-1dfb-4636-9d53-c49cb143ab2d"
                 await log_conversation(
                     contact_id=contact["id"],
-                    client_id=hardcoded_client_id,
+                    client_id=CLIENT_ID,
                     transcript=context.messages,
                 )
                 logger.info("Conversation logged successfully.")

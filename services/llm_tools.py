@@ -1,9 +1,11 @@
 import logging
-from datetime import datetime, timedelta
+import os
+from datetime import datetime
 import pytz
 
 # Import our actual calendar functions
 from services.google_calendar import get_available_slots, book_appointment
+
 # Import our new database function
 from services.supabase_client import update_contact_name
 from pipecat.services.llm_service import FunctionCallParams
@@ -11,44 +13,55 @@ from pipecat.services.llm_service import FunctionCallParams
 
 logger = logging.getLogger(__name__)
 
-async def handle_get_available_slots(params: FunctionCallParams) -> list:
+
+async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> None:
     """
     Check for available 30-minute appointment slots on a specific day.
 
     Args:
-        day (str): The date to check for availability, in 'YYYY-MM-DD' format.
-        timezone (str, optional): The timezone of the caller. Defaults to "America/Los_Angeles".
+        date (str): The date to check for availability, in 'YYYY-MM-DD' format.
     """
-    day = params.arguments["day"]
-    timezone = params.arguments.get("timezone", "America/Los_Angeles")
-    logger.info(f"Handling get_available_slots for day: {day} in {timezone}")
+    args = params.arguments.get("kwargs", params.arguments)
+    raw_day = args["date"]
+    # Force default — ignore any user-provided timezone
+    timezone = "America/Los_Angeles"
+    logger.info(f"Handling get_available_slots for day: {raw_day} in {timezone}")
 
     try:
         # TODO: Get this from the 'client' record in the future
-        calendar_id = "primary" 
+        calendar_id = os.environ.get("DEFAULT_CALENDAR_ID", "primary")
 
         # --- Timezone & Date Logic ---
         tz = pytz.timezone(timezone)
 
         # Get the requested date
-        req_date = datetime.strptime(day, "%Y-%m-%d").date()
+        req_date = datetime.strptime(raw_day, "%Y-%m-%d").date()
 
-        # Define the start and end of the *workday* on that date in that timezone
-        # Example: 9am to 5pm
-        start_time = tz.localize(datetime(req_date.year, req_date.month, req_date.day, 9, 0, 0))
-        end_time = tz.localize(datetime(req_date.year, req_date.month, req_date.day, 17, 0, 0))
+        # Work-day window: 9 AM – 5 PM in the caller's local timezone
+        start_time = tz.localize(
+            datetime(req_date.year, req_date.month, req_date.day, 9, 0, 0)
+        )
+        end_time = tz.localize(
+            datetime(req_date.year, req_date.month, req_date.day, 17, 0, 0)
+        )
 
         # Convert to UTC for the API
         start_time_utc = start_time.astimezone(pytz.utc)
         end_time_utc = end_time.astimezone(pytz.utc)
 
-        return await get_available_slots(calendar_id, start_time_utc, end_time_utc)
+        logger.info(
+            f"Querying Google Calendar free/busy from {start_time_utc} to {end_time_utc} UTC"
+        )
+
+        result = await get_available_slots(calendar_id, start_time_utc, end_time_utc)
+        await params.result_callback(result)
 
     except Exception as e:
         logger.error(f"Error in handle_get_available_slots: {e}")
-        return [{"error": str(e)}]
+        await params.result_callback([{"error": str(e)}])
 
-async def handle_book_appointment(params: FunctionCallParams) -> dict:
+
+async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
     """
     Book an appointment on the calendar.
 
@@ -66,7 +79,7 @@ async def handle_book_appointment(params: FunctionCallParams) -> dict:
 
     try:
         # TODO: Get this from the 'client' record
-        calendar_id = "primary"
+        calendar_id = os.environ.get("DEFAULT_CALENDAR_ID", "primary")
 
         start_time_dt = datetime.fromisoformat(start_time)
         end_time_dt = datetime.fromisoformat(end_time)
@@ -76,19 +89,25 @@ async def handle_book_appointment(params: FunctionCallParams) -> dict:
             start_time=start_time_dt,
             end_time=end_time_dt,
             summary=summary,
-            description=description
+            description=description,
         )
 
         if event:
-            return {"status": "success", "event_id": event.get("id"), "summary": event.get("summary")}
+            result = {
+                "status": "success",
+                "event_id": event.get("id"),
+                "summary": event.get("summary"),
+            }
         else:
-            return {"status": "error", "message": "Failed to create event."}
+            result = {"status": "error", "message": "Failed to create event."}
+        await params.result_callback(result)
 
     except Exception as e:
         logger.error(f"Error in handle_book_appointment: {e}")
-        return {"status": "error", "message": str(e)}
+        await params.result_callback({"status": "error", "message": str(e)})
 
-async def handle_save_contact_name(params: FunctionCallParams) -> dict:
+
+async def handle_save_contact_name(params: FunctionCallParams, **kwargs) -> None:
     """
     Saves or updates a caller's name in the database using their phone number.
 
@@ -98,11 +117,14 @@ async def handle_save_contact_name(params: FunctionCallParams) -> dict:
     """
     phone_number = params.arguments["phone_number"]
     name = params.arguments["name"]
-    logger.info(f"Handling save_contact_name for: {phone_number}")
+    logger.info(f"TOOL CALL: save_contact_name(phone={phone_number}, name={name})")
 
     success = await update_contact_name(phone_number=phone_number, name=name)
 
     if success:
-        return {"status": "success", "message": f"Name {name} saved."}
+        logger.info(f"Name persisted in DB: {name}")
+        result = {"status": "success", "message": f"Name {name} saved."}
     else:
-        return {"status": "error", "message": "Failed to save name."}
+        logger.error("Failed to save name")
+        result = {"status": "error", "message": "Failed to save name."}
+    await params.result_callback(result)

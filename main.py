@@ -35,7 +35,7 @@ from services.llm_tools import (
     handle_book_appointment,
     handle_save_contact_name,
 )
-from services.response_filter import ToolStrippingAssistantAggregator
+
 from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 
 
@@ -218,7 +218,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
             llm,
             tts,
             transport.output(),
-            ToolStrippingAssistantAggregator(context_aggregator.assistant()),
+            context_aggregator.assistant(),
         ]
     )
 

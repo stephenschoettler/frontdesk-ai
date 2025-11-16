@@ -71,13 +71,13 @@ async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
         summary (str): A summary or title for the appointment (e.g., 'Booking for John Doe').
         description (str): A description for the appointment, including the caller's phone number.
     """
-    start_time = params.arguments["start_time"]
-    end_time = params.arguments["end_time"]
-    summary = params.arguments["summary"]
-    description = params.arguments["description"]
-    logger.info(f"Handling book_appointment for: {summary}")
-
     try:
+        args = params.arguments.get("kwargs", params.arguments)
+        start_time = args["start"]
+        end_time = args["end"]
+        summary = args["summary"]
+        description = args["description"]
+        logger.info(f"Handling book_appointment for: {summary}")
         # TODO: Get this from the 'client' record
         calendar_id = os.environ.get("DEFAULT_CALENDAR_ID", "primary")
 

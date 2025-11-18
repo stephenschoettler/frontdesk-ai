@@ -20,9 +20,11 @@ async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> No
 
     Args:
         date (str): The date to check for availability, in 'YYYY-MM-DD' format.
+        time_range (str, optional): "morning" or "afternoon" to filter slots to 9 AM - 12 PM or 12 PM - 5 PM.
     """
     args = params.arguments.get("kwargs", params.arguments)
     raw_day = args["date"]
+    time_range = args.get("time_range")
     # Force default — ignore any user-provided timezone
     timezone = "America/Los_Angeles"
     logger.info(f"Handling get_available_slots for day: {raw_day} in {timezone}")
@@ -53,7 +55,9 @@ async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> No
             f"Querying Google Calendar free/busy from {start_time_utc} to {end_time_utc} UTC"
         )
 
-        result = await get_available_slots(calendar_id, start_time_utc, end_time_utc)
+        result = await get_available_slots(
+            calendar_id, start_time_utc, end_time_utc, time_range
+        )
         await params.result_callback(result)
 
     except Exception as e:
@@ -73,8 +77,8 @@ async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
     """
     try:
         args = params.arguments.get("kwargs", params.arguments)
-        start_time = args["start"]
-        end_time = args["end"]
+        start_time = args["start_time"]
+        end_time = args["end_time"]
         summary = args["summary"]
         description = args["description"]
         logger.info(f"Handling book_appointment for: {summary}")
@@ -115,8 +119,9 @@ async def handle_save_contact_name(params: FunctionCallParams, **kwargs) -> None
         phone_number (str): The phone number of the contact to update (e.g., '+15551234567').
         name (str): The full name of the contact to save.
     """
-    phone_number = params.arguments["phone_number"]
-    name = params.arguments["name"]
+    args = params.arguments.get("kwargs", params.arguments)
+    phone_number = args["phone_number"]
+    name = args["name"]
     logger.info(f"TOOL CALL: save_contact_name(phone={phone_number}, name={name})")
 
     success = await update_contact_name(phone_number=phone_number, name=name)

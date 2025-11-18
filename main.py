@@ -95,7 +95,7 @@ class DebugLLM(OpenAILLMService):
 llm = DebugLLM(
     api_key=os.environ["OPENROUTER_API_KEY"],
     base_url="https://openrouter.ai/api/v1",
-    model="openai/gpt-4o-2024-08-06",
+    model="openai/gpt-4o-mini",
     temperature=0.0,
     tool_choice="auto",  # <-- Change to "auto" (required can skip in realtime)
 )

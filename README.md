@@ -50,7 +50,9 @@ Before you can run this application, you must sign up for all of the following s
    * Save both for your .env file.  
 3. **Create Tables:** Go to the **SQL Editor** in your project, paste the contents of `setup.sql` (located in the project root), and click **RUN**.
 
-See `setup.sql` in the project root for the SQL schema.
+4. **Seed Default Data:** In the same **SQL Editor**, paste the contents of `seed.sql` (located in the project root), and click **RUN**.
+
+See `setup.sql` in the project root for the SQL schema and `seed.sql` for default client data.
 
 ### **☐ 1.3. Google Calendar (The "Tool")**
 

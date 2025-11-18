@@ -85,7 +85,7 @@ tts = ElevenLabsTTSService(
 # Debug: Log raw LLM responses
 class DebugLLM(OpenAILLMService):
     async def run_llm(self, *args, **kwargs):
-        response = await super().run_llm(*args, **kwargs)
+        response = await super().run_llm(*args, **kwargs)  # type: ignore
         logger.info(
             f"RAW LLM RESPONSE: {response}"
         )  # <-- Logs full output (tools/text)
@@ -98,6 +98,7 @@ llm = DebugLLM(
     model="openai/gpt-4o-mini",
     temperature=0.0,
     tool_choice="auto",  # <-- Change to "auto" (required can skip in realtime)
+    stream=True,  # Enable streaming for speak while thinking
 )
 
 # Register our tool handlers as "direct functions"
@@ -121,7 +122,7 @@ async def voice_handler(request: Request):
     logger.info(f"Received call from: {from_number}")
 
     # URL-encode the phone number to handle the '+' sign
-    encoded_from_number = urllib.parse.quote(from_number) if from_number else ""
+    encoded_from_number = urllib.parse.quote(from_number) if from_number else ""  # type: ignore
 
     response = VoiceResponse()
     connect = Connect()
@@ -148,8 +149,8 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
     logger.info(f"Call data: {call_data}")
 
     contact = None
-    caller_phone = urllib.parse.unquote(caller_phone) if caller_phone else None
     if caller_phone:
+        caller_phone = urllib.parse.unquote(caller_phone)
         contact = await get_or_create_contact(caller_phone)
 
     contact_context_message = ""
@@ -207,7 +208,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
         if isinstance(item.handler, DirectFunctionWrapper):
             tools_list.append(item.handler.to_function_schema())
     tools = ToolsSchema(standard_tools=tools_list)
-    context = LLMContext(messages, tools=tools)  # Pass tools explicitly as second arg
+    context = LLMContext(messages, tools=tools)  # type: ignore  # Pass tools explicitly as second arg
     context_aggregator = LLMContextAggregatorPair(context)
 
     pipeline = Pipeline(
@@ -256,12 +257,13 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
             if contact and contact.get("id"):
                 logger.info(f"Logging conversation for contact ID: {contact['id']}...")
                 # NOTE: This is the 'id' (UUID) you copied from your 'clients' table
-                await log_conversation(
-                    contact_id=contact["id"],
-                    client_id=CLIENT_ID,
-                    transcript=context.messages,
-                )
-                logger.info("Conversation logged successfully.")
+                if CLIENT_ID:
+                    await log_conversation(
+                        contact_id=contact["id"],
+                        client_id=CLIENT_ID,
+                        transcript=context.messages,
+                    )
+                    logger.info("Conversation logged successfully.")
             else:
                 logger.warning("No contact with ID found, skipping conversation log.")
         except Exception as e:

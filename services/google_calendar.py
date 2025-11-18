@@ -42,7 +42,7 @@ async def get_available_slots(
     # Removed time_range param
 ) -> list[dict]:
     """
-    Fetches free/busy information and returns a list of available 30-minute slots.
+    Fetches free/busy information and returns a list of available 1-hour slots.
 
     Args:
         calendar_id (str): The calendar ID to check.
@@ -97,10 +97,10 @@ async def get_available_slots(
     current_time = start_time
 
     while current_time < end_time:
-        slot_end_time = current_time + timedelta(minutes=30)
+        slot_end_time = current_time + timedelta(hours=1)
         is_busy = False
 
-        # Check if this 30-min slot overlaps with any busy time
+        # Check if this 1-hour slot overlaps with any busy time
         for busy in busy_times:
             # Google may return "Z" for UTC; normalize it
             busy_start = datetime.fromisoformat(busy["start"].replace("Z", "+00:00"))

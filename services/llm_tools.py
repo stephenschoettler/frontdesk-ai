@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> None:
     """
-    Check for available 30-minute appointment slots on a specific day.
+    Check for available 1-hour appointment slots on a specific day.
 
     Args:
         date (str): The date to check for availability, in 'YYYY-MM-DD' format.

@@ -6,12 +6,14 @@ import pytz
 # Import our actual calendar functions
 from services.google_calendar import get_available_slots, book_appointment
 
-# Import our new database function
-from services.supabase_client import update_contact_name
+# Import our new database function and the new client config function
+from services.supabase_client import update_contact_name, get_client_config
 from pipecat.services.llm_service import FunctionCallParams
 
 
 logger = logging.getLogger(__name__)
+
+
 
 
 async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> None:
@@ -22,29 +24,39 @@ async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> No
         date (str): The date to check for availability, in 'YYYY-MM-DD' format.
         time_range (str, optional): "morning" or "afternoon" to filter slots to 9 AM - 12 PM or 12 PM - 5 PM.
     """
+    client_id = os.environ.get("CLIENT_ID")
+    if not client_id:
+        await params.result_callback([{"error": "Client ID is not configured."}])
+        return
+
+    # --- FETCH CLIENT CONFIG TO GET DYNAMIC SETTINGS ---
+    client_config = await get_client_config(client_id)
+    if not client_config:
+        await params.result_callback([{"error": "Failed to fetch client configuration."}])
+        return
+
+    # --- USE CONFIG VALUES with Fallbacks (Defaults from setup.sql) ---
+    calendar_id = client_config.get("calendar_id", "primary")
+    timezone = client_config.get("business_timezone", "America/Los_Angeles")
+    start_hour_default = client_config.get("business_start_hour", 9)
+    end_hour_default = client_config.get("business_end_hour", 17)
+
     args = params.arguments.get("kwargs", params.arguments)
     raw_day = args["date"]
     time_range = args.get("time_range")
-    # Force default — ignore any user-provided timezone
-    timezone = "America/Los_Angeles"
+    
     logger.info(f"Handling get_available_slots for day: {raw_day} in {timezone}")
 
     try:
-        # TODO: Get this from the 'client' record in the future
-        calendar_id = os.environ.get("DEFAULT_CALENDAR_ID", "primary")
-
         # --- Timezone & Date Logic ---
         tz = pytz.timezone(timezone)
 
         # Get the requested date
         req_date = datetime.strptime(raw_day, "%Y-%m-%d").date()
 
-        # [cite_start]Determine working hours based on time_range [cite: 56]
-        # Morning: 9 AM - 12 PM
-        # Afternoon: 12 PM - 5 PM
-        # Default: 9 AM - 5 PM
-        start_hour = 9
-        end_hour = 17
+        # Determine working hours based on time_range
+        start_hour = start_hour_default
+        end_hour = end_hour_default
 
         if time_range == "morning":
             end_hour = 12
@@ -67,8 +79,6 @@ async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> No
             f"Querying Google Calendar free/busy from {start_time_utc} to {end_time_utc} UTC"
         )
 
-        # Pass the correctly calculated UTC window. 
-        # We removed the 'time_range' param from the inner function to avoid the logic bug.
         result = await get_available_slots(
             calendar_id, start_time_utc, end_time_utc
         )
@@ -89,19 +99,42 @@ async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
         summary (str): A summary or title for the appointment (e.g., 'Booking for John Doe').
         description (str): A description for the appointment, including the caller's phone number.
     """
+    client_id = os.environ.get("CLIENT_ID")
+    if not client_id:
+        await params.result_callback({"status": "error", "message": "Client ID is not configured."})
+        return
+
+    # --- FETCH CLIENT CONFIG TO GET CALENDAR ID ---
+    client_config = await get_client_config(client_id)
+    if not client_config:
+        await params.result_callback({"status": "error", "message": "Failed to fetch client configuration."})
+        return
+
+    calendar_id = client_config.get("calendar_id", "primary") # Use config or fallback
+
     try:
         args = params.arguments.get("kwargs", params.arguments)
 
-        # FIX: The LLM is passing 'start' and 'end' keys, not 'start_time' and 'end_time'.
-        start_time = args["start"]
-        end_time = args["end"]
-
-        summary = args["summary"]
+        # FIX: We now use the correct keys from the LLM arguments.
+        start_time = args["start_time"]
+        end_time = args["end_time"]
         description = args["description"]
-        logger.info(f"Handling book_appointment for: {summary}")
-        # TODO: Get this from the 'client' record
-        calendar_id = os.environ.get("DEFAULT_CALENDAR_ID", "primary")
 
+        # FIX: Robustly get the summary, or build it from provided contact info.
+        # This prevents the KeyError: 'summary' seen in the log.
+        summary = args.get("summary")
+        contact_name = args.get("name")
+        phone_number = args.get("phone")
+
+        if not summary:
+            if contact_name:
+                summary = f"Booking for {contact_name}"
+            elif phone_number:
+                summary = f"Booking for {phone_number}"
+            else:
+                summary = "AI-Scheduled Appointment"
+        logger.info(f"Handling book_appointment for: {summary}")
+        
         start_time_dt = datetime.fromisoformat(start_time)
         end_time_dt = datetime.fromisoformat(end_time)
 

@@ -9,6 +9,7 @@ from fastapi import FastAPI, WebSocket, Request, Response
 from starlette.websockets import WebSocketState
 import uvicorn
 import datetime
+from typing import Optional
 
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
@@ -27,7 +28,8 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
 )
 from pipecat.runner.utils import parse_telephony_websocket
-from services.supabase_client import get_or_create_contact, log_conversation
+# Import the new function from supabase_client
+from services.supabase_client import get_or_create_contact, log_conversation, get_client_config
 
 # Import our new tool handlers
 from services.llm_tools import (
@@ -66,51 +68,80 @@ else:
 # ------------------
 
 #
-# AI Services
+# AI Services Setup Function (Now uses the database config)
 #
-with open("system_prompt.txt", "r") as f:
-    system_prompt = f.read()
+async def setup_services() -> tuple[
+    Optional[DeepgramSTTService],
+    Optional[ElevenLabsTTSService],
+    Optional[OpenAILLMService],
+    Optional[str],
+    Optional[str],
+]:
+    """Fetches client config and initializes all services."""
+    if not CLIENT_ID:
+        logger.critical("FATAL: CLIENT_ID environment variable is not set. Cannot proceed.")
+        return None, None, None, None, None
 
-stt = DeepgramSTTService(
-    api_key=os.environ["DEEPGRAM_API_KEY"], model="nova-2-phonecall", vad_events=True
-)
-tts = ElevenLabsTTSService(
-    api_key=os.environ["ELEVENLABS_API_KEY"],
-    voice_id="21m00Tcm4TlvDq8ikWAM",  # Rachel
-    model_id="eleven_flash_v2_5",
-    optimize_streaming_latency=4,  # 0-4 scale
-)
+    client_config = await get_client_config(CLIENT_ID)
+    if not client_config:
+        logger.critical(f"FATAL: Could not fetch configuration for CLIENT_ID: {CLIENT_ID}")
+        return None, None, None, None, None
 
+    # --- Extract Config Values ---
+    system_prompt = client_config.get("system_prompt", "You are an AI receptionist.")
+    llm_model = client_config.get("llm_model", "openai/gpt-4o-mini")
+    tts_voice_id = client_config.get("tts_voice_id", "21m00Tcm4TlvDq8ikWAM")
+    initial_greeting = client_config.get("initial_greeting")
 
-# Debug: Log raw LLM responses
-class DebugLLM(OpenAILLMService):
-    async def run_llm(self, *args, **kwargs):
-        response = await super().run_llm(*args, **kwargs)  # type: ignore
-        logger.info(
-            f"RAW LLM RESPONSE: {response}"
-        )  # <-- Logs full output (tools/text)
-        return response
+    # STT (Deepgram is configured via ENV only)
+    stt = DeepgramSTTService(
+        api_key=os.environ["DEEPGRAM_API_KEY"], model="nova-2-phonecall", vad_events=True
+    )
+    
+    # TTS (ElevenLabs uses config values)
+    tts = ElevenLabsTTSService(
+        api_key=os.environ["ELEVENLABS_API_KEY"],
+        voice_id=tts_voice_id,
+        model_id="eleven_flash_v2_5",
+        optimize_streaming_latency=4,
+    )
 
+    # Debug: Log raw LLM responses
+    class DebugLLM(OpenAILLMService):
+        async def run_llm(self, *args, **kwargs):
+            response = await super().run_llm(*args, **kwargs)  # type: ignore
+            logger.info(f"RAW LLM RESPONSE: {response}")
+            return response
 
-llm = DebugLLM(
-    api_key=os.environ["OPENROUTER_API_KEY"],
-    base_url="https://openrouter.ai/api/v1",
-    model="openai/gpt-4o-mini",
-    temperature=0.0,
-    tool_choice="auto",  # <-- Change to "auto" (required can skip in realtime)
-    stream=True,  # Enable streaming for speak while thinking
-)
+    # LLM (OpenRouter uses config values)
+    llm = DebugLLM(
+        api_key=os.environ["OPENROUTER_API_KEY"],
+        base_url="https://openrouter.ai/api/v1",
+        model=llm_model,
+        temperature=0.0,
+        tool_choice="auto",
+        stream=True,
+    )
 
-# Register our tool handlers as "direct functions"
-# Pipecat will auto-generate the schema from the function's docstring and type hints.
-llm.register_direct_function(handle_get_available_slots)
-llm.register_direct_function(handle_book_appointment)
-llm.register_direct_function(handle_save_contact_name)
+    # Register tool handlers (These remain the same)
+    llm.register_direct_function(handle_get_available_slots)
+    llm.register_direct_function(handle_book_appointment)
+    llm.register_direct_function(handle_save_contact_name)
+
+    return stt, tts, llm, system_prompt, initial_greeting
+
 
 #
 # FastAPI App
 #
 app = FastAPI()
+
+# Initialize state placeholders
+app.state.stt = None  # type: Optional[DeepgramSTTService]
+app.state.tts = None  # type: Optional[ElevenLabsTTSService]
+app.state.llm = None  # type: Optional[OpenAILLMService]
+app.state.system_prompt = None  # type: Optional[str]
+app.state.initial_greeting = None  # type: Optional[str]
 
 
 @app.post("/voice")
@@ -137,9 +168,20 @@ async def voice_handler(request: Request):
 @app.websocket("/ws/{caller_phone:path}")
 async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
     """Main websocket endpoint for the Pipecat service."""
+    # Retrieve services and config from application state
     runner: PipelineRunner = websocket.app.state.runner
     test_mode: bool = websocket.app.state.test_mode
     shutdown_event: asyncio.Event = websocket.app.state.shutdown_event
+    llm = websocket.app.state.llm
+    stt = websocket.app.state.stt
+    tts = websocket.app.state.tts
+    system_prompt = websocket.app.state.system_prompt
+    initial_greeting = websocket.app.state.initial_greeting
+
+    if not all([llm, stt, tts, system_prompt, initial_greeting]):
+        logger.error("AI Services not initialized. Disconnecting.")
+        await websocket.close()
+        return
 
     logger.info("New websocket connection established.")
     await websocket.accept()
@@ -193,6 +235,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
     messages = [
         {
             "role": "system",
+            # Use database-fetched system prompt
             "content": system_prompt,
         },
         {"role": "system", "content": f"CALLER CONTEXT: {contact_context_message}"},
@@ -234,29 +277,37 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
     )
 
     # Send an initial greeting
-    await task.queue_frames(
-        [
+    greeting_frames = []
+    # Use config value for greeting, split it for better TTS delivery
+    if initial_greeting:
+        # Simple split on period followed by a space
+        greeting_parts = initial_greeting.split('. ')
+        for part in greeting_parts:
+            # Ensure we re-add the period if it was a sentence split
+            part = part.strip()
+            if part:
+                greeting_frames.append(TextFrame(part + "." if initial_greeting.endswith('.') else part))
+    else:
+        # Fallback to the old hardcoded frames logic just in case the seed failed
+        greeting_frames = [
             TextFrame("Hi, I'm Front Desk — your friendly AI receptionist."),
             TextFrame("How can I help you today?"),
         ]
-    )
+
+    await task.queue_frames(greeting_frames)
 
     runner_task = asyncio.create_task(runner.run(task))
 
     # Wait for the websocket to disconnect.
-    # We can't just loop on `websocket.receive_text()` because the transport
-    # is already doing that. Instead, we'll poll the connection state.
     try:
         while websocket.client_state == WebSocketState.CONNECTED:
             await asyncio.sleep(0.1)
     except asyncio.CancelledError:
-        # This can happen if the server is shutting down.
         pass
     finally:
         try:
             if contact and contact.get("id"):
                 logger.info(f"Logging conversation for contact ID: {contact['id']}...")
-                # NOTE: This is the 'id' (UUID) you copied from your 'clients' table
                 if CLIENT_ID:
                     await log_conversation(
                         contact_id=contact["id"],
@@ -269,10 +320,8 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
         except Exception as e:
             logger.error(f"Failed to log conversation: {e}")
         logger.info("Websocket disconnected. Cancelling pipeline task.")
-        # This will cause the runner_task to finish.
         if not runner_task.done():
             await task.cancel()
-        # Wait for the runner to finish cleaning up.
         await runner_task
 
     if test_mode:
@@ -283,7 +332,6 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
 async def main():
     """
     Main function to run the FastAPI server and the Pipecat runner.
-    This approach allows for graceful shutdown of both the server and the runner.
     """
     parser = argparse.ArgumentParser(description="Front Desk AI Receptionist")
     parser.add_argument(
@@ -292,6 +340,12 @@ async def main():
         help="Run in test mode, handling one call and then exiting.",
     )
     args = parser.parse_args()
+    
+    # --- NEW: Initialize services and store them in app state ---
+    app.state.stt, app.state.tts, app.state.llm, app.state.system_prompt, app.state.initial_greeting = await setup_services()
+    if not app.state.llm:
+        logger.critical("AI Services failed to initialize. Exiting application.")
+        return
 
     runner = PipelineRunner()
     shutdown_event = asyncio.Event()

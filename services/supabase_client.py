@@ -66,6 +66,34 @@ async def get_or_create_contact(phone_number: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+async def get_client_config(client_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetches the configuration for a client by their ID.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return None
+
+    try:
+        response = (
+            supabase.table("clients").select("*").eq("id", client_id).execute()
+        )
+
+        if response.data:
+            logger.info(f"Found client config for {client_id}")
+            return response.data[0]
+        else:
+            logger.error(f"No client found for ID: {client_id}")
+            return None
+
+    except APIError as e:
+        logger.error(f"Supabase API error in get_client_config: {e.body}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in get_client_config: {e}")
+        return None
+
+
 async def log_conversation(
     contact_id: str, client_id: str, transcript: Any, summary: Optional[str] = None
 ):

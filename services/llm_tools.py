@@ -39,12 +39,24 @@ async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> No
         # Get the requested date
         req_date = datetime.strptime(raw_day, "%Y-%m-%d").date()
 
-        # Work-day window: 9 AM – 5 PM in the caller's local timezone
+        # [cite_start]Determine working hours based on time_range [cite: 56]
+        # Morning: 9 AM - 12 PM
+        # Afternoon: 12 PM - 5 PM
+        # Default: 9 AM - 5 PM
+        start_hour = 9
+        end_hour = 17
+
+        if time_range == "morning":
+            end_hour = 12
+        elif time_range == "afternoon":
+            start_hour = 12
+
+        # Create localized datetimes first
         start_time = tz.localize(
-            datetime(req_date.year, req_date.month, req_date.day, 9, 0, 0)
+            datetime(req_date.year, req_date.month, req_date.day, start_hour, 0, 0)
         )
         end_time = tz.localize(
-            datetime(req_date.year, req_date.month, req_date.day, 17, 0, 0)
+            datetime(req_date.year, req_date.month, req_date.day, end_hour, 0, 0)
         )
 
         # Convert to UTC for the API
@@ -55,8 +67,10 @@ async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> No
             f"Querying Google Calendar free/busy from {start_time_utc} to {end_time_utc} UTC"
         )
 
+        # Pass the correctly calculated UTC window. 
+        # We removed the 'time_range' param from the inner function to avoid the logic bug.
         result = await get_available_slots(
-            calendar_id, start_time_utc, end_time_utc, time_range
+            calendar_id, start_time_utc, end_time_utc
         )
         await params.result_callback(result)
 
@@ -77,8 +91,11 @@ async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
     """
     try:
         args = params.arguments.get("kwargs", params.arguments)
-        start_time = args["start_time"]
-        end_time = args["end_time"]
+
+        # FIX: The LLM is passing 'start' and 'end' keys, not 'start_time' and 'end_time'.
+        start_time = args["start"]
+        end_time = args["end"]
+
         summary = args["summary"]
         description = args["description"]
         logger.info(f"Handling book_appointment for: {summary}")

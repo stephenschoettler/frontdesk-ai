@@ -39,7 +39,7 @@ async def get_available_slots(
     calendar_id: str,
     start_time: datetime,
     end_time: datetime,
-    time_range: Optional[str] = None,
+    # Removed time_range param
 ) -> list[dict]:
     """
     Fetches free/busy information and returns a list of available 30-minute slots.
@@ -48,7 +48,6 @@ async def get_available_slots(
         calendar_id (str): The calendar ID to check.
         start_time (datetime): The start time for checking availability.
         end_time (datetime): The end time for checking availability.
-        time_range (str, optional): Filter for "morning" (9 AM - 12 PM) or "afternoon" (12 PM - 5 PM).
     """
     logger.info(
         f"Checking calendar [{calendar_id}] for slots between {start_time} and {end_time}"
@@ -92,17 +91,8 @@ async def get_available_slots(
 
     logger.debug(f"Busy intervals returned: {busy_times}")
 
-    # Apply time range filter
-    if time_range == "morning":
-        # Morning: 9 AM - 12 PM
-        morning_end = start_time.replace(hour=12, minute=0, second=0, microsecond=0)
-        end_time = min(end_time, morning_end)
-    elif time_range == "afternoon":
-        # Afternoon: 12 PM - 5 PM
-        afternoon_start = start_time.replace(hour=12, minute=0, second=0, microsecond=0)
-        start_time = max(start_time, afternoon_start)
-
     # --- Calculate Available Slots ---
+    # (Removed the broken time_range filtering logic here) [cite_start][cite: 132]
     available_slots = []
     current_time = start_time
 

@@ -1,10 +1,5 @@
 .env
 front-desk-477916-4a570aeabc6f.json
-AGENTS.md
-GEMINI.md
-pipecat-examples/
 venv/
 __pycache__/
-frontdesk.log
-main.py.bak
 services/__pycache__/

@@ -95,16 +95,7 @@ Sign up for the following services and get an API key from each:
     # For development  
     pip install pytest ruff
 
-4. Create .gitignore:  
-   Create a file named .gitignore and add the following to protect your keys:  
-   .env  
-   venv/  
-   \_\_pycache\_\_/  
-   \*.pyc  
-   \*.json  
-   app.log
-
-5. Create .env File:
+4. Create .env File:
    Copy the `.env.example` file to `.env`. This file will hold your secret keys.
    ```sh
    cp .env.example .env

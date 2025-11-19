@@ -6,6 +6,7 @@ import signal
 import urllib.parse
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, Request, Response
+from fastapi.staticfiles import StaticFiles
 from starlette.websockets import WebSocketState
 import uvicorn
 import datetime
@@ -29,7 +30,15 @@ from pipecat.processors.aggregators.llm_response_universal import (
 )
 from pipecat.runner.utils import parse_telephony_websocket
 # Import the new function from supabase_client
-from services.supabase_client import get_or_create_contact, log_conversation, get_client_config
+from services.supabase_client import (
+    get_or_create_contact,
+    log_conversation,
+    get_client_config,
+    get_all_clients,
+    create_client_record,
+    update_client,
+    delete_client,
+)
 
 # Import our new tool handlers
 from services.llm_tools import (
@@ -136,12 +145,15 @@ async def setup_services() -> tuple[
 #
 app = FastAPI()
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # Initialize state placeholders
-app.state.stt = None  # type: Optional[DeepgramSTTService]
-app.state.tts = None  # type: Optional[ElevenLabsTTSService]
-app.state.llm = None  # type: Optional[OpenAILLMService]
-app.state.system_prompt = None  # type: Optional[str]
-app.state.initial_greeting = None  # type: Optional[str]
+app.state.stt = None
+app.state.tts = None
+app.state.llm = None
+app.state.system_prompt = None
+app.state.initial_greeting = None
 
 
 @app.post("/voice")
@@ -327,6 +339,82 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
     if test_mode:
         logger.info("Test mode: First call finished. Shutting down.")
         shutdown_event.set()
+
+
+#
+# API Endpoints for Client Management
+#
+from fastapi import HTTPException
+from pydantic import BaseModel
+from typing import List, Optional
+
+
+class ClientCreate(BaseModel):
+    name: str
+    cell: Optional[str] = None
+    calendar_id: Optional[str] = None
+    business_timezone: str = "America/Los_Angeles"
+    business_start_hour: int = 9
+    business_end_hour: int = 17
+    llm_model: str = "openai/gpt-4o-mini"
+    tts_voice_id: str = "21m00Tcm4TlvDq8ikWAM"
+    initial_greeting: Optional[str] = None
+    system_prompt: Optional[str] = None
+
+
+class ClientUpdate(BaseModel):
+    name: Optional[str] = None
+    cell: Optional[str] = None
+    calendar_id: Optional[str] = None
+    business_timezone: Optional[str] = None
+    business_start_hour: Optional[int] = None
+    business_end_hour: Optional[int] = None
+    llm_model: Optional[str] = None
+    tts_voice_id: Optional[str] = None
+    initial_greeting: Optional[str] = None
+    system_prompt: Optional[str] = None
+
+
+@app.get("/api/clients")
+async def list_clients():
+    clients = await get_all_clients()
+    if clients is None:
+        raise HTTPException(status_code=500, detail="Failed to fetch clients")
+    return {"clients": clients}
+
+
+@app.post("/api/clients")
+async def create_new_client(client: ClientCreate):
+    data = client.dict()
+    new_client = await create_client_record(data)
+    if new_client is None:
+        raise HTTPException(status_code=500, detail="Failed to create client")
+    return new_client
+
+
+@app.get("/api/clients/{client_id}")
+async def get_client(client_id: str):
+    client = await get_client_config(client_id)
+    if client is None:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return client
+
+
+@app.put("/api/clients/{client_id}")
+async def update_existing_client(client_id: str, client: ClientUpdate):
+    data = {k: v for k, v in client.dict().items() if v is not None}
+    updated_client = await update_client(client_id, data)
+    if updated_client is None:
+        raise HTTPException(status_code=500, detail="Failed to update client")
+    return updated_client
+
+
+@app.delete("/api/clients/{client_id}")
+async def delete_existing_client(client_id: str):
+    success = await delete_client(client_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to delete client")
+    return {"message": "Client deleted successfully"}
 
 
 async def main():

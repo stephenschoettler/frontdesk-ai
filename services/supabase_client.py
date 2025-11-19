@@ -1,7 +1,7 @@
 import os
 import logging
 from typing import Any, Optional, Dict
-from supabase import create_client, Client
+from supabase import create_client as sb_create_client, Client
 from postgrest.exceptions import APIError
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ def get_supabase_client() -> Optional[Client]:
         logger.error("Supabase URL or Key is missing from environment variables.")
         return None
     try:
-        return create_client(supabase_url, supabase_key)
+        return sb_create_client(supabase_url, supabase_key)
     except Exception as e:
         logger.error(f"Failed to create Supabase client: {e}")
         return None
@@ -148,4 +148,100 @@ async def update_contact_name(phone_number: str, name: str) -> bool:
             return False
     except Exception as e:
         logger.error(f"update_contact_name exception: {e}")
+        return False
+
+
+async def get_all_clients() -> Optional[list[Dict[str, Any]]]:
+    """
+    Fetches all client configurations.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return None
+
+    try:
+        response = supabase.table("clients").select("*").execute()
+        if response.data:
+            logger.info(f"Fetched {len(response.data)} clients")
+            return response.data
+        else:
+            logger.info("No clients found")
+            return []
+    except APIError as e:
+        logger.error(f"Supabase API error in get_all_clients: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in get_all_clients: {e}")
+        return None
+
+
+async def create_client_record(client_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Creates a new client configuration.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return None
+
+    try:
+        response = supabase.table("clients").insert(client_data, returning="representation").execute()
+        if response.data:
+            logger.info(f"Created new client: {response.data[0]['id']}")
+            return response.data[0]
+        else:
+            logger.error("Failed to create client")
+            return None
+    except APIError as e:
+        logger.error(f"Supabase API error in create_client: {e.body}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in create_client: {e}")
+        return None
+
+
+async def update_client(client_id: str, client_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Updates an existing client configuration.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return None
+
+    try:
+        response = supabase.table("clients").update(client_data, returning="representation").eq("id", client_id).execute()
+        if response.data:
+            logger.info(f"Updated client: {client_id}")
+            return response.data[0]
+        else:
+            logger.error(f"Failed to update client: {client_id}")
+            return None
+    except APIError as e:
+        logger.error(f"Supabase API error in update_client: {e.body}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in update_client: {e}")
+        return None
+
+
+async def delete_client(client_id: str) -> bool:
+    """
+    Deletes a client configuration.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return False
+
+    try:
+        response = supabase.table("clients").delete().eq("id", client_id).execute()
+        if response.data:
+            logger.info(f"Deleted client: {client_id}")
+            return True
+        else:
+            logger.error(f"Failed to delete client: {client_id}")
+            return False
+    except APIError as e:
+        logger.error(f"Supabase API error in delete_client: {e.body}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error in delete_client: {e}")
         return False

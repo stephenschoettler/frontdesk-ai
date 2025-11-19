@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Front Desk Admin Panel</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Vue.js -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Axios for HTTP requests -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        .client-card { transition: all 0.3s; }
+        .client-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .status-indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .status-active { background-color: #28a745; }
+        .status-inactive { background-color: #6c757d; }
+        .audit-log { max-height: 300px; overflow-y: auto; }
+        .template-selector { max-width: 200px; }
+    </style>
+</head>
+<body>
+    <div id="app" class="container-fluid">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+            <div class="container">
+                <a class="navbar-brand" href="#">Front Desk Admin Panel</a>
+                <div class="navbar-nav ms-auto">
+                    <span class="nav-item nav-link">Total Clients: {{ clients.length }}</span>
+                </div>
+            </div>
+        </nav>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2>Client Configurations</h2>
+                    <div>
+                        <button @click="showCreateModal = true" class="btn btn-success me-2">Create New Client</button>
+                        <button @click="showBulkModal = true" v-if="selectedClients.length > 0" class="btn btn-warning">Bulk Actions</button>
+                    </div>
+                </div>
+
+                <!-- Search and Filter -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <input v-model="searchQuery" @input="filterClients" type="text" class="form-control" placeholder="Search clients...">
+                    </div>
+                    <div class="col-md-2">
+                        <select v-model="filterStatus" @change="filterClients" class="form-select">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select v-model="sortBy" @change="sortClients" class="form-select">
+                            <option value="name">Sort by Name</option>
+                            <option value="created_at">Sort by Created</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button @click="exportClients" class="btn btn-outline-primary">Export</button>
+                    </div>
+                </div>
+
+                <!-- Clients List -->
+                <div class="row">
+                    <div v-for="client in filteredClients" :key="client.id" class="col-md-6 col-lg-4 mb-4">
+                        <div class="card client-card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">{{ client.name }}</h5>
+                                <div>
+                                    <input type="checkbox" v-model="selectedClients" :value="client.id" class="form-check-input">
+                                    <span :class="['status-indicator', client.cell ? 'status-active' : 'status-inactive']"></span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text"><strong>Cell:</strong> {{ client.cell || 'Not set' }}</p>
+                                <p class="card-text"><strong>Timezone:</strong> {{ client.business_timezone }}</p>
+                                <p class="card-text"><strong>Hours:</strong> {{ client.business_start_hour }} - {{ client.business_end_hour }}</p>
+                                <p class="card-text"><strong>LLM Model:</strong> {{ client.llm_model }}</p>
+                                <small class="text-muted">Created: {{ formatDate(client.created_at) }}</small>
+                            </div>
+                            <div class="card-footer">
+                                <button @click="editClient(client)" class="btn btn-primary btn-sm me-2">Edit</button>
+                                <button @click="duplicateClient(client)" class="btn btn-secondary btn-sm me-2">Duplicate</button>
+                                <button @click="deleteClient(client.id)" class="btn btn-danger btn-sm">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <nav v-if="totalPages > 1" aria-label="Client pagination">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                            <a class="page-link" href="#" @click.prevent="currentPage--" v-if="currentPage > 1">Previous</a>
+                        </li>
+                        <li v-for="page in visiblePages" :key="page" class="page-item" :class="{ active: page === currentPage }">
+                            <a class="page-link" href="#" @click.prevent="currentPage = page">{{ page }}</a>
+                        </li>
+                        <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+                            <a class="page-link" href="#" @click.prevent="currentPage++" v-if="currentPage < totalPages">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Create/Edit Modal -->
+        <div class="modal fade" :class="{ show: showCreateModal || showEditModal }" :style="{ display: (showCreateModal || showEditModal) ? 'block' : 'none' }" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ showEditModal ? 'Edit Client' : 'Create New Client' }}</h5>
+                        <button type="button" class="btn-close" @click="closeModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form @submit.prevent="saveClient">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Name *</label>
+                                        <input v-model="clientForm.name" type="text" class="form-control" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Cell Phone</label>
+                                        <input v-model="clientForm.cell" type="text" class="form-control">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Calendar ID</label>
+                                        <input v-model="clientForm.calendar_id" type="text" class="form-control">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Business Timezone</label>
+                                        <select v-model="clientForm.business_timezone" class="form-select">
+                                            <option value="America/Los_Angeles">America/Los_Angeles</option>
+                                            <option value="America/New_York">America/New_York</option>
+                                            <option value="America/Chicago">America/Chicago</option>
+                                            <option value="America/Denver">America/Denver</option>
+                                        </select>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Start Hour</label>
+                                                <input v-model.number="clientForm.business_start_hour" type="number" class="form-control" min="0" max="23">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">End Hour</label>
+                                                <input v-model.number="clientForm.business_end_hour" type="number" class="form-control" min="0" max="23">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">LLM Model</label>
+                                        <select v-model="clientForm.llm_model" class="form-select">
+                                            <option value="openai/gpt-4o-mini">openai/gpt-4o-mini</option>
+                                            <option value="openai/gpt-4">openai/gpt-4</option>
+                                            <option value="anthropic/claude-3-haiku">anthropic/claude-3-haiku</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">TTS Voice ID</label>
+                                        <input v-model="clientForm.tts_voice_id" type="text" class="form-control">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Initial Greeting</label>
+                                        <textarea v-model="clientForm.initial_greeting" class="form-control" rows="2"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">System Prompt</label>
+                                        <textarea v-model="clientForm.system_prompt" class="form-control" rows="4"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Use Template</label>
+                                        <select v-model="selectedTemplate" @change="applyTemplate" class="form-select template-selector">
+                                            <option value="">Select Template</option>
+                                            <option value="default">Default Front Desk</option>
+                                            <option value="spa">Spa/Reception</option>
+                                            <option value="restaurant">Restaurant</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" @click="closeModal">Cancel</button>
+                                <button type="submit" class="btn btn-primary" :disabled="saving">{{ saving ? 'Saving...' : 'Save' }}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bulk Actions Modal -->
+        <div class="modal fade" :class="{ show: showBulkModal }" :style="{ display: showBulkModal ? 'block' : 'none' }" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Bulk Actions</h5>
+                        <button type="button" class="btn-close" @click="showBulkModal = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Selected {{ selectedClients.length }} clients</p>
+                        <button @click="bulkDelete" class="btn btn-danger me-2">Delete Selected</button>
+                        <button @click="bulkUpdate" class="btn btn-warning">Update Field</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Log Sidebar -->
+        <div class="position-fixed top-50 end-0 translate-middle-y" style="width: 300px; z-index: 1000;">
+            <div class="card" v-if="showAuditLog">
+                <div class="card-header d-flex justify-content-between">
+                    <h6 class="mb-0">Audit Log</h6>
+                    <button @click="showAuditLog = false" class="btn-close btn-sm"></button>
+                </div>
+                <div class="card-body audit-log">
+                    <div v-for="log in auditLogs" :key="log.id" class="mb-2">
+                        <small class="text-muted">{{ formatDate(log.timestamp) }}</small><br>
+                        <span :class="log.type === 'create' ? 'text-success' : log.type === 'update' ? 'text-warning' : 'text-danger'">
+                            {{ log.action }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <button v-else @click="showAuditLog = true" class="btn btn-outline-info position-fixed top-50 end-0 translate-middle-y">
+                Audit Log
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, watch } = Vue;
+
+        createApp({
+            setup() {
+                const clients = ref([]);
+                const filteredClients = ref([]);
+                const selectedClients = ref([]);
+                const searchQuery = ref('');
+                const filterStatus = ref('');
+                const sortBy = ref('name');
+                const currentPage = ref(1);
+                const pageSize = ref(12);
+                const showCreateModal = ref(false);
+                const showEditModal = ref(false);
+                const showBulkModal = ref(false);
+                const showAuditLog = ref(false);
+                const saving = ref(false);
+                const selectedTemplate = ref('');
+                const auditLogs = ref(JSON.parse(localStorage.getItem('auditLogs') || '[]'));
+
+                const clientForm = ref({
+                    name: '',
+                    cell: '',
+                    calendar_id: '',
+                    business_timezone: 'America/Los_Angeles',
+                    business_start_hour: 9,
+                    business_end_hour: 17,
+                    llm_model: 'openai/gpt-4o-mini',
+                    tts_voice_id: '21m00Tcm4TlvDq8ikWAM',
+                    initial_greeting: '',
+                    system_prompt: ''
+                });
+
+                const editingClient = ref(null);
+
+                const templates = {
+                    default: {
+                        initial_greeting: 'Hi, I\'m Front Desk — your friendly AI receptionist. How can I help you today?',
+                        system_prompt: '[System Identity]\nYou are Front Desk, an AI receptionist...'
+                    },
+                    spa: {
+                        initial_greeting: 'Welcome to our spa! How may I assist you today?',
+                        system_prompt: '[System Identity]\nYou are the AI receptionist for our spa...'
+                    },
+                    restaurant: {
+                        initial_greeting: 'Welcome to our restaurant! How can I help with your reservation?',
+                        system_prompt: '[System Identity]\nYou are the AI receptionist for our restaurant...'
+                    }
+                };
+
+                const totalPages = computed(() => Math.ceil(filteredClients.value.length / pageSize.value));
+                const visiblePages = computed(() => {
+                    const pages = [];
+                    const start = Math.max(1, currentPage.value - 2);
+                    const end = Math.min(totalPages.value, currentPage.value + 2);
+                    for (let i = start; i <= end; i++) {
+                        pages.push(i);
+                    }
+                    return pages;
+                });
+
+                const paginatedClients = computed(() => {
+                    const start = (currentPage.value - 1) * pageSize.value;
+                    const end = start + pageSize.value;
+                    return filteredClients.value.slice(start, end);
+                });
+
+                const loadClients = async () => {
+                    try {
+                        const response = await axios.get('/api/clients');
+                        clients.value = response.data.clients;
+                        filterClients();
+                    } catch (error) {
+                        console.error('Failed to load clients:', error);
+                        alert('Failed to load clients');
+                    }
+                };
+
+                const filterClients = () => {
+                    let filtered = clients.value.filter(client => {
+                        const matchesSearch = client.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+                                            (client.cell && client.cell.includes(searchQuery.value));
+                        const matchesStatus = !filterStatus.value ||
+                                            (filterStatus.value === 'active' && client.cell) ||
+                                            (filterStatus.value === 'inactive' && !client.cell);
+                        return matchesSearch && matchesStatus;
+                    });
+
+                    filtered.sort((a, b) => {
+                        if (sortBy.value === 'name') {
+                            return a.name.localeCompare(b.name);
+                        } else {
+                            return new Date(b.created_at) - new Date(a.created_at);
+                        }
+                    });
+
+                    filteredClients.value = filtered;
+                    currentPage.value = 1;
+                };
+
+                const sortClients = () => {
+                    filterClients();
+                };
+
+                const editClient = (client) => {
+                    editingClient.value = client.id;
+                    clientForm.value = { ...client };
+                    showEditModal.value = true;
+                };
+
+                const duplicateClient = (client) => {
+                    const duplicated = { ...client };
+                    delete duplicated.id;
+                    delete duplicated.created_at;
+                    duplicated.name += ' (Copy)';
+                    editingClient.value = null;
+                    clientForm.value = duplicated;
+                    showCreateModal.value = true;
+                };
+
+                const saveClient = async () => {
+                    saving.value = true;
+                    try {
+                        let response;
+                        if (editingClient.value) {
+                            response = await axios.put(`/api/clients/${editingClient.value}`, clientForm.value);
+                            const index = clients.value.findIndex(c => c.id === editingClient.value);
+                            clients.value[index] = response.data;
+                            addAuditLog('update', `Updated client: ${response.data.name}`);
+                        } else {
+                            response = await axios.post('/api/clients', clientForm.value);
+                            clients.value.push(response.data);
+                            addAuditLog('create', `Created client: ${response.data.name}`);
+                        }
+                        closeModal();
+                        filterClients();
+                    } catch (error) {
+                        console.error('Failed to save client:', error);
+                        alert('Failed to save client');
+                    } finally {
+                        saving.value = false;
+                    }
+                };
+
+                const deleteClient = async (id) => {
+                    if (!confirm('Are you sure you want to delete this client?')) return;
+                    try {
+                        await axios.delete(`/api/clients/${id}`);
+                        clients.value = clients.value.filter(c => c.id !== id);
+                        addAuditLog('delete', `Deleted client ID: ${id}`);
+                        filterClients();
+                    } catch (error) {
+                        console.error('Failed to delete client:', error);
+                        alert('Failed to delete client');
+                    }
+                };
+
+                const bulkDelete = async () => {
+                    if (!confirm(`Are you sure you want to delete ${selectedClients.value.length} clients?`)) return;
+                    try {
+                        await Promise.all(selectedClients.value.map(id => axios.delete(`/api/clients/${id}`)));
+                        clients.value = clients.value.filter(c => !selectedClients.value.includes(c.id));
+                        addAuditLog('delete', `Bulk deleted ${selectedClients.value.length} clients`);
+                        selectedClients.value = [];
+                        filterClients();
+                        showBulkModal.value = false;
+                    } catch (error) {
+                        console.error('Failed to bulk delete:', error);
+                        alert('Failed to bulk delete');
+                    }
+                };
+
+                const bulkUpdate = () => {
+                    // Implement bulk update logic
+                    alert('Bulk update not implemented yet');
+                };
+
+                const applyTemplate = () => {
+                    if (selectedTemplate.value && templates[selectedTemplate.value]) {
+                        const template = templates[selectedTemplate.value];
+                        clientForm.value.initial_greeting = template.initial_greeting;
+                        clientForm.value.system_prompt = template.system_prompt;
+                    }
+                };
+
+                const exportClients = () => {
+                    const dataStr = JSON.stringify(clients.value, null, 2);
+                    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                    const exportFileDefaultName = 'clients_export.json';
+                    const linkElement = document.createElement('a');
+                    linkElement.setAttribute('href', dataUri);
+                    linkElement.setAttribute('download', exportFileDefaultName);
+                    linkElement.click();
+                };
+
+                const closeModal = () => {
+                    showCreateModal.value = false;
+                    showEditModal.value = false;
+                    editingClient.value = null;
+                    clientForm.value = {
+                        name: '',
+                        cell: '',
+                        calendar_id: '',
+                        business_timezone: 'America/Los_Angeles',
+                        business_start_hour: 9,
+                        business_end_hour: 17,
+                        llm_model: 'openai/gpt-4o-mini',
+                        tts_voice_id: '21m00Tcm4TlvDq8ikWAM',
+                        initial_greeting: '',
+                        system_prompt: ''
+                    };
+                    selectedTemplate.value = '';
+                };
+
+                const addAuditLog = (type, action) => {
+                    const log = {
+                        id: Date.now(),
+                        type,
+                        action,
+                        timestamp: new Date().toISOString()
+                    };
+                    auditLogs.value.unshift(log);
+                    if (auditLogs.value.length > 100) {
+                        auditLogs.value = auditLogs.value.slice(0, 100);
+                    }
+                    localStorage.setItem('auditLogs', JSON.stringify(auditLogs.value));
+                };
+
+                const formatDate = (dateStr) => {
+                    return new Date(dateStr).toLocaleDateString();
+                };
+
+                watch([searchQuery, filterStatus], () => {
+                    filterClients();
+                });
+
+                onMounted(() => {
+                    loadClients();
+                });
+
+                return {
+                    clients,
+                    filteredClients: paginatedClients,
+                    selectedClients,
+                    searchQuery,
+                    filterStatus,
+                    sortBy,
+                    currentPage,
+                    totalPages,
+                    visiblePages,
+                    showCreateModal,
+                    showEditModal,
+                    showBulkModal,
+                    showAuditLog,
+                    saving,
+                    selectedTemplate,
+                    auditLogs,
+                    clientForm,
+                    loadClients,
+                    filterClients,
+                    sortClients,
+                    editClient,
+                    duplicateClient,
+                    saveClient,
+                    deleteClient,
+                    bulkDelete,
+                    bulkUpdate,
+                    applyTemplate,
+                    exportClients,
+                    closeModal,
+                    formatDate
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

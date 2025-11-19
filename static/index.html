@@ -6,18 +6,280 @@
     <title>Front Desk Admin Panel</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- JetBrains Mono Font for hackery vibe -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- Vue.js -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- Axios for HTTP requests -->
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <style>
-        .client-card { transition: all 0.3s; }
-        .client-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .status-indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
-        .status-active { background-color: #28a745; }
-        .status-inactive { background-color: #6c757d; }
-        .audit-log { max-height: 300px; overflow-y: auto; }
-        .template-selector { max-width: 200px; }
+        :root {
+            --tokyo-bg: #1a1b26;
+            --tokyo-bg-dark: #16161e;
+            --tokyo-bg-mid: #2a2a37;
+            --tokyo-fg: #c0caf5;
+            --tokyo-blue: #7dcfff;
+            --tokyo-purple: #bb9af7;
+            --tokyo-green: #9ece6a;
+            --tokyo-orange: #e0af68;
+            --tokyo-red: #f7768e;
+            --tokyo-comment: #565f89;
+        }
+
+        body {
+            background: var(--tokyo-bg);
+            color: var(--tokyo-fg);
+            font-family: 'JetBrains Mono', monospace;
+            background-image: radial-gradient(circle at 25% 25%, rgba(125, 207, 255, 0.1) 0%, transparent 50%),
+                              radial-gradient(circle at 75% 75%, rgba(187, 154, 247, 0.1) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .navbar {
+            background: var(--tokyo-bg-dark) !important;
+            border-bottom: 1px solid var(--tokyo-bg-mid);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .navbar-brand {
+            color: var(--tokyo-blue) !important;
+            font-weight: 700;
+            text-shadow: 0 0 5px var(--tokyo-blue);
+        }
+
+        .nav-link {
+            color: var(--tokyo-fg) !important;
+        }
+
+        .card {
+            background: var(--tokyo-bg-mid);
+            border: 1px solid var(--tokyo-bg-dark);
+            color: var(--tokyo-fg);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(125, 207, 255, 0.2);
+        }
+
+        .card-header {
+            background: var(--tokyo-bg-dark);
+            border-bottom: 1px solid var(--tokyo-bg-mid);
+            color: var(--tokyo-purple);
+            font-weight: 500;
+        }
+
+        .card-footer {
+            background: var(--tokyo-bg-dark);
+            border-top: 1px solid var(--tokyo-bg-mid);
+        }
+
+        .btn {
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--tokyo-blue);
+            color: var(--tokyo-bg);
+        }
+
+        .btn-primary:hover {
+            background: var(--tokyo-blue);
+            box-shadow: 0 0 15px var(--tokyo-blue);
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: var(--tokyo-green);
+            color: var(--tokyo-bg);
+        }
+
+        .btn-success:hover {
+            background: var(--tokyo-green);
+            box-shadow: 0 0 15px var(--tokyo-green);
+        }
+
+        .btn-danger {
+            background: var(--tokyo-red);
+            color: var(--tokyo-bg);
+        }
+
+        .btn-danger:hover {
+            background: var(--tokyo-red);
+            box-shadow: 0 0 15px var(--tokyo-red);
+        }
+
+        .btn-warning {
+            background: var(--tokyo-orange);
+            color: var(--tokyo-bg);
+        }
+
+        .btn-warning:hover {
+            background: var(--tokyo-orange);
+            box-shadow: 0 0 15px var(--tokyo-orange);
+        }
+
+        .btn-secondary {
+            background: var(--tokyo-comment);
+            color: var(--tokyo-fg);
+        }
+
+        .btn-secondary:hover {
+            background: var(--tokyo-comment);
+            box-shadow: 0 0 15px var(--tokyo-comment);
+        }
+
+        .btn-outline-primary {
+            border-color: var(--tokyo-blue);
+            color: var(--tokyo-blue);
+        }
+
+        .btn-outline-primary:hover {
+            background: var(--tokyo-blue);
+            color: var(--tokyo-bg);
+        }
+
+        .btn-outline-info {
+            border-color: var(--tokyo-purple);
+            color: var(--tokyo-purple);
+        }
+
+        .btn-outline-info:hover {
+            background: var(--tokyo-purple);
+            color: var(--tokyo-bg);
+        }
+
+        .form-control, .form-select {
+            background: var(--tokyo-bg-dark);
+            border: 1px solid var(--tokyo-bg-mid);
+            color: var(--tokyo-fg);
+            border-radius: 6px;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background: var(--tokyo-bg-dark);
+            border-color: var(--tokyo-blue);
+            color: var(--tokyo-fg);
+            box-shadow: 0 0 0 0.2rem rgba(125, 207, 255, 0.25);
+        }
+
+        .form-label {
+            color: var(--tokyo-fg);
+            font-weight: 500;
+        }
+
+        .modal-content {
+            background: var(--tokyo-bg-mid);
+            border: 1px solid var(--tokyo-bg-dark);
+            color: var(--tokyo-fg);
+        }
+
+        .modal-header {
+            background: var(--tokyo-bg-dark);
+            border-bottom: 1px solid var(--tokyo-bg-mid);
+            color: var(--tokyo-purple);
+        }
+
+        .modal-footer {
+            background: var(--tokyo-bg-dark);
+            border-top: 1px solid var(--tokyo-bg-mid);
+        }
+
+        .pagination .page-link {
+            background: var(--tokyo-bg-dark);
+            border-color: var(--tokyo-bg-mid);
+            color: var(--tokyo-fg);
+        }
+
+        .pagination .page-link:hover {
+            background: var(--tokyo-blue);
+            border-color: var(--tokyo-blue);
+            color: var(--tokyo-bg);
+        }
+
+        .pagination .page-item.active .page-link {
+            background: var(--tokyo-blue);
+            border-color: var(--tokyo-blue);
+        }
+
+        .text-muted {
+            color: var(--tokyo-comment) !important;
+        }
+
+        .text-success {
+            color: var(--tokyo-green) !important;
+        }
+
+        .text-warning {
+            color: var(--tokyo-orange) !important;
+        }
+
+        .text-danger {
+            color: var(--tokyo-red) !important;
+        }
+
+        .client-card {
+            transition: all 0.3s ease;
+            border-radius: 8px;
+        }
+
+        .client-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(125, 207, 255, 0.2);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-active {
+            background-color: var(--tokyo-green);
+            box-shadow: 0 0 5px var(--tokyo-green);
+        }
+
+        .status-inactive {
+            background-color: var(--tokyo-comment);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .audit-log {
+            max-height: 300px;
+            overflow-y: auto;
+            background: var(--tokyo-bg-dark);
+            border-radius: 6px;
+        }
+
+        .template-selector {
+            max-width: 200px;
+        }
+
+        h2, h5, h6 {
+            color: var(--tokyo-purple);
+            font-weight: 700;
+        }
+
+        .position-fixed .card {
+            background: var(--tokyo-bg-mid);
+            border: 1px solid var(--tokyo-bg-dark);
+        }
+
+        .btn-close {
+            filter: invert(1);
+        }
     </style>
 </head>
 <body>

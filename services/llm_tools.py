@@ -68,8 +68,17 @@ async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> No
             dt_utc = datetime.fromisoformat(slot["start"])
             # Convert to Business Timezone
             dt_local = dt_utc.astimezone(tz)
-            # Format nicely (e.g., "9:00 AM")
-            human_time = dt_local.strftime("%-I:%M %p")
+            
+            # CLEANER TTS FORMATTING
+            # If minute is 0, use "9 AM". If not, use "9:30 AM"
+            if dt_local.minute == 0:
+                human_time = dt_local.strftime("%-I %p")
+            else:
+                human_time = dt_local.strftime("%-I:%M %p")
+            
+            # Debug Log to catch "wonky" outputs
+            logger.info(f"TTS Debug - Converted {dt_local} -> '{human_time}'")
+
             # Keep the ISO string for the machine, add human string for the voice
             human_slots.append({
                 "human_time": human_time, 
@@ -122,7 +131,7 @@ async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
                 # Otherwise, combine date + simple time
                 elif date_arg:
                     if len(time_arg) == 5:
-                        time_arg += ":00"  # Fix "17:00" to "17:00:00"
+                        time_arg += ":00" # Fix "17:00" to "17:00:00"
                     start_time_str = f"{date_arg}T{time_arg}"
                     # Fallback to PST if no offset provided
                     if "+" not in start_time_str and "-" not in start_time_str[-6:]:
@@ -145,9 +154,19 @@ async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
         summary = args.get("summary")
         description = args.get("description", "")
         contact_name = args.get("name") or args.get("caller_name")
+        
+        # Fix F841: Use phone_number in description if available
+        phone_number = args.get("phone")
+        if phone_number and not description:
+            description = f"Caller Phone: {phone_number}"
 
         if not summary:
-            summary = f"Booking for {contact_name}" if contact_name else "AI Appointment"
+            if contact_name:
+                summary = f"Booking for {contact_name}"
+            elif phone_number:
+                summary = f"Booking for {phone_number}"
+            else:
+                summary = "AI-Scheduled Appointment"
 
         logger.info(f"Booking event: {summary} at {start_dt}")
 
@@ -160,10 +179,18 @@ async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
         )
 
         if event:
+            # Simplify output for success message too
+            if start_dt.minute == 0:
+                human_time = start_dt.strftime("%-I %p")
+            else:
+                human_time = start_dt.strftime("%-I:%M %p")
+
+            logger.info(f"TTS Debug - Booking Success Time: '{human_time}'")
+
             result = {
                 "status": "success", 
                 "summary": event.get("summary"), 
-                "time": start_dt.strftime("%-I:%M %p")
+                "time": human_time
             }
         else:
             result = {"status": "error", "message": "Calendar API failed."}
@@ -193,4 +220,3 @@ async def handle_save_contact_name(params: FunctionCallParams, **kwargs) -> None
         await params.result_callback({"status": "success", "message": f"Name {name} saved."})
     else:
         await params.result_callback({"status": "error", "message": "Database error."})
-

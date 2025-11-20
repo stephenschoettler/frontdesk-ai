@@ -193,3 +193,4 @@ async def handle_save_contact_name(params: FunctionCallParams, **kwargs) -> None
         await params.result_callback({"status": "success", "message": f"Name {name} saved."})
     else:
         await params.result_callback({"status": "error", "message": "Database error."})
+

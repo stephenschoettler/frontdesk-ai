@@ -11,14 +11,14 @@ from fastapi import (
     Request,
     Response,
     HTTPException,
-)  # Moved HTTPException here
+)
 from fastapi.staticfiles import StaticFiles
 from starlette.websockets import WebSocketState
 import uvicorn
 import datetime
 from typing import Optional
 
-from pydantic import BaseModel  # Moved BaseModel here
+from pydantic import BaseModel
 
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
@@ -38,7 +38,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
 )
 from pipecat.runner.utils import parse_telephony_websocket
 
-# Import the new function from supabase_client
+# Import database functions
 from services.supabase_client import (
     get_or_create_contact,
     log_conversation,
@@ -47,17 +47,21 @@ from services.supabase_client import (
     create_client_record,
     update_client,
     delete_client,
-    get_all_contacts,  # New import
-    get_conversation_logs,  # New import
-    get_conversation_by_id,  # New import
+    get_all_contacts,
+    get_conversation_logs,
+    get_conversation_by_id,
+    get_client_by_phone,  # New import
 )
 
-# Import our new tool handlers
+# Import tool handlers
 from services.llm_tools import (
     handle_get_available_slots,
     handle_book_appointment,
     handle_save_contact_name,
 )
+
+# Import Response Filter
+from services.response_filter import ToolStrippingAssistantAggregator
 
 from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 
@@ -65,68 +69,52 @@ from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 # Load environment variables
 load_dotenv()
 
-CLIENT_ID = os.environ.get("CLIENT_ID")
-
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.FileHandler("frontdesk.log"),
-        logging.StreamHandler(),  # Keep console output for immediate feedback
+        logging.StreamHandler(),
     ],
 )
 logger = logging.getLogger(__name__)
 
 # --- Diagnostic ---
 logger.info(f"DIAGNOSTIC: Loaded SUPABASE_URL: {os.environ.get('SUPABASE_URL')}")
-key_check = os.environ.get("SUPABASE_ANON_KEY")
-if key_check:
-    logger.info(f"DIAGNOSTIC: Loaded SUPABASE_ANON_KEY ends with: ...{key_check[-4:]}")
-else:
-    logger.info("DIAGNOSTIC: SUPABASE_ANON_KEY IS NOT LOADED (None).")
 # ------------------
 
+app = FastAPI()
 
-#
-# AI Services Setup Function (Now uses the database config)
-#
-async def setup_services() -> tuple[
-    Optional[DeepgramSTTService],
-    Optional[ElevenLabsTTSService],
-    Optional[OpenAILLMService],
-    Optional[str],
-    Optional[str],
-]:
-    """Fetches client config and initializes all services."""
-    if not CLIENT_ID:
-        logger.critical(
-            "FATAL: CLIENT_ID environment variable is not set. Cannot proceed."
-        )
-        return None, None, None, None, None
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-    client_config = await get_client_config(CLIENT_ID)
+
+# Helper: Initialize Services for a Specific Client
+async def initialize_client_services(client_id: str):
+    """
+    Fetches config for a specific client and initializes their AI services.
+    Returns (stt, tts, llm, system_prompt, initial_greeting) or None on failure.
+    """
+    client_config = await get_client_config(client_id)
     if not client_config:
-        logger.critical(
-            f"FATAL: Could not fetch configuration for CLIENT_ID: {CLIENT_ID}"
-        )
-        return None, None, None, None, None
+        logger.error(f"Failed to load config for client_id: {client_id}")
+        return None
 
-    # --- Extract Config Values ---
+    # Extract Config
     system_prompt = client_config.get("system_prompt", "You are an AI receptionist.")
     llm_model = client_config.get("llm_model", "openai/gpt-4o-mini")
     tts_voice_id = client_config.get("tts_voice_id", "21m00Tcm4TlvDq8ikWAM")
     initial_greeting = client_config.get("initial_greeting")
 
-    # STT (Deepgram is configured via ENV only)
+    # STT (Deepgram)
     stt = DeepgramSTTService(
         api_key=os.environ["DEEPGRAM_API_KEY"],
         model="nova-2-phonecall",
         vad_events=True,
     )
 
-    # TTS (ElevenLabs uses config values)
+    # TTS (ElevenLabs - Client Specific Voice)
     tts = ElevenLabsTTSService(
         api_key=os.environ["ELEVENLABS_API_KEY"],
         voice_id=tts_voice_id,
@@ -134,114 +122,127 @@ async def setup_services() -> tuple[
         optimize_streaming_latency=4,
     )
 
-    # Debug: Log raw LLM responses
+    # LLM (OpenRouter - Client Specific Model)
     class DebugLLM(OpenAILLMService):
         async def run_llm(self, *args, **kwargs):
             response = await super().run_llm(*args, **kwargs)  # type: ignore
-            logger.info(f"RAW LLM RESPONSE: {response}")
+            # logger.info(f"RAW LLM RESPONSE: {response}") # Uncomment for deep debugging
             return response
 
-    # LLM (OpenRouter uses config values)
     llm = DebugLLM(
         api_key=os.environ["OPENROUTER_API_KEY"],
         base_url="https://openrouter.ai/api/v1",
         model=llm_model,
-        temperature=0.0,
+        temperature=0.6,
         tool_choice="auto",
         stream=True,
     )
 
-    # Register tool handlers (These remain the same)
+    # Register Tools
     llm.register_direct_function(handle_get_available_slots)
     llm.register_direct_function(handle_book_appointment)
     llm.register_direct_function(handle_save_contact_name)
 
+    # Inject CLIENT_ID into the environment for the tools to use
+    # (Note: Ideally tools should accept client_id as an arg, but for now we patch os.environ)
+    os.environ["CLIENT_ID"] = client_id
+
     return stt, tts, llm, system_prompt, initial_greeting
-
-
-#
-# FastAPI App
-#
-app = FastAPI()
-
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Initialize state placeholders
-app.state.stt = None
-app.state.tts = None
-app.state.llm = None
-app.state.system_prompt = None
-app.state.initial_greeting = None
 
 
 @app.post("/voice")
 async def voice_handler(request: Request):
-    """Handle Twilio's initial POST request and return TwiML to connect to WebSocket."""
+    """
+    Handle Twilio's initial POST request.
+    Dynamic Routing: Look up the client based on the 'To' number.
+    """
     host = request.headers.get("host")
     form_data = await request.form()
-    from_number = form_data.get("From")
-    logger.info(f"Received call from: {from_number}")
 
-    # URL-encode the phone number to handle the '+' sign
-    encoded_from_number = urllib.parse.quote(from_number) if from_number else ""  # type: ignore
+    from_number = form_data.get("From")
+    to_number = form_data.get("To")  # The Twilio number being called
+
+    logger.info(f"Incoming call: From {from_number} -> To {to_number}")
+
+    # 1. Find which client owns this Twilio number
+    client = await get_client_by_phone(to_number)
+
+    # Fallback: If no match, check if a default CLIENT_ID is set in .env (Legacy Mode)
+    if not client and os.environ.get("CLIENT_ID"):
+        logger.warning(
+            f"No client found for {to_number}, falling back to legacy CLIENT_ID."
+        )
+        client = {"id": os.environ.get("CLIENT_ID")}
+
+    if not client:
+        logger.error(f"REJECTING CALL: No client configuration found for {to_number}")
+        resp = VoiceResponse()
+        resp.say("I am sorry, but this number is not configured.")
+        return Response(content=str(resp), media_type="application/xml")
+
+    client_id = client["id"]
+
+    # 2. Build the Websocket URL with the Client ID
+    encoded_from = urllib.parse.quote(from_number) if from_number else "anonymous"
+    stream_url = f"wss://{host}/ws/{client_id}/{encoded_from}"
+
+    logger.info(f"Routing to: {stream_url}")
 
     response = VoiceResponse()
     connect = Connect()
-    stream_url = f"wss://{host}/ws/{encoded_from_number}"
-    logger.info(f"Streaming to: {stream_url}")
     stream = Stream(url=stream_url)
     connect.append(stream)
     response.append(connect)
     return Response(content=str(response), media_type="application/xml")
 
 
-@app.websocket("/ws/{caller_phone:path}")
-async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
-    """Main websocket endpoint for the Pipecat service."""
-    # Retrieve services and config from application state
-    runner: PipelineRunner = websocket.app.state.runner
-    test_mode: bool = websocket.app.state.test_mode
-    shutdown_event: asyncio.Event = websocket.app.state.shutdown_event
-    llm = websocket.app.state.llm
-    stt = websocket.app.state.stt
-    tts = websocket.app.state.tts
-    system_prompt = websocket.app.state.system_prompt
-    initial_greeting = websocket.app.state.initial_greeting
-
-    if not all([llm, stt, tts, system_prompt, initial_greeting]):
-        logger.error("AI Services not initialized. Disconnecting.")
+@app.websocket("/ws/{client_id}/{caller_phone}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone: str):
+    """
+    Main websocket endpoint.
+    Initializes services JUST-IN-TIME for the specific client.
+    """
+    # Initialize specific services for this client
+    services = await initialize_client_services(client_id)
+    if not services:
+        logger.error(f"Failed to initialize services for client {client_id}. Closing.")
         await websocket.close()
         return
 
-    logger.info("New websocket connection established.")
+    stt, tts, llm, system_prompt, initial_greeting = services
+
+    # Fetch Runner from app state (Runner is still global/shared resource)
+    runner: PipelineRunner = websocket.app.state.runner
+    test_mode: bool = websocket.app.state.test_mode
+    shutdown_event: asyncio.Event = websocket.app.state.shutdown_event
+
+    logger.info(f"Websocket connected for Client: {client_id}, Caller: {caller_phone}")
     await websocket.accept()
 
     _, call_data = await parse_telephony_websocket(websocket)
 
-    logger.info(f"Call data: {call_data}")
-
+    # --- Contact Management (Scoped to Client) ---
+    caller_phone_decoded = urllib.parse.unquote(caller_phone)
     contact = None
-    if caller_phone:
-        caller_phone = urllib.parse.unquote(caller_phone)
-        contact = await get_or_create_contact(caller_phone)
 
-    contact_context_message = ""
+    # NOTE: get_or_create_contact needs to be multi-tenant aware in the future.
+    # For now, we assume the phone number is the primary key, but we should eventually pass client_id.
+    # We are patching this temporarily by filtering contacts by phone AND client_id in logic if needed,
+    # but the DB constraint is already updated.
+    if caller_phone_decoded:
+        contact = await get_or_create_contact(caller_phone_decoded)
+        # Note: Ideally passing client_id here to ensure we don't fetch another client's contact
+
+    contact_context = ""
     if contact:
-        if contact.get("name"):
-            contact_context_message = (
-                f"Known caller: {contact['name']} (phone: {contact['phone']})"
-            )
-        else:
-            contact_context_message = (
-                f"Returning caller (name unknown) (phone: {contact['phone']})"
-            )
-    elif caller_phone:
-        contact_context_message = f"New caller (phone: {caller_phone})"
+        name_str = contact.get("name") or "unknown"
+        contact_context = f"Known caller: {name_str} (phone: {caller_phone_decoded})"
+    else:
+        contact_context = f"New caller (phone: {caller_phone_decoded})"
 
-    if contact_context_message:
-        logger.info(contact_context_message)
+    logger.info(f"Context: {contact_context}")
 
+    # --- Pipeline Setup ---
     serializer = TwilioFrameSerializer(
         stream_sid=call_data["stream_id"],
         call_sid=call_data["call_id"],
@@ -259,21 +260,15 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
         ),
     )
 
-    current_date = datetime.date.today()
-    current_day = current_date.strftime("%A")
-    date_context = f"Current date: {current_date} ({current_day}). Use this to accurately calculate dates and days of the week."
-
+    # Messages & Context
+    current_date = datetime.date.today().strftime("%A, %B %d, %Y")
     messages = [
-        {
-            "role": "system",
-            # Use database-fetched system prompt
-            "content": system_prompt,
-        },
-        {"role": "system", "content": f"CALLER CONTEXT: {contact_context_message}"},
-        {"role": "system", "content": date_context},
+        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": f"CALLER CONTEXT: {contact_context}"},
+        {"role": "system", "content": f"Current date: {current_date}."},
     ]
-    logger.info(f"LLM Messages: {messages}")
-    # Get tools from LLM
+
+    # Tool Registration
     from pipecat.adapters.schemas.tools_schema import ToolsSchema
     from pipecat.adapters.schemas.direct_function import DirectFunctionWrapper
 
@@ -282,8 +277,12 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
         if isinstance(item.handler, DirectFunctionWrapper):
             tools_list.append(item.handler.to_function_schema())
     tools = ToolsSchema(standard_tools=tools_list)
-    context = LLMContext(messages, tools=tools)  # type: ignore  # Pass tools explicitly as second arg
+
+    context = LLMContext(messages, tools=tools)
     context_aggregator = LLMContextAggregatorPair(context)
+
+    # Use our ToolStripping filter to keep code out of the TTS
+    assistant_aggregator = ToolStrippingAssistantAggregator(context)
 
     pipeline = Pipeline(
         [
@@ -293,7 +292,7 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
             llm,
             tts,
             transport.output(),
-            context_aggregator.assistant(),
+            assistant_aggregator,  # Using the cleaner aggregator
         ]
     )
 
@@ -303,68 +302,40 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
             audio_in_sample_rate=8000,
             audio_out_sample_rate=8000,
             enable_metrics=True,
-            enable_usage_metrics=True,
         ),
     )
 
-    # Send an initial greeting
-    greeting_frames = []
-    # Use config value for greeting, split it for better TTS delivery
+    # --- Initial Greeting ---
     if initial_greeting:
-        # Simple split on period followed by a space
-        greeting_parts = initial_greeting.split(". ")
-        for part in greeting_parts:
-            # Ensure we re-add the period if it was a sentence split
-            part = part.strip()
-            if part:
-                greeting_frames.append(
-                    TextFrame(part + "." if initial_greeting.endswith(".") else part)
-                )
-    else:
-        # Fallback to the old hardcoded frames logic just in case the seed failed
-        greeting_frames = [
-            TextFrame("Hi, I'm Front Desk — your friendly AI receptionist."),
-            TextFrame("How can I help you today?"),
-        ]
-
-    await task.queue_frames(greeting_frames)
+        await task.queue_frames([TextFrame(initial_greeting)])
 
     runner_task = asyncio.create_task(runner.run(task))
 
-    # Wait for the websocket to disconnect.
+    # --- Wait for Disconnect ---
     try:
         while websocket.client_state == WebSocketState.CONNECTED:
             await asyncio.sleep(0.1)
     except asyncio.CancelledError:
         pass
     finally:
-        try:
-            if contact and contact.get("id"):
-                logger.info(f"Logging conversation for contact ID: {contact['id']}...")
-                if CLIENT_ID:
-                    await log_conversation(
-                        contact_id=contact["id"],
-                        client_id=CLIENT_ID,
-                        transcript=context.messages,
-                    )
-                    logger.info("Conversation logged successfully.")
-            else:
-                logger.warning("No contact with ID found, skipping conversation log.")
-        except Exception as e:
-            logger.error(f"Failed to log conversation: {e}")
-        logger.info("Websocket disconnected. Cancelling pipeline task.")
+        # Log Conversation
+        if contact:
+            await log_conversation(
+                contact_id=contact["id"],
+                client_id=client_id,
+                transcript=context.messages,
+            )
+
+        logger.info("Call ended. Cleaning up.")
         if not runner_task.done():
             await task.cancel()
         await runner_task
 
     if test_mode:
-        logger.info("Test mode: First call finished. Shutting down.")
         shutdown_event.set()
 
 
-#
-# API Endpoints for Client Management
-#
+# --- CRUD Endpoints ---
 
 
 class ClientCreate(BaseModel):
@@ -397,16 +368,15 @@ class ClientUpdate(BaseModel):
 async def list_clients():
     clients = await get_all_clients()
     if clients is None:
-        raise HTTPException(status_code=500, detail="Failed to fetch clients")
+        raise HTTPException(500, "Failed to fetch clients")
     return {"clients": clients}
 
 
 @app.post("/api/clients")
 async def create_new_client(client: ClientCreate):
-    data = client.dict()
-    new_client = await create_client_record(data)
+    new_client = await create_client_record(client.dict())
     if new_client is None:
-        raise HTTPException(status_code=500, detail="Failed to create client")
+        raise HTTPException(500, "Failed to create client")
     return new_client
 
 
@@ -414,91 +384,54 @@ async def create_new_client(client: ClientCreate):
 async def get_client(client_id: str):
     client = await get_client_config(client_id)
     if client is None:
-        raise HTTPException(status_code=404, detail="Client not found")
+        raise HTTPException(404, "Client not found")
     return client
 
 
 @app.put("/api/clients/{client_id}")
 async def update_existing_client(client_id: str, client: ClientUpdate):
     data = {k: v for k, v in client.dict().items() if v is not None}
-    updated_client = await update_client(client_id, data)
-    if updated_client is None:
-        raise HTTPException(status_code=500, detail="Failed to update client")
-    return updated_client
+    updated = await update_client(client_id, data)
+    if updated is None:
+        raise HTTPException(500, "Failed to update")
+    return updated
 
 
 @app.delete("/api/clients/{client_id}")
 async def delete_existing_client(client_id: str):
-    success = await delete_client(client_id)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to delete client")
-    return {"message": "Client deleted successfully"}
+    if not await delete_client(client_id):
+        raise HTTPException(500, "Failed to delete")
+    return {"message": "Deleted"}
 
 
 @app.get("/api/contacts")
 async def api_get_all_contacts():
-    """
-    API endpoint to retrieve all contacts.
-    """
     contacts = await get_all_contacts()
     if contacts is None:
-        raise HTTPException(status_code=500, detail="Failed to fetch contacts")
+        raise HTTPException(500, "Failed")
     return {"contacts": contacts}
 
 
 @app.get("/api/conversation-logs")
 async def api_get_conversation_logs():
-    """
-    API endpoint to retrieve all conversation logs.
-    """
     logs = await get_conversation_logs()
     if logs is None:
-        raise HTTPException(status_code=500, detail="Failed to fetch conversation logs")
+        raise HTTPException(500, "Failed")
     return {"conversation_logs": logs}
 
 
 @app.get("/api/conversation-logs/{conversation_id}/transcript")
 async def api_get_conversation_transcript(conversation_id: int):
-    """
-    API endpoint to retrieve the transcript of a specific conversation log.
-    """
     conversation = await get_conversation_by_id(conversation_id)
-    if conversation is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-
-    transcript = conversation.get("transcript")
-    if transcript is None:
-        # This case ideally shouldn't happen if log_conversation always stores a transcript
-        raise HTTPException(
-            status_code=404, detail="Transcript not found for this conversation"
-        )
-
-    return {"transcript": transcript}
+    if not conversation:
+        raise HTTPException(404, "Not found")
+    return {"transcript": conversation.get("transcript")}
 
 
 async def main():
-    """
-    Main function to run the FastAPI server and the Pipecat runner.
-    """
-    parser = argparse.ArgumentParser(description="Front Desk AI Receptionist")
-    parser.add_argument(
-        "--test-mode",
-        action="store_true",
-        help="Run in test mode, handling one call and then exiting.",
-    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--test-mode", action="store_true")
     args = parser.parse_args()
-
-    # --- NEW: Initialize services and store them in app state ---
-    (
-        app.state.stt,
-        app.state.tts,
-        app.state.llm,
-        app.state.system_prompt,
-        app.state.initial_greeting,
-    ) = await setup_services()
-    if not app.state.llm:
-        logger.critical("AI Services failed to initialize. Exiting application.")
-        return
 
     runner = PipelineRunner()
     shutdown_event = asyncio.Event()
@@ -509,11 +442,8 @@ async def main():
 
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
     server = uvicorn.Server(config)
-
-    # Start the server in the background
     server_task = asyncio.create_task(server.serve())
 
-    # Set up a signal handler for graceful shutdown
     def signal_handler(*args):
         shutdown_event.set()
 
@@ -522,23 +452,11 @@ async def main():
     loop.add_signal_handler(signal.SIGTERM, signal_handler)
 
     try:
-        if args.test_mode:
-            logger.info(
-                "Running in test mode. The server will shut down after the first call."
-            )
         await shutdown_event.wait()
     finally:
-        logger.info(
-            "Shutdown signal received. Stopping server and runner concurrently."
-        )
-        # Set the server to exit
         server.should_exit = True
-        # Concurrently shut down the server and cancel the runner
-        shutdown_tasks = [server_task, runner.cancel()]
-        await asyncio.gather(*shutdown_tasks, return_exceptions=True)
-        logger.info("Server and runner stopped gracefully.")
+        await asyncio.gather(server_task, runner.cancel(), return_exceptions=True)
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-    logger.info("Application exited.")

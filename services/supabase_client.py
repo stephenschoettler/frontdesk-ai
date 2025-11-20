@@ -8,12 +8,24 @@ logger = logging.getLogger(__name__)
 
 
 def get_supabase_client() -> Optional[Client]:
-    """Initializes and returns a Supabase client, or None if keys are missing."""
+    """
+    Initializes and returns a Supabase client.
+    Prioritizes SUPABASE_SERVICE_ROLE_KEY (Admin) if available.
+    Falls back to SUPABASE_ANON_KEY (Public) with limited permissions.
+    """
     supabase_url: str = os.environ.get("SUPABASE_URL")
-    supabase_key: str = os.environ.get("SUPABASE_ANON_KEY")
+
+    # Try Service Role Key first (Bypasses RLS - for Backend use)
+    supabase_key: str = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+
+    # Fallback to Anon Key (Subject to RLS - for Public use)
+    if not supabase_key:
+        supabase_key = os.environ.get("SUPABASE_ANON_KEY")
+
     if not supabase_url or not supabase_key:
         logger.error("Supabase URL or Key is missing from environment variables.")
         return None
+
     try:
         return sb_create_client(supabase_url, supabase_key)
     except Exception as e:
@@ -42,8 +54,6 @@ async def get_or_create_contact(phone_number: str) -> Optional[Dict[str, Any]]:
         else:
             # 2. If not found, create it
             logger.info(f"No contact found for {phone_number}. Creating new contact.")
-            # The .select() cannot be chained after .insert() in this version.
-            # Use returning="representation" to get the inserted row back.
             insert_response = (
                 supabase.table("contacts")
                 .insert({"phone": phone_number}, returning="representation")
@@ -53,7 +63,6 @@ async def get_or_create_contact(phone_number: str) -> Optional[Dict[str, Any]]:
             if insert_response.data:
                 return insert_response.data[0]
             else:
-                # The error attribute may not exist on all responses, so we use getattr
                 error_message = getattr(insert_response, "error", "Unknown error")
                 logger.error(f"Failed to create new contact: {error_message}")
                 return None
@@ -274,15 +283,6 @@ async def get_all_contacts() -> Optional[list[Dict[str, Any]]]:
         contacts = contacts_response.data
         contact_ids = [contact["id"] for contact in contacts]
 
-        # Fetch latest conversation timestamp for each contact
-        # This requires a subquery or a direct query with a max aggregation
-        # Supabase client doesn't directly support complex joins/subqueries like this
-        # in the Python client as easily as raw SQL.
-        # A workaround is to fetch all conversations and then map them,
-        # or perform individual queries if performance is not critical for small datasets.
-        # For better performance, we'll fetch all conversations and process them in Python.
-
-        # Fetch all conversations to determine last contact
         conversations_response = (
             supabase.table("conversations")
             .select("contact_id, created_at")
@@ -314,7 +314,6 @@ async def get_all_contacts() -> Optional[list[Dict[str, Any]]]:
 async def get_conversation_logs() -> Optional[list[Dict[str, Any]]]:
     """
     Retrieves all conversation logs, ordered by creation time.
-    Assumes duration and status are not explicitly stored and returns available fields.
     """
     supabase = get_supabase_client()
     if not supabase:
@@ -328,7 +327,6 @@ async def get_conversation_logs() -> Optional[list[Dict[str, Any]]]:
             .execute()
         )
         if response.data:
-            # Flatten the structure for easier frontend consumption
             flat_data = []
             for row in response.data:
                 client_name = "N/A"
@@ -350,8 +348,8 @@ async def get_conversation_logs() -> Optional[list[Dict[str, Any]]]:
                     "phone": phone,
                     "transcript": row.get("transcript"),
                     "summary": row.get("summary"),
-                    "duration": row.get("duration", 0),  # Default to 0 if not present
-                    "status": row.get("status", "completed"),  # Default
+                    "duration": row.get("duration", 0),
+                    "status": row.get("status", "completed"),
                 }
                 flat_data.append(flat_row)
             logger.info(f"Fetched and flattened {len(flat_data)} conversation logs.")
@@ -393,4 +391,31 @@ async def get_conversation_by_id(conversation_id: int) -> Optional[Dict[str, Any
         return None
     except Exception as e:
         logger.error(f"Unexpected error in get_conversation_by_id: {e}")
+        return None
+
+
+async def get_client_by_phone(phone_number: str) -> Optional[Dict[str, Any]]:
+    """
+    Finds a client record where the 'cell' column matches the provided phone number.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return None
+
+    try:
+        response = (
+            supabase.table("clients").select("*").eq("cell", phone_number).execute()
+        )
+
+        if response.data:
+            logger.info(
+                f"Routing call to client: {response.data[0]['name']} ({response.data[0]['id']})"
+            )
+            return response.data[0]
+        else:
+            logger.warning(f"No client found for incoming number: {phone_number}")
+            return None
+
+    except Exception as e:
+        logger.error(f"Error looking up client by phone: {e}")
         return None

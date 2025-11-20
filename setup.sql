@@ -1,13 +1,11 @@
 /*
-   REFRESHED SETUP SCRIPT (v3 - Config-Driven, Cleaned):
-   - Drops only the three current production tables.
-   - Creates 'clients' table with configuration columns.
-   - Creates 'contacts' and 'conversations' tables.
-   - Enables Row Level Security (RLS) and adds dev policies.
+   REFRESHED SETUP SCRIPT (v5 - Phase 2 Ready):
+   - Includes configuration columns for Models & Tools.
+   - Secure RLS enabled by default.
  */
 
 ---------------------------------
--- STEP 1: Drop tables in order (dependents first)
+-- STEP 1: Drop tables in order
 ---------------------------------
 DROP TABLE IF EXISTS "public"."conversations";
 DROP TABLE IF EXISTS "public"."contacts";
@@ -15,7 +13,7 @@ DROP TABLE IF EXISTS "public"."clients";
 
 
 ---------------------------------
--- STEP 2: Create the 'clients' table (The AI's Owner & Configuration)
+-- STEP 2: Create 'clients' table
 ---------------------------------
 CREATE TABLE "public"."clients" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -29,26 +27,32 @@ CREATE TABLE "public"."clients" (
     "business_end_hour" integer NOT NULL DEFAULT 17,
     -- AI/LLM Settings
     "llm_model" text NOT NULL DEFAULT 'openai/gpt-4o-mini',
+    "stt_model" text DEFAULT 'nova-2-phonecall',
+    "tts_model" text DEFAULT 'eleven_flash_v2_5',
     "tts_voice_id" text NOT NULL DEFAULT '21m00Tcm4TlvDq8ikWAM',
+    -- Tools Configuration
+    "enabled_tools" text[] DEFAULT '{get_available_slots,book_appointment,save_contact_name}',
+    -- Prompting
     "initial_greeting" text,
     "system_prompt" text
 );
 
 
 ---------------------------------
--- STEP 3: Create 'contacts' and 'conversations' tables
+-- STEP 3: Create 'contacts' and 'conversations'
 ---------------------------------
--- Contacts (The caller)
+-- Contacts
 CREATE TABLE "public"."contacts" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     "client_id" uuid REFERENCES "public"."clients"("id") ON DELETE SET NULL,
-    "phone" text UNIQUE NOT NULL,
+    "phone" text NOT NULL,
     "name" text,
-    "created_at" timestamp WITH TIME ZONE DEFAULT NOW()
+    "created_at" timestamp WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE("phone", "client_id")
 );
 CREATE INDEX "idx_contacts_phone" ON "public"."contacts" ("phone");
 
--- Conversations (The call log)
+-- Conversations
 CREATE TABLE "public"."conversations" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     "client_id" uuid REFERENCES "public"."clients"("id") ON DELETE SET NULL,
@@ -62,30 +66,8 @@ CREATE INDEX "idx_conversations_client_id" ON "public"."conversations" ("client_
 
 
 ---------------------------------
--- STEP 5: Enable Row Level Security (CRITICAL)
+-- STEP 5: Enable Row Level Security
 ---------------------------------
 ALTER TABLE "public"."clients" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."contacts" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."conversations" ENABLE ROW LEVEL SECURITY;
-
-
----------------------------------
--- STEP 6: Create development policies
----------------------------------
-CREATE POLICY "Allow anon access to clients"
-ON "public"."clients"
-FOR ALL
-USING (true)
-WITH CHECK (true);
-
-CREATE POLICY "Allow anon access to contacts"
-ON "public" ."contacts"
-FOR ALL
-USING (true)
-WITH CHECK (true);
-
-CREATE POLICY "Allow anon access to conversations"
-ON "public"."conversations"
-FOR ALL
-USING (true)
-WITH CHECK (true);

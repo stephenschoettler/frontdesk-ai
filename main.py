@@ -91,6 +91,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # Helper: Initialize Services for a Specific Client
+# Helper: Initialize Services for a Specific Client
 async def initialize_client_services(client_id: str):
     """
     Fetches config for a specific client and initializes their AI services.
@@ -106,6 +107,13 @@ async def initialize_client_services(client_id: str):
     llm_model = client_config.get("llm_model", "openai/gpt-4o-mini")
     tts_voice_id = client_config.get("tts_voice_id", "21m00Tcm4TlvDq8ikWAM")
     initial_greeting = client_config.get("initial_greeting")
+
+    # Default to all tools if column is missing/empty (Backward Compatibility)
+    enabled_tools = client_config.get("enabled_tools") or [
+        "get_available_slots",
+        "book_appointment",
+        "save_contact_name",
+    ]
 
     # STT (Deepgram)
     stt = DeepgramSTTService(
@@ -126,7 +134,7 @@ async def initialize_client_services(client_id: str):
     class DebugLLM(OpenAILLMService):
         async def run_llm(self, *args, **kwargs):
             response = await super().run_llm(*args, **kwargs)  # type: ignore
-            # logger.info(f"RAW LLM RESPONSE: {response}") # Uncomment for deep debugging
+            # logger.info(f"RAW LLM RESPONSE: {response}")
             return response
 
     llm = DebugLLM(
@@ -138,13 +146,24 @@ async def initialize_client_services(client_id: str):
         stream=True,
     )
 
-    # Register Tools
-    llm.register_direct_function(handle_get_available_slots)
-    llm.register_direct_function(handle_book_appointment)
-    llm.register_direct_function(handle_save_contact_name)
+    # --- Dynamic Tool Registration ---
+    # Map database strings to actual python functions
+    tool_map = {
+        "get_available_slots": handle_get_available_slots,
+        "book_appointment": handle_book_appointment,
+        "save_contact_name": handle_save_contact_name,
+    }
 
-    # Inject CLIENT_ID into the environment for the tools to use
-    # (Note: Ideally tools should accept client_id as an arg, but for now we patch os.environ)
+    logger.info(f"Enabling tools for client {client_id}: {enabled_tools}")
+
+    for tool_name in enabled_tools:
+        tool_func = tool_map.get(tool_name)
+        if tool_func:
+            llm.register_direct_function(tool_func)
+        else:
+            logger.warning(f"Unknown tool requested in config: {tool_name}")
+
+    # Inject CLIENT_ID for tools
     os.environ["CLIENT_ID"] = client_id
 
     return stt, tts, llm, system_prompt, initial_greeting
@@ -349,6 +368,7 @@ class ClientCreate(BaseModel):
     tts_voice_id: str = "21m00Tcm4TlvDq8ikWAM"
     initial_greeting: Optional[str] = None
     system_prompt: Optional[str] = None
+    enabled_tools: Optional[list[str]] = None
 
 
 class ClientUpdate(BaseModel):
@@ -362,6 +382,7 @@ class ClientUpdate(BaseModel):
     tts_voice_id: Optional[str] = None
     initial_greeting: Optional[str] = None
     system_prompt: Optional[str] = None
+    enabled_tools: Optional[list[str]] = None
 
 
 @app.get("/api/clients")

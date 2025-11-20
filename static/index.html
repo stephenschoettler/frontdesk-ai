@@ -4,13 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Front Desk Admin Panel</title>
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- JetBrains Mono Font for hackery vibe -->
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Vue.js -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- Axios for HTTP requests -->
+    <script src="https://unpkg.com/vue@3.4.19/dist/vue.global.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <style>
         :root {
@@ -165,6 +161,16 @@
             border-color: var(--tokyo-blue);
             color: var(--tokyo-fg);
             box-shadow: 0 0 0 0.2rem rgba(125, 207, 255, 0.25);
+        }
+        
+        .form-check-input {
+            background-color: var(--tokyo-bg-dark);
+            border-color: var(--tokyo-comment);
+        }
+        
+        .form-check-input:checked {
+            background-color: var(--tokyo-blue);
+            border-color: var(--tokyo-blue);
         }
 
         .form-label {
@@ -348,6 +354,14 @@
             border-left: 3px solid var(--tokyo-purple);
         }
 
+        .message.tool {
+            background: rgba(42, 42, 55, 0.5); /* Darker/Transparent */
+            border-left: 3px solid var(--tokyo-orange);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--tokyo-comment);
+        }
+
         .message strong {
             color: var(--tokyo-blue);
             display: block;
@@ -358,18 +372,29 @@
             margin: 0;
             color: var(--tokyo-fg);
         }
+        
+        /* Fix Pre tag in navbar */
+        .navbar-brand pre {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: transparent !important; /* Force remove white box */
+            border: none !important;
+            margin-bottom: 0 !important; /* Remove default bottom margin */
+            overflow: hidden; /* Prevent scrollbars */
+        }
     </style>
 </head>
 <body>
     <div id="app" class="container-fluid">
         <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
-            <div class="container">
+            <div class="container-fluid">
                <a class="navbar-brand" href="#" style="font-size: 0.7em; line-height: 1;">
-    <pre style="color: var(--tokyo-blue); font-weight: 700; text-shadow: 0 0 5px var(--tokyo-blue); margin: 0; padding: 0; background: none; border: none;">
+<pre class="mb-0" style="color: var(--tokyo-blue); font-weight: 700; text-shadow: 0 0 5px var(--tokyo-blue);">
 ░█▀▀░█▀▄░█▀█░█▀█░▀█▀░█▀▄░█▀▀░█▀▀░█░█░░░░░█▀█░▀█▀
 ░█▀▀░█▀▄░█░█░█░█░░█░░█░█░█▀▀░▀▀█░█▀▄░▄▄▄░█▀█░░█░
-░▀░░░▀░▀░▀▀▀░▀░▀░░▀░░▀▀░░▀▀▀░▀▀▀░▀░▀░░░░░▀░▀░▀▀▀ </pre>
-              </a> <div class="navbar-nav ms-auto">
+░▀░░░▀░▀░▀▀▀░▀░▀░░▀░░▀▀░░▀▀▀░▀▀▀░▀░▀░░░░░▀░▀░▀▀▀
+</pre>
+              </a> 
+                <div class="navbar-nav ms-auto">
                     <span class="nav-item nav-link">Total Clients: {{ clients.length }}</span>
                 </div>
             </div>
@@ -377,16 +402,7 @@
 
         <div class="row">
             <div class="col-md-12">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2>Client Configurations</h2>
-                    <div>
-                        <button @click="showCreateModal = true" class="btn btn-success me-2">Create New Client</button>
-                        <button @click="showBulkModal = true" v-if="selectedClients.length > 0" class="btn btn-warning">Bulk Actions</button>
-                    </div>
-                </div>
-
-                <!-- Tab Navigation -->
-                <ul class="nav nav-tabs mb-4">
+                <ul class="nav nav-tabs mb-4 align-items-end">
                     <li class="nav-item">
                         <a class="nav-link" :class="{ active: activeTab === 'clients' }" href="#" @click.prevent="activeTab = 'clients'">Clients</a>
                     </li>
@@ -396,11 +412,14 @@
                     <li class="nav-item">
                         <a class="nav-link" :class="{ active: activeTab === 'logs' }" href="#" @click.prevent="activeTab = 'logs'">Call Logs</a>
                     </li>
+                    
+                    <li class="ms-auto pb-1">
+                        <button @click="showCreateModal = true" class="btn btn-success btn-sm me-2">Create New Client</button>
+                        <button @click="showBulkModal = true" v-if="selectedClients.length > 0" class="btn btn-warning btn-sm">Bulk Actions</button>
+                    </li>
                 </ul>
 
-                <!-- Tab Content -->
                 <div v-if="activeTab === 'clients'">
-                    <!-- Search and Filter -->
                     <div class="row mb-3">
                     <div class="col-md-4">
                         <input v-model="searchQuery" @input="filterClients" type="text" class="form-control" placeholder="Search clients...">
@@ -423,34 +442,38 @@
                     </div>
                 </div>
 
-                <!-- Clients List -->
                 <div class="row">
                     <div v-for="client in filteredClients" :key="client.id" class="col-md-6 col-lg-4 mb-4">
                         <div class="card client-card h-100">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h5 class="card-title mb-0">{{ client.name }}</h5>
-                                <div>
-                                    <input type="checkbox" v-model="selectedClients" :value="client.id" class="form-check-input">
-                                    <span :class="['status-indicator', client.cell ? 'status-active' : 'status-inactive']"></span>
-                                </div>
+                                <span :class="['status-indicator', client.cell ? 'status-active' : 'status-inactive']"></span>
                             </div>
                             <div class="card-body">
                                 <p class="card-text"><strong>Cell:</strong> {{ client.cell || 'Not set' }}</p>
                                 <p class="card-text"><strong>Timezone:</strong> {{ client.business_timezone }}</p>
                                 <p class="card-text"><strong>Hours:</strong> {{ formatHour(client.business_start_hour) }} - {{ formatHour(client.business_end_hour) }}</p>
                                 <p class="card-text"><strong>LLM Model:</strong> {{ client.llm_model }}</p>
-                                <small class="text-muted">Created: {{ formatDate(client.created_at) }}</small>
+                                <div class="mt-2" v-if="client.enabled_tools && client.enabled_tools.length">
+                                    <small class="text-muted">Tools: </small>
+                                    <span v-for="tool in client.enabled_tools" :key="tool" class="badge bg-secondary me-1" style="font-size: 0.7em;">{{ formatToolName(tool) }}</span>
+                                </div>
+                                <small class="text-muted d-block mt-2">Created: {{ formatDate(client.created_at) }}</small>
                             </div>
-                            <div class="card-footer">
-                                <button @click="editClient(client)" class="btn btn-primary btn-sm me-2">Edit</button>
-                                <button @click="duplicateClient(client)" class="btn btn-secondary btn-sm me-2">Duplicate</button>
-                                <button @click="deleteClient(client.id)" class="btn btn-danger btn-sm">Delete</button>
+                            <div class="card-footer d-flex justify-content-between align-items-center">
+                                <div>
+                                    <button @click="editClient(client)" class="btn btn-primary btn-sm me-2">Edit</button>
+                                    <button @click="duplicateClient(client)" class="btn btn-secondary btn-sm me-2">Duplicate</button>
+                                    <button @click="deleteClient(client.id)" class="btn btn-danger btn-sm">Delete</button>
+                                </div>
+                                <div class="form-check m-0">
+                                    <input type="checkbox" v-model="selectedClients" :value="client.id" class="form-check-input" title="Select for bulk action">
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                    <!-- Pagination -->
                     <nav v-if="totalPages > 1" aria-label="Client pagination">
                     <ul class="pagination justify-content-center">
                         <li class="page-item" :class="{ disabled: currentPage === 1 }">
@@ -466,7 +489,6 @@
                 </nav>
                 </div>
 
-                <!-- Contacts Tab -->
                 <div v-if="activeTab === 'contacts'" class="contacts-tab">
                     <div class="row mb-3">
                         <div class="col-md-4">
@@ -499,7 +521,6 @@
                     </div>
                 </div>
 
-                <!-- Call Logs Tab -->
                 <div v-if="activeTab === 'logs'" class="logs-tab">
                     <div class="row mb-3">
                         <div class="col-md-4">
@@ -549,10 +570,35 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="conversation-transcript">
-                                        <div v-for="(message, index) in selectedTranscript.transcript" :key="index"
-                                             :class="['message', message.role]">
-                                            <strong>{{ message.role === 'assistant' ? 'Assistant' : 'Caller' }}:</strong>
-                                            <p>{{ message.content }}</p>
+                                        <template v-for="(message, index) in selectedTranscript.transcript" :key="index">
+                                            
+                                            <div v-if="message.role === 'user'" class="message user">
+                                                <strong>Caller:</strong>
+                                                <p>{{ message.content }}</p>
+                                            </div>
+
+                                            <div v-else-if="message.role === 'assistant' && message.content" class="message assistant">
+                                                <strong>Assistant:</strong>
+                                                <p>{{ message.content }}</p>
+                                            </div>
+
+                                            <div v-if="message.role === 'assistant' && message.tool_calls" class="message tool">
+                                                <strong style="color: var(--tokyo-orange)">⚡ System Action:</strong>
+                                                <div v-for="tool in message.tool_calls" :key="tool.id" class="mb-1">
+                                                    <span class="text-warning">{{ tool.function.name }}</span>
+                                                    <span class="text-muted">({{ tool.function.arguments }})</span>
+                                                </div>
+                                            </div>
+
+                                            <div v-else-if="message.role === 'tool'" class="message tool">
+                                                <strong style="color: var(--tokyo-green)">✓ Tool Result:</strong>
+                                                <p style="white-space: pre-wrap;">{{ message.content }}</p>
+                                            </div>
+
+                                        </template>
+                                        
+                                        <div v-if="!selectedTranscript.transcript || selectedTranscript.transcript.length === 0" class="text-muted text-center mt-4">
+                                            Select a log to view transcript.
                                         </div>
                                     </div>
                                 </div>
@@ -563,7 +609,6 @@
             </div>
         </div>
 
-        <!-- Create/Edit Modal -->
         <div class="modal fade" :class="{ show: showCreateModal || showEditModal }" :style="{ display: (showCreateModal || showEditModal) ? 'block' : 'none' }" tabindex="-1">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
@@ -581,7 +626,8 @@
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Cell Phone</label>
-                                        <input v-model="clientForm.cell" type="text" class="form-control">
+                                        <input v-model="clientForm.cell" type="text" class="form-control" placeholder="+15551234567">
+                                        <div class="form-text text-muted">Must match Twilio 'To' number.</div>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Calendar ID</label>
@@ -600,13 +646,21 @@
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Start Hour</label>
-                                                <input v-model.number="clientForm.business_start_hour" type="number" class="form-control" min="0" max="23">
+                                                <select v-model.number="clientForm.business_start_hour" class="form-select">
+                                                    <option v-for="h in 24" :key="h-1" :value="h-1">
+                                                        {{ formatHour(h-1) }}
+                                                    </option>
+                                                </select>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">End Hour</label>
-                                                <input v-model.number="clientForm.business_end_hour" type="number" class="form-control" min="0" max="23">
+                                                <select v-model.number="clientForm.business_end_hour" class="form-select">
+                                                    <option v-for="h in 24" :key="h-1" :value="h-1">
+                                                        {{ formatHour(h-1) }}
+                                                    </option>
+                                                </select>
                                             </div>
                                         </div>
                                     </div>
@@ -620,6 +674,23 @@
                                             <option value="anthropic/claude-3-haiku">anthropic/claude-3-haiku</option>
                                         </select>
                                     </div>
+                                    
+                                    <div class="mb-3 border p-2 rounded" style="background: var(--tokyo-bg-dark);">
+                                        <label class="form-label mb-2 text-warning">Enabled AI Tools</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="get_available_slots" v-model="clientForm.enabled_tools" id="tool_slots">
+                                            <label class="form-check-label" for="tool_slots">Check Availability</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="book_appointment" v-model="clientForm.enabled_tools" id="tool_book">
+                                            <label class="form-check-label" for="tool_book">Book Appointments</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="save_contact_name" v-model="clientForm.enabled_tools" id="tool_save">
+                                            <label class="form-check-label" for="tool_save">Save Contact Names</label>
+                                        </div>
+                                    </div>
+
                                     <div class="mb-3">
                                         <label class="form-label">TTS Voice ID</label>
                                         <input v-model="clientForm.tts_voice_id" type="text" class="form-control">
@@ -653,7 +724,6 @@
             </div>
         </div>
 
-        <!-- Bulk Actions Modal -->
         <div class="modal fade" :class="{ show: showBulkModal }" :style="{ display: showBulkModal ? 'block' : 'none' }" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -670,24 +740,27 @@
             </div>
         </div>
 
-        <!-- Audit Log Sidebar -->
-        <div class="position-fixed top-50 end-0 translate-middle-y" style="width: 300px; z-index: 1000;">
-            <div class="card" v-if="showAuditLog">
-                <div class="card-header d-flex justify-content-between">
-                    <h6 class="mb-0">Audit Log</h6>
-                    <button @click="showAuditLog = false" class="btn-close btn-sm"></button>
+        <div class="position-fixed bottom-0 end-0 m-4" style="z-index: 1050;">
+            <div class="card shadow-lg border-info" v-if="showAuditLog" style="width: 300px;">
+                <div class="card-header d-flex justify-content-between align-items-center py-2 bg-dark border-bottom border-secondary">
+                    <h6 class="mb-0 text-info">System Activity</h6>
+                    <button @click="showAuditLog = false" class="btn-close btn-close-white btn-sm"></button>
                 </div>
-                <div class="card-body audit-log">
-                    <div v-for="log in auditLogs" :key="log.id" class="mb-2">
-                        <small class="text-muted">{{ formatDate(log.timestamp) }}</small><br>
-                        <span :class="log.type === 'create' ? 'text-success' : log.type === 'update' ? 'text-warning' : 'text-danger'">
-                            {{ log.action }}
-                        </span>
+                <div class="card-body audit-log p-2" style="max-height: 250px; overflow-y: auto; background: var(--tokyo-bg-dark);">
+                    <div v-for="log in auditLogs" :key="log.id" class="mb-2 border-bottom border-secondary pb-1">
+                        <div class="d-flex justify-content-between">
+                             <span :class="log.type === 'create' ? 'text-success' : log.type === 'update' ? 'text-warning' : 'text-danger'" 
+                                   style="font-size: 0.8rem; font-weight: bold;">
+                                {{ log.action }}
+                            </span>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.7rem;">{{ formatDate(log.timestamp) }}</small>
                     </div>
+                    <div v-if="auditLogs.length === 0" class="text-muted text-center small my-2">No recent activity.</div>
                 </div>
             </div>
-            <button v-else @click="showAuditLog = true" class="btn btn-outline-info position-fixed top-50 end-0 translate-middle-y">
-                Audit Log
+            <button v-else @click="showAuditLog = true" class="btn btn-outline-info rounded-pill shadow-lg">
+                <span class="me-2">📋</span>Audit Log
             </button>
         </div>
     </div>
@@ -711,7 +784,17 @@
                 const showAuditLog = ref(false);
                 const saving = ref(false);
                 const selectedTemplate = ref('');
-                const auditLogs = ref(JSON.parse(localStorage.getItem('auditLogs') || '[]'));
+                
+                // SAFETY FIX: Handle corrupted storage gracefully
+                let initialLogs = [];
+                try {
+                    initialLogs = JSON.parse(localStorage.getItem('auditLogs') || '[]');
+                } catch (e) {
+                    console.error('Resetting corrupted audit logs', e);
+                    initialLogs = [];
+                }
+                const auditLogs = ref(initialLogs);
+                
                 const activeTab = ref('clients');
                 const contacts = ref([]);
                 const callLogs = ref([]);
@@ -731,7 +814,8 @@
                     llm_model: 'openai/gpt-4o-mini',
                     tts_voice_id: '21m00Tcm4TlvDq8ikWAM',
                     initial_greeting: '',
-                    system_prompt: ''
+                    system_prompt: '',
+                    enabled_tools: [] 
                 });
 
                 const editingClient = ref(null);
@@ -792,7 +876,11 @@
                 const loadClients = async () => {
                     try {
                         const response = await axios.get('/api/clients');
-                        clients.value = response.data.clients;
+                        // Ensure enabled_tools is initialized for UI binding
+                        clients.value = response.data.clients.map(c => ({
+                            ...c,
+                            enabled_tools: c.enabled_tools || []
+                        }));
                         filterClients();
                     } catch (error) {
                         console.error('Failed to load clients:', error);
@@ -828,7 +916,11 @@
 
                 const editClient = (client) => {
                     editingClient.value = client.id;
-                    clientForm.value = { ...client };
+                    // Clone client data and ensure enabled_tools exists
+                    clientForm.value = { 
+                        ...client, 
+                        enabled_tools: client.enabled_tools || [] 
+                    };
                     showEditModal.value = true;
                 };
 
@@ -837,6 +929,7 @@
                     delete duplicated.id;
                     delete duplicated.created_at;
                     duplicated.name += ' (Copy)';
+                    duplicated.enabled_tools = client.enabled_tools || []; // Copy tools too
                     editingClient.value = null;
                     clientForm.value = duplicated;
                     showCreateModal.value = true;
@@ -931,7 +1024,8 @@
                         llm_model: 'openai/gpt-4o-mini',
                         tts_voice_id: '21m00Tcm4TlvDq8ikWAM',
                         initial_greeting: '',
-                        system_prompt: ''
+                        system_prompt: '',
+                        enabled_tools: ['get_available_slots', 'book_appointment', 'save_contact_name'] // Default all enabled for new
                     };
                     selectedTemplate.value = '';
                 };
@@ -959,6 +1053,15 @@
                     const period = hour >= 12 ? 'PM' : 'AM';
                     const displayHour = hour % 12 || 12;
                     return `${displayHour} ${period}`;
+                };
+
+                const formatToolName = (toolKey) => {
+                    const map = {
+                        'get_available_slots': 'Avail',
+                        'book_appointment': 'Book',
+                        'save_contact_name': 'Save Name'
+                    };
+                    return map[toolKey] || toolKey;
                 };
 
                 const loadContacts = async () => {
@@ -1035,6 +1138,7 @@
                     closeModal,
                     formatDate,
                     formatHour,
+                    formatToolName,
                     activeTab,
                     contacts,
                     callLogs,

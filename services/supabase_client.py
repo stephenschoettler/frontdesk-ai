@@ -75,9 +75,7 @@ async def get_client_config(client_id: str) -> Optional[Dict[str, Any]]:
         return None
 
     try:
-        response = (
-            supabase.table("clients").select("*").eq("id", client_id).execute()
-        )
+        response = supabase.table("clients").select("*").eq("id", client_id).execute()
 
         if response.data:
             logger.info(f"Found client config for {client_id}")
@@ -184,7 +182,11 @@ async def create_client_record(client_data: Dict[str, Any]) -> Optional[Dict[str
         return None
 
     try:
-        response = supabase.table("clients").insert(client_data, returning="representation").execute()
+        response = (
+            supabase.table("clients")
+            .insert(client_data, returning="representation")
+            .execute()
+        )
         if response.data:
             logger.info(f"Created new client: {response.data[0]['id']}")
             return response.data[0]
@@ -199,7 +201,9 @@ async def create_client_record(client_data: Dict[str, Any]) -> Optional[Dict[str
         return None
 
 
-async def update_client(client_id: str, client_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+async def update_client(
+    client_id: str, client_data: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
     """
     Updates an existing client configuration.
     """
@@ -208,7 +212,12 @@ async def update_client(client_id: str, client_data: Dict[str, Any]) -> Optional
         return None
 
     try:
-        response = supabase.table("clients").update(client_data, returning="representation").eq("id", client_id).execute()
+        response = (
+            supabase.table("clients")
+            .update(client_data, returning="representation")
+            .eq("id", client_id)
+            .execute()
+        )
         if response.data:
             logger.info(f"Updated client: {client_id}")
             return response.data[0]
@@ -245,3 +254,143 @@ async def delete_client(client_id: str) -> bool:
     except Exception as e:
         logger.error(f"Unexpected error in delete_client: {e}")
         return False
+
+
+async def get_all_contacts() -> Optional[list[Dict[str, Any]]]:
+    """
+    Retrieves all contacts along with their last contact timestamp.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return None
+
+    try:
+        # Fetch all contacts
+        contacts_response = supabase.table("contacts").select("*").execute()
+        if not contacts_response.data:
+            logger.info("No contacts found.")
+            return []
+
+        contacts = contacts_response.data
+        contact_ids = [contact["id"] for contact in contacts]
+
+        # Fetch latest conversation timestamp for each contact
+        # This requires a subquery or a direct query with a max aggregation
+        # Supabase client doesn't directly support complex joins/subqueries like this
+        # in the Python client as easily as raw SQL.
+        # A workaround is to fetch all conversations and then map them,
+        # or perform individual queries if performance is not critical for small datasets.
+        # For better performance, we'll fetch all conversations and process them in Python.
+
+        # Fetch all conversations to determine last contact
+        conversations_response = (
+            supabase.table("conversations")
+            .select("contact_id, created_at")
+            .in_("contact_id", contact_ids)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        last_contact_map = {}
+        for conv in conversations_response.data:
+            contact_id = conv["contact_id"]
+            if contact_id not in last_contact_map:
+                last_contact_map[contact_id] = conv["created_at"]
+
+        # Add last_contact to each contact
+        for contact in contacts:
+            contact["last_contact"] = last_contact_map.get(contact["id"])
+
+        logger.info(f"Fetched {len(contacts)} contacts with last contact info.")
+        return contacts
+    except APIError as e:
+        logger.error(f"Supabase API error in get_all_contacts: {e.body}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in get_all_contacts: {e}")
+        return None
+
+
+async def get_conversation_logs() -> Optional[list[Dict[str, Any]]]:
+    """
+    Retrieves all conversation logs, ordered by creation time.
+    Assumes duration and status are not explicitly stored and returns available fields.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return None
+
+    try:
+        response = (
+            supabase.table("conversations")
+            .select("*, clients(name), contacts(phone)")
+            .order("created_at", desc=True)
+            .execute()
+        )
+        if response.data:
+            # Flatten the structure for easier frontend consumption
+            flat_data = []
+            for row in response.data:
+                client_name = "N/A"
+                clients_data = row.get("clients")
+                if clients_data:
+                    client_name = clients_data.get("name", "N/A")
+
+                phone = "N/A"
+                contacts_data = row.get("contacts")
+                if contacts_data:
+                    phone = contacts_data.get("phone", "N/A")
+
+                flat_row = {
+                    "id": row.get("id"),
+                    "timestamp": row.get("created_at"),
+                    "client_id": row.get("client_id"),
+                    "client_name": client_name,
+                    "contact_id": row.get("contact_id"),
+                    "phone": phone,
+                    "transcript": row.get("transcript"),
+                    "summary": row.get("summary"),
+                    "duration": row.get("duration", 0),  # Default to 0 if not present
+                    "status": row.get("status", "completed"),  # Default
+                }
+                flat_data.append(flat_row)
+            logger.info(f"Fetched and flattened {len(flat_data)} conversation logs.")
+            return flat_data
+        else:
+            logger.info("No conversation logs found.")
+            return []
+    except APIError as e:
+        logger.error(f"Supabase API error in get_conversation_logs: {e.body}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in get_conversation_logs: {e}")
+        return None
+
+
+async def get_conversation_by_id(conversation_id: int) -> Optional[Dict[str, Any]]:
+    """
+    Retrieves a single conversation log by its ID.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return None
+
+    try:
+        response = (
+            supabase.table("conversations")
+            .select("*")
+            .eq("id", conversation_id)
+            .execute()
+        )
+        if response.data:
+            logger.info(f"Fetched conversation {conversation_id}.")
+            return response.data[0]
+        else:
+            logger.info(f"No conversation found with ID: {conversation_id}.")
+            return None
+    except APIError as e:
+        logger.error(f"Supabase API error in get_conversation_by_id: {e.body}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in get_conversation_by_id: {e}")
+        return None

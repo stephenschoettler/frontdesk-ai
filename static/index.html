@@ -280,14 +280,96 @@
         .btn-close {
             filter: invert(1);
         }
+
+        /* Tabs Styling */
+        .nav-tabs {
+            border-bottom: 1px solid var(--tokyo-bg-mid);
+        }
+
+        .nav-tabs .nav-link {
+            color: var(--tokyo-fg) !important;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            margin-right: 0.5rem;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .nav-tabs .nav-link:hover {
+            border-color: transparent;
+            background: var(--tokyo-bg-mid);
+        }
+
+        .nav-tabs .nav-link.active {
+            background: var(--tokyo-blue);
+            color: var(--tokyo-bg) !important;
+            border: none;
+        }
+
+        /* Table Styling */
+        .table-dark {
+            background: var(--tokyo-bg-mid);
+            color: var(--tokyo-fg);
+        }
+
+        .table-dark thead th {
+            background: var(--tokyo-bg-dark);
+            border-bottom: 2px solid var(--tokyo-blue);
+            color: var(--tokyo-purple);
+        }
+
+        .table-dark td {
+            border-color: var(--tokyo-bg-dark);
+        }
+
+        tr.selected {
+            background: var(--tokyo-bg-dark) !important;
+            border-left: 3px solid var(--tokyo-blue);
+        }
+
+        /* Conversation Transcript */
+        .conversation-transcript {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .message {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 6px;
+        }
+
+        .message.assistant {
+            background: var(--tokyo-bg-dark);
+            border-left: 3px solid var(--tokyo-blue);
+        }
+
+        .message.user {
+            background: var(--tokyo-bg-dark);
+            border-left: 3px solid var(--tokyo-purple);
+        }
+
+        .message strong {
+            color: var(--tokyo-blue);
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .message p {
+            margin: 0;
+            color: var(--tokyo-fg);
+        }
     </style>
 </head>
 <body>
     <div id="app" class="container-fluid">
         <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
             <div class="container">
-                <a class="navbar-brand" href="#">Front Desk Admin Panel</a>
-                <div class="navbar-nav ms-auto">
+               <a class="navbar-brand" href="#" style="font-size: 0.7em; line-height: 1;">
+    <pre style="color: var(--tokyo-blue); font-weight: 700; text-shadow: 0 0 5px var(--tokyo-blue); margin: 0; padding: 0; background: none; border: none;">
+░█▀▀░█▀▄░█▀█░█▀█░▀█▀░█▀▄░█▀▀░█▀▀░█░█░░░░░█▀█░▀█▀
+░█▀▀░█▀▄░█░█░█░█░░█░░█░█░█▀▀░▀▀█░█▀▄░▄▄▄░█▀█░░█░
+░▀░░░▀░▀░▀▀▀░▀░▀░░▀░░▀▀░░▀▀▀░▀▀▀░▀░▀░░░░░▀░▀░▀▀▀ </pre>
+              </a> <div class="navbar-nav ms-auto">
                     <span class="nav-item nav-link">Total Clients: {{ clients.length }}</span>
                 </div>
             </div>
@@ -303,8 +385,23 @@
                     </div>
                 </div>
 
-                <!-- Search and Filter -->
-                <div class="row mb-3">
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs mb-4">
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: activeTab === 'clients' }" href="#" @click.prevent="activeTab = 'clients'">Clients</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: activeTab === 'contacts' }" href="#" @click.prevent="activeTab = 'contacts'">Contacts</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" :class="{ active: activeTab === 'logs' }" href="#" @click.prevent="activeTab = 'logs'">Call Logs</a>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div v-if="activeTab === 'clients'">
+                    <!-- Search and Filter -->
+                    <div class="row mb-3">
                     <div class="col-md-4">
                         <input v-model="searchQuery" @input="filterClients" type="text" class="form-control" placeholder="Search clients...">
                     </div>
@@ -340,7 +437,7 @@
                             <div class="card-body">
                                 <p class="card-text"><strong>Cell:</strong> {{ client.cell || 'Not set' }}</p>
                                 <p class="card-text"><strong>Timezone:</strong> {{ client.business_timezone }}</p>
-                                <p class="card-text"><strong>Hours:</strong> {{ client.business_start_hour }} - {{ client.business_end_hour }}</p>
+                                <p class="card-text"><strong>Hours:</strong> {{ formatHour(client.business_start_hour) }} - {{ formatHour(client.business_end_hour) }}</p>
                                 <p class="card-text"><strong>LLM Model:</strong> {{ client.llm_model }}</p>
                                 <small class="text-muted">Created: {{ formatDate(client.created_at) }}</small>
                             </div>
@@ -353,8 +450,8 @@
                     </div>
                 </div>
 
-                <!-- Pagination -->
-                <nav v-if="totalPages > 1" aria-label="Client pagination">
+                    <!-- Pagination -->
+                    <nav v-if="totalPages > 1" aria-label="Client pagination">
                     <ul class="pagination justify-content-center">
                         <li class="page-item" :class="{ disabled: currentPage === 1 }">
                             <a class="page-link" href="#" @click.prevent="currentPage--" v-if="currentPage > 1">Previous</a>
@@ -367,6 +464,102 @@
                         </li>
                     </ul>
                 </nav>
+                </div>
+
+                <!-- Contacts Tab -->
+                <div v-if="activeTab === 'contacts'" class="contacts-tab">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <input v-model="contactSearchQuery" type="text" class="form-control" placeholder="Search contacts...">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-dark">
+                            <thead>
+                                <tr>
+                                    <th>Phone Number</th>
+                                    <th>Name</th>
+                                    <th>Client</th>
+                                    <th>Last Contact</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="contact in filteredContacts" :key="contact.phone">
+                                    <td>{{ contact.phone }}</td>
+                                    <td>{{ contact.name }}</td>
+                                    <td>{{ contact.client_name }}</td>
+                                    <td>{{ formatDate(contact.last_contact) }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary me-2">View History</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Call Logs Tab -->
+                <div v-if="activeTab === 'logs'" class="logs-tab">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <input v-model="logSearchQuery" type="text" class="form-control" placeholder="Search logs...">
+                        </div>
+                        <div class="col-md-3">
+                            <select v-model="logFilterClient" class="form-select">
+                                <option value="">All Clients</option>
+                                <option v-for="client in clients" :key="client.id" :value="client.id">
+                                    {{ client.name }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="table-responsive">
+                                <table class="table table-dark">
+                                    <thead>
+                                        <tr>
+                                            <th>Date/Time</th>
+                                            <th>Client</th>
+                                            <th>Phone</th>
+                                            <th>Duration</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="log in filteredCallLogs" :key="log.id" 
+                                            @click="selectedTranscript = log"
+                                            :class="{ 'selected': selectedTranscript?.id === log.id }"
+                                            style="cursor: pointer;">
+                                            <td>{{ formatDate(log.timestamp) }}</td>
+                                            <td>{{ log.client_name }}</td>
+                                            <td>{{ log.phone }}</td>
+                                            <td>{{ log.duration }}s</td>
+                                            <td>{{ log.status }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-md-6" v-if="selectedTranscript">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Call Transcript</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="conversation-transcript">
+                                        <div v-for="(message, index) in selectedTranscript.transcript" :key="index"
+                                             :class="['message', message.role]">
+                                            <strong>{{ message.role === 'assistant' ? 'Assistant' : 'Caller' }}:</strong>
+                                            <p>{{ message.content }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -519,6 +712,14 @@
                 const saving = ref(false);
                 const selectedTemplate = ref('');
                 const auditLogs = ref(JSON.parse(localStorage.getItem('auditLogs') || '[]'));
+                const activeTab = ref('clients');
+                const contacts = ref([]);
+                const callLogs = ref([]);
+                const selectedTranscript = ref(null);
+
+                const contactSearchQuery = ref('');
+                const logSearchQuery = ref('');
+                const logFilterClient = ref('');
 
                 const clientForm = ref({
                     name: '',
@@ -565,6 +766,27 @@
                     const start = (currentPage.value - 1) * pageSize.value;
                     const end = start + pageSize.value;
                     return filteredClients.value.slice(start, end);
+                });
+
+                const filteredContacts = computed(() => {
+                    if (!contacts.value) return [];
+                    return contacts.value.filter(contact => {
+                        const search = contactSearchQuery.value.toLowerCase();
+                        return (contact.name && contact.name.toLowerCase().includes(search)) ||
+                               contact.phone.toLowerCase().includes(search);
+                    });
+                });
+
+                const filteredCallLogs = computed(() => {
+                    if (!callLogs.value) return [];
+                    return callLogs.value.filter(log => {
+                        const search = logSearchQuery.value.toLowerCase();
+                        const clientName = clients.value.find(c => c.id === logFilterClient.value)?.name;
+                        const clientMatch = !logFilterClient.value || (clientName && log.client_name === clientName);
+                        const searchMatch = !search || (log.phone && log.phone.toLowerCase().includes(search)) ||
+                                            (log.status && log.status.toLowerCase().includes(search));
+                        return clientMatch && searchMatch;
+                    });
                 });
 
                 const loadClients = async () => {
@@ -729,8 +951,43 @@
                 };
 
                 const formatDate = (dateStr) => {
-                    return new Date(dateStr).toLocaleDateString();
+                    if (!dateStr) return 'N/A';
+                    return new Date(dateStr).toLocaleString();
                 };
+
+                const formatHour = (hour) => {
+                    const period = hour >= 12 ? 'PM' : 'AM';
+                    const displayHour = hour % 12 || 12;
+                    return `${displayHour} ${period}`;
+                };
+
+                const loadContacts = async () => {
+                    try {
+                        const response = await axios.get('/api/contacts');
+                        contacts.value = response.data.contacts;
+                    } catch (error) {
+                        console.error('Failed to load contacts:', error);
+                        alert('Failed to load contacts');
+                    }
+                };
+
+                const loadLogs = async () => {
+                    try {
+                        const response = await axios.get('/api/conversation-logs');
+                        callLogs.value = response.data.conversation_logs;
+                    } catch (error) {
+                        console.error('Failed to load call logs:', error);
+                        alert('Failed to load call logs');
+                    }
+                };
+
+                watch(activeTab, (newTab) => {
+                    if (newTab === 'contacts') {
+                        loadContacts();
+                    } else if (newTab === 'logs') {
+                        loadLogs();
+                    }
+                });
 
                 watch([searchQuery, filterStatus], () => {
                     filterClients();
@@ -738,6 +995,12 @@
 
                 onMounted(() => {
                     loadClients();
+                    // Load initial tab data if not clients
+                    if (activeTab.value === 'contacts') {
+                        loadContacts();
+                    } else if (activeTab.value === 'logs') {
+                        loadLogs();
+                    }
                 });
 
                 return {
@@ -770,7 +1033,17 @@
                     applyTemplate,
                     exportClients,
                     closeModal,
-                    formatDate
+                    formatDate,
+                    formatHour,
+                    activeTab,
+                    contacts,
+                    callLogs,
+                    selectedTranscript,
+                    contactSearchQuery,
+                    logSearchQuery,
+                    logFilterClient,
+                    filteredContacts,
+                    filteredCallLogs
                 };
             }
         }).mount('#app');

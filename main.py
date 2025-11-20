@@ -5,12 +5,20 @@ import argparse
 import signal
 import urllib.parse
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, Request, Response
+from fastapi import (
+    FastAPI,
+    WebSocket,
+    Request,
+    Response,
+    HTTPException,
+)  # Moved HTTPException here
 from fastapi.staticfiles import StaticFiles
 from starlette.websockets import WebSocketState
 import uvicorn
 import datetime
 from typing import Optional
+
+from pydantic import BaseModel  # Moved BaseModel here
 
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
@@ -29,6 +37,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
 )
 from pipecat.runner.utils import parse_telephony_websocket
+
 # Import the new function from supabase_client
 from services.supabase_client import (
     get_or_create_contact,
@@ -38,6 +47,9 @@ from services.supabase_client import (
     create_client_record,
     update_client,
     delete_client,
+    get_all_contacts,  # New import
+    get_conversation_logs,  # New import
+    get_conversation_by_id,  # New import
 )
 
 # Import our new tool handlers
@@ -76,6 +88,7 @@ else:
     logger.info("DIAGNOSTIC: SUPABASE_ANON_KEY IS NOT LOADED (None).")
 # ------------------
 
+
 #
 # AI Services Setup Function (Now uses the database config)
 #
@@ -88,12 +101,16 @@ async def setup_services() -> tuple[
 ]:
     """Fetches client config and initializes all services."""
     if not CLIENT_ID:
-        logger.critical("FATAL: CLIENT_ID environment variable is not set. Cannot proceed.")
+        logger.critical(
+            "FATAL: CLIENT_ID environment variable is not set. Cannot proceed."
+        )
         return None, None, None, None, None
 
     client_config = await get_client_config(CLIENT_ID)
     if not client_config:
-        logger.critical(f"FATAL: Could not fetch configuration for CLIENT_ID: {CLIENT_ID}")
+        logger.critical(
+            f"FATAL: Could not fetch configuration for CLIENT_ID: {CLIENT_ID}"
+        )
         return None, None, None, None, None
 
     # --- Extract Config Values ---
@@ -104,9 +121,11 @@ async def setup_services() -> tuple[
 
     # STT (Deepgram is configured via ENV only)
     stt = DeepgramSTTService(
-        api_key=os.environ["DEEPGRAM_API_KEY"], model="nova-2-phonecall", vad_events=True
+        api_key=os.environ["DEEPGRAM_API_KEY"],
+        model="nova-2-phonecall",
+        vad_events=True,
     )
-    
+
     # TTS (ElevenLabs uses config values)
     tts = ElevenLabsTTSService(
         api_key=os.environ["ELEVENLABS_API_KEY"],
@@ -293,12 +312,14 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
     # Use config value for greeting, split it for better TTS delivery
     if initial_greeting:
         # Simple split on period followed by a space
-        greeting_parts = initial_greeting.split('. ')
+        greeting_parts = initial_greeting.split(". ")
         for part in greeting_parts:
             # Ensure we re-add the period if it was a sentence split
             part = part.strip()
             if part:
-                greeting_frames.append(TextFrame(part + "." if initial_greeting.endswith('.') else part))
+                greeting_frames.append(
+                    TextFrame(part + "." if initial_greeting.endswith(".") else part)
+                )
     else:
         # Fallback to the old hardcoded frames logic just in case the seed failed
         greeting_frames = [
@@ -344,9 +365,6 @@ async def websocket_endpoint(websocket: WebSocket, caller_phone: str):
 #
 # API Endpoints for Client Management
 #
-from fastapi import HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
 
 
 class ClientCreate(BaseModel):
@@ -417,6 +435,47 @@ async def delete_existing_client(client_id: str):
     return {"message": "Client deleted successfully"}
 
 
+@app.get("/api/contacts")
+async def api_get_all_contacts():
+    """
+    API endpoint to retrieve all contacts.
+    """
+    contacts = await get_all_contacts()
+    if contacts is None:
+        raise HTTPException(status_code=500, detail="Failed to fetch contacts")
+    return {"contacts": contacts}
+
+
+@app.get("/api/conversation-logs")
+async def api_get_conversation_logs():
+    """
+    API endpoint to retrieve all conversation logs.
+    """
+    logs = await get_conversation_logs()
+    if logs is None:
+        raise HTTPException(status_code=500, detail="Failed to fetch conversation logs")
+    return {"conversation_logs": logs}
+
+
+@app.get("/api/conversation-logs/{conversation_id}/transcript")
+async def api_get_conversation_transcript(conversation_id: int):
+    """
+    API endpoint to retrieve the transcript of a specific conversation log.
+    """
+    conversation = await get_conversation_by_id(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    transcript = conversation.get("transcript")
+    if transcript is None:
+        # This case ideally shouldn't happen if log_conversation always stores a transcript
+        raise HTTPException(
+            status_code=404, detail="Transcript not found for this conversation"
+        )
+
+    return {"transcript": transcript}
+
+
 async def main():
     """
     Main function to run the FastAPI server and the Pipecat runner.
@@ -428,9 +487,15 @@ async def main():
         help="Run in test mode, handling one call and then exiting.",
     )
     args = parser.parse_args()
-    
+
     # --- NEW: Initialize services and store them in app state ---
-    app.state.stt, app.state.tts, app.state.llm, app.state.system_prompt, app.state.initial_greeting = await setup_services()
+    (
+        app.state.stt,
+        app.state.tts,
+        app.state.llm,
+        app.state.system_prompt,
+        app.state.initial_greeting,
+    ) = await setup_services()
     if not app.state.llm:
         logger.critical("AI Services failed to initialize. Exiting application.")
         return

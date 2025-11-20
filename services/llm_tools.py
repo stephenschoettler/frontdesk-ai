@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 
 # Import our actual calendar functions
@@ -14,28 +14,21 @@ from pipecat.services.llm_service import FunctionCallParams
 logger = logging.getLogger(__name__)
 
 
-
-
 async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> None:
     """
     Check for available 1-hour appointment slots on a specific day.
-
-    Args:
-        date (str): The date to check for availability, in 'YYYY-MM-DD' format.
-        time_range (str, optional): "morning" or "afternoon" to filter slots to 9 AM - 12 PM or 12 PM - 5 PM.
+    Returns human-readable times in the business timezone.
     """
     client_id = os.environ.get("CLIENT_ID")
     if not client_id:
         await params.result_callback([{"error": "Client ID is not configured."}])
         return
 
-    # --- FETCH CLIENT CONFIG TO GET DYNAMIC SETTINGS ---
     client_config = await get_client_config(client_id)
     if not client_config:
         await params.result_callback([{"error": "Failed to fetch client configuration."}])
         return
 
-    # --- USE CONFIG VALUES with Fallbacks (Defaults from setup.sql) ---
     calendar_id = client_config.get("calendar_id", "primary")
     timezone = client_config.get("business_timezone", "America/Los_Angeles")
     start_hour_default = client_config.get("business_start_hour", 9)
@@ -48,41 +41,46 @@ async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> No
     logger.info(f"Handling get_available_slots for day: {raw_day} in {timezone}")
 
     try:
-        # --- Timezone & Date Logic ---
         tz = pytz.timezone(timezone)
-
-        # Get the requested date
         req_date = datetime.strptime(raw_day, "%Y-%m-%d").date()
 
-        # Determine working hours based on time_range
+        # Determine working hours
         start_hour = start_hour_default
         end_hour = end_hour_default
-
         if time_range == "morning":
             end_hour = 12
         elif time_range == "afternoon":
             start_hour = 12
 
-        # Create localized datetimes first
-        start_time = tz.localize(
-            datetime(req_date.year, req_date.month, req_date.day, start_hour, 0, 0)
-        )
-        end_time = tz.localize(
-            datetime(req_date.year, req_date.month, req_date.day, end_hour, 0, 0)
-        )
+        start_time = tz.localize(datetime(req_date.year, req_date.month, req_date.day, start_hour, 0, 0))
+        end_time = tz.localize(datetime(req_date.year, req_date.month, req_date.day, end_hour, 0, 0))
 
-        # Convert to UTC for the API
         start_time_utc = start_time.astimezone(pytz.utc)
         end_time_utc = end_time.astimezone(pytz.utc)
 
-        logger.info(
-            f"Querying Google Calendar free/busy from {start_time_utc} to {end_time_utc} UTC"
-        )
+        # Get slots from Google (returns UTC ISO strings)
+        raw_slots = await get_available_slots(calendar_id, start_time_utc, end_time_utc)
+        
+        # --- FORMAT SLOTS FOR HUMAN READABILITY ---
+        human_slots = []
+        for slot in raw_slots:
+            # Parse the UTC time from Google
+            dt_utc = datetime.fromisoformat(slot["start"])
+            # Convert to Business Timezone
+            dt_local = dt_utc.astimezone(tz)
+            # Format nicely (e.g., "9:00 AM")
+            human_time = dt_local.strftime("%-I:%M %p")
+            # Keep the ISO string for the machine, add human string for the voice
+            human_slots.append({
+                "human_time": human_time, 
+                "iso_start": dt_local.isoformat()
+            })
 
-        result = await get_available_slots(
-            calendar_id, start_time_utc, end_time_utc
-        )
-        await params.result_callback(result)
+        if not human_slots:
+             await params.result_callback("No slots available for that time range.")
+        else:
+             # Return a simplified list that instructs the AI exactly what to say
+             await params.result_callback(human_slots)
 
     except Exception as e:
         logger.error(f"Error in handle_get_available_slots: {e}")
@@ -91,69 +89,84 @@ async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> No
 
 async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
     """
-    Book an appointment on the calendar.
-
-    Args:
-        start_time (str): The start time of the appointment in ISO 8601 format (e.g., '2025-11-20T14:30:00-08:00').
-        end_time (str): The end time of the appointment in ISO 8601 format.
-        summary (str): A summary or title for the appointment (e.g., 'Booking for John Doe').
-        description (str): A description for the appointment, including the caller's phone number.
+    Book an appointment. Handles 'lazy' arguments from AI (missing end_time, etc).
     """
     client_id = os.environ.get("CLIENT_ID")
     if not client_id:
-        await params.result_callback({"status": "error", "message": "Client ID is not configured."})
+        await params.result_callback({"status": "error", "message": "Client ID missing."})
         return
 
-    # --- FETCH CLIENT CONFIG TO GET CALENDAR ID ---
     client_config = await get_client_config(client_id)
     if not client_config:
-        await params.result_callback({"status": "error", "message": "Failed to fetch client configuration."})
+        await params.result_callback({"status": "error", "message": "Config missing."})
         return
 
-    calendar_id = client_config.get("calendar_id", "primary") # Use config or fallback
+    calendar_id = client_config.get("calendar_id", "primary")
 
     try:
         args = params.arguments.get("kwargs", params.arguments)
+        logger.info(f"Book args: {args}") # Debug log
+        
+        # --- ROBUST ARGUMENT PARSING ---
+        start_time_str = args.get("start_time")
+        
+        # Handle "time" vs "start_time" ambiguity
+        if not start_time_str:
+            time_arg = args.get("time")
+            date_arg = args.get("date")
+            
+            if time_arg:
+                # FIX: If AI sends full ISO string (contains 'T'), use it directly
+                if "T" in time_arg:
+                    start_time_str = time_arg
+                # Otherwise, combine date + simple time
+                elif date_arg:
+                    if len(time_arg) == 5:
+                        time_arg += ":00"  # Fix "17:00" to "17:00:00"
+                    start_time_str = f"{date_arg}T{time_arg}"
+                    # Fallback to PST if no offset provided
+                    if "+" not in start_time_str and "-" not in start_time_str[-6:]:
+                         start_time_str += "-08:00"
 
-        # FIX: We now use the correct keys from the LLM arguments.
-        start_time = args["start_time"]
-        end_time = args["end_time"]
-        description = args["description"]
+        if not start_time_str:
+            raise ValueError("Could not determine start_time from arguments.")
 
-        # FIX: Robustly get the summary, or build it from provided contact info.
-        # This prevents the KeyError: 'summary' seen in the log.
+        # Calculate end time if missing (default 1 hour)
+        end_time_str = args.get("end_time")
+        if not end_time_str:
+            start_dt = datetime.fromisoformat(start_time_str)
+            end_dt = start_dt + timedelta(hours=1)
+            end_time_str = end_dt.isoformat()
+        else:
+            start_dt = datetime.fromisoformat(start_time_str)
+            end_dt = datetime.fromisoformat(end_time_str)
+
+        # Handle names
         summary = args.get("summary")
-        contact_name = args.get("name")
-        phone_number = args.get("phone")
+        description = args.get("description", "")
+        contact_name = args.get("name") or args.get("caller_name")
 
         if not summary:
-            if contact_name:
-                summary = f"Booking for {contact_name}"
-            elif phone_number:
-                summary = f"Booking for {phone_number}"
-            else:
-                summary = "AI-Scheduled Appointment"
-        logger.info(f"Handling book_appointment for: {summary}")
-        
-        start_time_dt = datetime.fromisoformat(start_time)
-        end_time_dt = datetime.fromisoformat(end_time)
+            summary = f"Booking for {contact_name}" if contact_name else "AI Appointment"
+
+        logger.info(f"Booking event: {summary} at {start_dt}")
 
         event = await book_appointment(
             calendar_id=calendar_id,
-            start_time=start_time_dt,
-            end_time=end_time_dt,
+            start_time=start_dt,
+            end_time=end_dt,
             summary=summary,
             description=description,
         )
 
         if event:
             result = {
-                "status": "success",
-                "event_id": event.get("id"),
-                "summary": event.get("summary"),
+                "status": "success", 
+                "summary": event.get("summary"), 
+                "time": start_dt.strftime("%-I:%M %p")
             }
         else:
-            result = {"status": "error", "message": "Failed to create event."}
+            result = {"status": "error", "message": "Calendar API failed."}
         await params.result_callback(result)
 
     except Exception as e:
@@ -163,23 +176,20 @@ async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
 
 async def handle_save_contact_name(params: FunctionCallParams, **kwargs) -> None:
     """
-    Saves or updates a caller's name in the database using their phone number.
-
-    Args:
-        phone_number (str): The phone number of the contact to update (e.g., '+15551234567').
-        name (str): The full name of the contact to save.
+    Saves contact name. Robust against missing keys.
     """
     args = params.arguments.get("kwargs", params.arguments)
-    phone_number = args["phone_number"]
-    name = args["name"]
+    phone_number = args.get("phone_number")
+    name = args.get("name") or args.get("contact_name")
+
+    if not phone_number or not name:
+        await params.result_callback({"status": "error", "message": "Missing phone or name."})
+        return
+
     logger.info(f"TOOL CALL: save_contact_name(phone={phone_number}, name={name})")
-
     success = await update_contact_name(phone_number=phone_number, name=name)
-
+    
     if success:
-        logger.info(f"Name persisted in DB: {name}")
-        result = {"status": "success", "message": f"Name {name} saved."}
+        await params.result_callback({"status": "success", "message": f"Name {name} saved."})
     else:
-        logger.error("Failed to save name")
-        result = {"status": "error", "message": "Failed to save name."}
-    await params.result_callback(result)
+        await params.result_callback({"status": "error", "message": "Database error."})

@@ -9,10 +9,21 @@ This project is designed to be a foundation for a fully-featured AI agent that c
 
 ## Table of Contents
 
+- [Screenshots](#screenshots)
 - [Core Tech Stack](#core-tech-stack)
 - [Service Provisioning](#1-service-provisioning-the-gathering-phase)
 - [Project Installation & Setup](#2-project-installation--setup)
 - [Running the Receptionist](#3-running-the-receptionist)
+
+## Screenshots
+
+| Main | Edit Client |
+| :---: | :---: |
+| <img src="screenshots/Main.jpg" width="400" /> | <img src="screenshots/Edit_Client.jpg" width="400" /> |
+
+| Contacts | Call Logs |
+| :---: | :---: |
+| <img src="screenshots/Contacts.jpg" width="400" /> | <img src="screenshots/Call Logs.jpg" width="400" /> |
 
 ## Core Tech Stack
 

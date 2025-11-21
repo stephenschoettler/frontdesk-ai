@@ -9,6 +9,7 @@ python-dotenv
 python-multipart
 pytest>=7.0
 pytz
-supabase
+supabase==2.23.0
 twilio
 uvicorn
+pydantic[email]

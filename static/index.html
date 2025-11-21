@@ -385,7 +385,7 @@
 </head>
 <body>
     <div id="app" class="container-fluid">
-        <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4" v-if="currentView === 'dashboard'">
             <div class="container-fluid">
                <a class="navbar-brand" href="#" style="font-size: 0.7em; line-height: 1;">
 <pre class="mb-0" style="color: var(--tokyo-blue); font-weight: 700; text-shadow: 0 0 5px var(--tokyo-blue);">
@@ -396,11 +396,42 @@
               </a> 
                 <div class="navbar-nav ms-auto">
                     <span class="nav-item nav-link">Total Clients: {{ clients.length }}</span>
+                    <span class="nav-item nav-link" v-if="currentUser">Logged in as: {{ currentUser }}</span>
+                    <button @click="logout" class="btn btn-danger btn-sm ms-3">Logout</button>
                 </div>
             </div>
         </nav>
 
-        <div class="row">
+        <div v-if="currentView !== 'dashboard'" class="d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+            <div class="card p-4 shadow-lg" style="width: 400px;">
+                <div class="card-header text-center">
+                    <h5 class="mb-0">{{ currentView === 'login' ? 'Login' : 'Register' }} to Front Desk AI</h5>
+                </div>
+                <div class="card-body">
+                    <form @submit.prevent="currentView === 'login' ? login() : register()">
+                        <div class="mb-3">
+                            <label for="authEmail" class="form-label">Email address</label>
+                            <input type="email" class="form-control" id="authEmail" v-model="authForm.email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="authPassword" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="authPassword" v-model="authForm.password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mb-2">
+                            {{ currentView === 'login' ? 'Login' : 'Register' }}
+                        </button>
+                        <p class="text-center mt-2">
+                            <a href="#" @click.prevent="toggleAuthView">
+                                {{ currentView === 'login' ? 'Need an account? Register' : 'Already have an account? Login' }}
+                            </a>
+                        </p>
+                        <div v-if="authError" class="alert alert-danger mt-3">{{ authError }}</div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="currentView === 'dashboard'" class="row">
             <div class="col-md-12">
                 <ul class="nav nav-tabs mb-4 align-items-end">
                     <li class="nav-item">
@@ -421,72 +452,72 @@
 
                 <div v-if="activeTab === 'clients'">
                     <div class="row mb-3">
-                    <div class="col-md-4">
-                        <input v-model="searchQuery" @input="filterClients" type="text" class="form-control" placeholder="Search clients...">
+                        <div class="col-md-4">
+                            <input v-model="searchQuery" @input="filterClients" type="text" class="form-control" placeholder="Search clients...">
+                        </div>
+                        <div class="col-md-2">
+                            <select v-model="filterStatus" @change="filterClients" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select v-model="sortBy" @change="sortClients" class="form-select">
+                                <option value="name">Sort by Name</option>
+                                <option value="created_at">Sort by Created</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button @click="exportClients" class="btn btn-outline-primary">Export</button>
+                        </div>
                     </div>
-                    <div class="col-md-2">
-                        <select v-model="filterStatus" @change="filterClients" class="form-select">
-                            <option value="">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <select v-model="sortBy" @change="sortClients" class="form-select">
-                            <option value="name">Sort by Name</option>
-                            <option value="created_at">Sort by Created</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <button @click="exportClients" class="btn btn-outline-primary">Export</button>
-                    </div>
-                </div>
 
-                <div class="row">
-                    <div v-for="client in filteredClients" :key="client.id" class="col-md-6 col-lg-4 mb-4">
-                        <div class="card client-card h-100">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="card-title mb-0">{{ client.name }}</h5>
-                                <span :class="['status-indicator', client.cell ? 'status-active' : 'status-inactive']"></span>
-                            </div>
-                            <div class="card-body">
-                                <p class="card-text"><strong>Cell:</strong> {{ client.cell || 'Not set' }}</p>
-                                <p class="card-text"><strong>Timezone:</strong> {{ client.business_timezone }}</p>
-                                <p class="card-text"><strong>Hours:</strong> {{ formatHour(client.business_start_hour) }} - {{ formatHour(client.business_end_hour) }}</p>
-                                <p class="card-text"><strong>LLM Model:</strong> {{ client.llm_model }}</p>
-                                <div class="mt-2" v-if="client.enabled_tools && client.enabled_tools.length">
-                                    <small class="text-muted">Tools: </small>
-                                    <span v-for="tool in client.enabled_tools" :key="tool" class="badge bg-secondary me-1" style="font-size: 0.7em;">{{ formatToolName(tool) }}</span>
+                    <div class="row">
+                        <div v-for="client in filteredClients" :key="client.id" class="col-md-6 col-lg-4 mb-4">
+                            <div class="card client-card h-100">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="card-title mb-0">{{ client.name }}</h5>
+                                    <span :class="['status-indicator', client.cell ? 'status-active' : 'status-inactive']"></span>
                                 </div>
-                                <small class="text-muted d-block mt-2">Created: {{ formatDate(client.created_at) }}</small>
-                            </div>
-                            <div class="card-footer d-flex justify-content-between align-items-center">
-                                <div>
-                                    <button @click="editClient(client)" class="btn btn-primary btn-sm me-2">Edit</button>
-                                    <button @click="duplicateClient(client)" class="btn btn-secondary btn-sm me-2">Duplicate</button>
-                                    <button @click="deleteClient(client.id)" class="btn btn-danger btn-sm">Delete</button>
+                                <div class="card-body">
+                                    <p class="card-text"><strong>Cell:</strong> {{ client.cell || 'Not set' }}</p>
+                                    <p class="card-text"><strong>Timezone:</strong> {{ client.business_timezone }}</p>
+                                    <p class="card-text"><strong>Hours:</strong> {{ formatHour(client.business_start_hour) }} - {{ formatHour(client.business_end_hour) }}</p>
+                                    <p class="card-text"><strong>LLM Model:</strong> {{ client.llm_model }}</p>
+                                    <div class="mt-2" v-if="client.enabled_tools && client.enabled_tools.length">
+                                        <small class="text-muted">Tools: </small>
+                                        <span v-for="tool in client.enabled_tools" :key="tool" class="badge bg-secondary me-1" style="font-size: 0.7em;">{{ formatToolName(tool) }}</span>
+                                    </div>
+                                    <small class="text-muted d-block mt-2">Created: {{ formatDate(client.created_at) }}</small>
                                 </div>
-                                <div class="form-check m-0">
-                                    <input type="checkbox" v-model="selectedClients" :value="client.id" class="form-check-input" title="Select for bulk action">
+                                <div class="card-footer d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <button @click="editClient(client)" class="btn btn-primary btn-sm me-2">Edit</button>
+                                        <button @click="duplicateClient(client)" class="btn btn-secondary btn-sm me-2">Duplicate</button>
+                                        <button @click="deleteClient(client.id)" class="btn btn-danger btn-sm">Delete</button>
+                                    </div>
+                                    <div class="form-check m-0">
+                                        <input type="checkbox" v-model="selectedClients" :value="client.id" class="form-check-input" title="Select for bulk action">
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
                     <nav v-if="totalPages > 1" aria-label="Client pagination">
-                    <ul class="pagination justify-content-center">
-                        <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                            <a class="page-link" href="#" @click.prevent="currentPage--" v-if="currentPage > 1">Previous</a>
-                        </li>
-                        <li v-for="page in visiblePages" :key="page" class="page-item" :class="{ active: page === currentPage }">
-                            <a class="page-link" href="#" @click.prevent="currentPage = page">{{ page }}</a>
-                        </li>
-                        <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                            <a class="page-link" href="#" @click.prevent="currentPage++" v-if="currentPage < totalPages">Next</a>
-                        </li>
-                    </ul>
-                </nav>
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                                <a class="page-link" href="#" @click.prevent="currentPage--" v-if="currentPage > 1">Previous</a>
+                            </li>
+                            <li v-for="page in visiblePages" :key="page" class="page-item" :class="{ active: page === currentPage }">
+                                <a class="page-link" href="#" @click.prevent="currentPage = page">{{ page }}</a>
+                            </li>
+                            <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+                                <a class="page-link" href="#" @click.prevent="currentPage++" v-if="currentPage < totalPages">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
                 </div>
 
                 <div v-if="activeTab === 'contacts'" class="contacts-tab">
@@ -770,6 +801,10 @@
 
         createApp({
             setup() {
+                const authToken = ref(localStorage.getItem('authToken'));
+                const currentUser = ref(null);
+                const currentView = ref(authToken.value ? 'dashboard' : 'login');
+
                 const clients = ref([]);
                 const filteredClients = ref([]);
                 const selectedClients = ref([]);
@@ -803,6 +838,13 @@
                 const contactSearchQuery = ref('');
                 const logSearchQuery = ref('');
                 const logFilterClient = ref('');
+
+                // Auth related state
+                const authForm = ref({
+                    email: '',
+                    password: ''
+                });
+                const authError = ref(null);
 
                 const clientForm = ref({
                     name: '',
@@ -873,10 +915,70 @@
                     });
                 });
 
+                // --- Auth Logic ---
+                const setAuthToken = (token) => {
+                    authToken.value = token;
+                    if (token) {
+                        localStorage.setItem('authToken', token);
+                        axios.defaults.headers.common['Authorization'] = 'Bearer ' + token;
+                        try {
+                            const payload = JSON.parse(atob(token.split('.')[1]));
+                            currentUser.value = payload.email;
+                        } catch (e) {
+                            console.error("Error decoding token:", e);
+                            currentUser.value = "User";
+                        }
+                        currentView.value = 'dashboard';
+                    } else {
+                        localStorage.removeItem('authToken');
+                        delete axios.defaults.headers.common['Authorization'];
+                        currentUser.value = null;
+                        currentView.value = 'login';
+                    }
+                };
+
+                const login = async () => {
+                    authError.value = null;
+                    try {
+                        const response = await axios.post('/api/auth/login', authForm.value);
+                        setAuthToken(response.data.access_token);
+                        await loadClients();
+                    } catch (error) {
+                        console.error('Login failed:', error);
+                        authError.value = error.response?.data?.detail || 'Login failed. Please check your credentials.';
+                    }
+                };
+
+                const register = async () => {
+                    authError.value = null;
+                    try {
+                        const response = await axios.post('/api/auth/register', authForm.value);
+                        alert(response.data.message + '. Please login.');
+                        toggleAuthView();
+                    } catch (error) {
+                        console.error('Registration failed:', error);
+                        authError.value = error.response?.data?.detail || 'Registration failed.';
+                    }
+                };
+
+                const logout = () => {
+                    setAuthToken(null);
+                    clients.value = [];
+                    contacts.value = [];
+                    callLogs.value = [];
+                    selectedTranscript.value = null;
+                    alert('You have been logged out.');
+                };
+
+                const toggleAuthView = () => {
+                    authError.value = null;
+                    authForm.value.password = '';
+                    currentView.value = currentView.value === 'login' ? 'register' : 'login';
+                };
+
                 const loadClients = async () => {
                     try {
                         const response = await axios.get('/api/clients');
-                        // Ensure enabled_tools is initialized for UI binding
                         clients.value = response.data.clients.map(c => ({
                             ...c,
                             enabled_tools: c.enabled_tools || []
@@ -884,7 +986,6 @@
                         filterClients();
                     } catch (error) {
                         console.error('Failed to load clients:', error);
-                        alert('Failed to load clients');
                     }
                 };
 
@@ -916,7 +1017,6 @@
 
                 const editClient = (client) => {
                     editingClient.value = client.id;
-                    // Clone client data and ensure enabled_tools exists
                     clientForm.value = { 
                         ...client, 
                         enabled_tools: client.enabled_tools || [] 
@@ -929,7 +1029,7 @@
                     delete duplicated.id;
                     delete duplicated.created_at;
                     duplicated.name += ' (Copy)';
-                    duplicated.enabled_tools = client.enabled_tools || []; // Copy tools too
+                    duplicated.enabled_tools = client.enabled_tools || [];
                     editingClient.value = null;
                     clientForm.value = duplicated;
                     showCreateModal.value = true;
@@ -988,7 +1088,6 @@
                 };
 
                 const bulkUpdate = () => {
-                    // Implement bulk update logic
                     alert('Bulk update not implemented yet');
                 };
 
@@ -1025,7 +1124,7 @@
                         tts_voice_id: '21m00Tcm4TlvDq8ikWAM',
                         initial_greeting: '',
                         system_prompt: '',
-                        enabled_tools: ['get_available_slots', 'book_appointment', 'save_contact_name'] // Default all enabled for new
+                        enabled_tools: ['get_available_slots', 'book_appointment', 'save_contact_name']
                     };
                     selectedTemplate.value = '';
                 };
@@ -1070,7 +1169,6 @@
                         contacts.value = response.data.contacts;
                     } catch (error) {
                         console.error('Failed to load contacts:', error);
-                        alert('Failed to load contacts');
                     }
                 };
 
@@ -1080,7 +1178,6 @@
                         callLogs.value = response.data.conversation_logs;
                     } catch (error) {
                         console.error('Failed to load call logs:', error);
-                        alert('Failed to load call logs');
                     }
                 };
 
@@ -1096,13 +1193,29 @@
                     filterClients();
                 });
 
+                // --- Axios Interceptor for 401 ---
+                axios.interceptors.response.use(
+                    response => response,
+                    error => {
+                        if (error.response && error.response.status === 401 && authToken.value) {
+                            alert('Session expired or unauthorized. Please log in again.');
+                            logout();
+                        }
+                        return Promise.reject(error);
+                    }
+                );
+
                 onMounted(() => {
-                    loadClients();
-                    // Load initial tab data if not clients
-                    if (activeTab.value === 'contacts') {
-                        loadContacts();
-                    } else if (activeTab.value === 'logs') {
-                        loadLogs();
+                    if (authToken.value) {
+                        setAuthToken(authToken.value);
+                        loadClients();
+                        if (activeTab.value === 'contacts') {
+                            loadContacts();
+                        } else if (activeTab.value === 'logs') {
+                            loadLogs();
+                        }
+                    } else {
+                        currentView.value = 'login';
                     }
                 });
 
@@ -1147,7 +1260,17 @@
                     logSearchQuery,
                     logFilterClient,
                     filteredContacts,
-                    filteredCallLogs
+                    filteredCallLogs,
+                    // Auth exports
+                    authToken,
+                    currentUser,
+                    currentView,
+                    authForm,
+                    authError,
+                    login,
+                    register,
+                    logout,
+                    toggleAuthView
                 };
             }
         }).mount('#app');

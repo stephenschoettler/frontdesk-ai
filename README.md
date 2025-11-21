@@ -19,11 +19,11 @@ This project is designed to be a foundation for a fully-featured AI agent that c
 
 | Main | Edit Client |
 | :---: | :---: |
-| <img src="screenshots/Main.jpg" width="400" /> | <img src="screenshots/Edit_Client.jpg" width="400" /> |
+| <img src="screenshots/main.png" width="400" /> | <img src="screenshots/edit.png" width="400" /> |
 
 | Contacts | Call Logs |
 | :---: | :---: |
-| <img src="screenshots/Contacts.jpg" width="400" /> | <img src="screenshots/Call Logs.jpg" width="400" /> |
+| <img src="screenshots/contacts.png" width="400" /> | <img src="screenshots/call_logs.png" width="400" /> |
 
 ## Core Tech Stack
 

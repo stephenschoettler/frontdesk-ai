@@ -11,14 +11,18 @@ from fastapi import (
     Request,
     Response,
     HTTPException,
+    Depends,
+    Header,
 )
 from fastapi.staticfiles import StaticFiles
+from gotrue.errors import AuthApiError
 from starlette.websockets import WebSocketState
 import uvicorn
 import datetime
 from typing import Optional
 
 from pydantic import BaseModel
+from pydantic import EmailStr
 
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
@@ -50,7 +54,8 @@ from services.supabase_client import (
     get_all_contacts,
     get_conversation_logs,
     get_conversation_by_id,
-    get_client_by_phone,  # New import
+    get_client_by_phone,
+    get_supabase_client,  # New import for auth
 )
 
 # Import tool handlers
@@ -88,6 +93,14 @@ app = FastAPI()
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+# --- Auth Dependency ---
+async def get_current_user_token(authorization: str = Header(...)) -> str:
+    scheme, credentials = authorization.split(" ")
+    if scheme.lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid authentication scheme")
+    return credentials
 
 
 # Helper: Initialize Services for a Specific Client
@@ -385,17 +398,84 @@ class ClientUpdate(BaseModel):
     enabled_tools: Optional[list[str]] = None
 
 
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+@app.post("/api/auth/register")
+async def register_user(user: UserRegister):
+    supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(500, "Supabase client not initialized")
+    try:
+        response = supabase.auth.sign_up(
+            {
+                "email": user.email,
+                "password": user.password,
+            }
+        )
+        if response.user:
+            return {
+                "message": "User registered successfully. Please check your email to verify your account.",
+                "user_id": response.user.id,
+                "email": response.user.email,
+            }
+        else:
+            raise HTTPException(400, "Registration failed for an unknown reason.")
+    except AuthApiError as e:
+        logger.error(f"AuthApiError during registration: {e.message}")
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        logger.error(f"Error during registration: {e}")
+        raise HTTPException(500, "Internal server error")
+
+
+@app.post("/api/auth/login")
+async def login_user(user: UserLogin):
+    supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(500, "Supabase client not initialized")
+    try:
+        response = supabase.auth.sign_in_with_password(
+            {
+                "email": user.email,
+                "password": user.password,
+            }
+        )
+        if response.session:
+            return {
+                "access_token": response.session.access_token,
+                "token_type": "bearer",
+            }
+        else:
+            raise HTTPException(400, "Login failed for an unknown reason.")
+    except AuthApiError as e:
+        logger.error(f"AuthApiError during login: {e.message}")
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        logger.error(f"Error during login: {e}")
+        raise HTTPException(500, "Internal server error")
+
+
 @app.get("/api/clients")
-async def list_clients():
-    clients = await get_all_clients()
+async def list_clients(token: str = Depends(get_current_user_token)):
+    clients = await get_all_clients(token)
     if clients is None:
         raise HTTPException(500, "Failed to fetch clients")
     return {"clients": clients}
 
 
 @app.post("/api/clients")
-async def create_new_client(client: ClientCreate):
-    new_client = await create_client_record(client.dict())
+async def create_new_client(
+    client: ClientCreate, token: str = Depends(get_current_user_token)
+):
+    new_client = await create_client_record(client.dict(), token)
     if new_client is None:
         raise HTTPException(500, "Failed to create client")
     return new_client
@@ -410,17 +490,21 @@ async def get_client(client_id: str):
 
 
 @app.put("/api/clients/{client_id}")
-async def update_existing_client(client_id: str, client: ClientUpdate):
+async def update_existing_client(
+    client_id: str, client: ClientUpdate, token: str = Depends(get_current_user_token)
+):
     data = {k: v for k, v in client.dict().items() if v is not None}
-    updated = await update_client(client_id, data)
+    updated = await update_client(client_id, data, token)
     if updated is None:
         raise HTTPException(500, "Failed to update")
     return updated
 
 
 @app.delete("/api/clients/{client_id}")
-async def delete_existing_client(client_id: str):
-    if not await delete_client(client_id):
+async def delete_existing_client(
+    client_id: str, token: str = Depends(get_current_user_token)
+):
+    if not await delete_client(client_id, token):
         raise HTTPException(500, "Failed to delete")
     return {"message": "Deleted"}
 

@@ -2,6 +2,7 @@ import os
 import logging
 from typing import Any, Optional, Dict
 from supabase import create_client as sb_create_client, Client
+from supabase.lib.client_options import ClientOptions
 from postgrest.exceptions import APIError
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,28 @@ def get_supabase_client() -> Optional[Client]:
         return sb_create_client(supabase_url, supabase_key)
     except Exception as e:
         logger.error(f"Failed to create Supabase client: {e}")
+        return None
+
+
+def get_authenticated_client(jwt_token: str) -> Optional[Client]:
+    """
+    Initializes and returns a Supabase client with an authenticated JWT.
+    """
+    supabase_url: str = os.environ.get("SUPABASE_URL")
+    supabase_anon_key: str = os.environ.get("SUPABASE_ANON_KEY")
+
+    if not supabase_url or not supabase_anon_key:
+        logger.error("Supabase URL or Anon Key is missing from environment variables.")
+        return None
+
+    try:
+        return sb_create_client(
+            supabase_url,
+            supabase_anon_key,
+            options=ClientOptions(headers={"Authorization": f"Bearer {jwt_token}"}),
+        )
+    except Exception as e:
+        logger.error(f"Failed to create authenticated Supabase client: {e}")
         return None
 
 
@@ -158,11 +181,11 @@ async def update_contact_name(phone_number: str, name: str) -> bool:
         return False
 
 
-async def get_all_clients() -> Optional[list[Dict[str, Any]]]:
+async def get_all_clients(jwt_token: str) -> Optional[list[Dict[str, Any]]]:
     """
-    Fetches all client configurations.
+    Fetches all client configurations for the authenticated user.
     """
-    supabase = get_supabase_client()
+    supabase = get_authenticated_client(jwt_token)
     if not supabase:
         return None
 
@@ -182,11 +205,13 @@ async def get_all_clients() -> Optional[list[Dict[str, Any]]]:
         return None
 
 
-async def create_client_record(client_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+async def create_client_record(
+    client_data: Dict[str, Any], jwt_token: str
+) -> Optional[Dict[str, Any]]:
     """
-    Creates a new client configuration.
+    Creates a new client configuration for the authenticated user.
     """
-    supabase = get_supabase_client()
+    supabase = get_authenticated_client(jwt_token)
     if not supabase:
         return None
 
@@ -211,12 +236,12 @@ async def create_client_record(client_data: Dict[str, Any]) -> Optional[Dict[str
 
 
 async def update_client(
-    client_id: str, client_data: Dict[str, Any]
+    client_id: str, client_data: Dict[str, Any], jwt_token: str
 ) -> Optional[Dict[str, Any]]:
     """
-    Updates an existing client configuration.
+    Updates an existing client configuration for the authenticated user.
     """
-    supabase = get_supabase_client()
+    supabase = get_authenticated_client(jwt_token)
     if not supabase:
         return None
 
@@ -241,11 +266,11 @@ async def update_client(
         return None
 
 
-async def delete_client(client_id: str) -> bool:
+async def delete_client(client_id: str, jwt_token: str) -> bool:
     """
-    Deletes a client configuration.
+    Deletes a client configuration for the authenticated user.
     """
-    supabase = get_supabase_client()
+    supabase = get_authenticated_client(jwt_token)
     if not supabase:
         return False
 

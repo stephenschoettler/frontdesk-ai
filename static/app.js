@@ -10,6 +10,7 @@ createApp({
     const clients = ref([]);
     const filteredClients = ref([]);
     const selectedClients = ref([]);
+    const selectedCallLogs = ref([]);
     const searchQuery = ref("");
     const filterStatus = ref("");
     const sortBy = ref("name");
@@ -18,8 +19,10 @@ createApp({
     const showCreateModal = ref(false);
     const showEditModal = ref(false);
     const showBulkModal = ref(false);
+    const showEditContactModal = ref(false);
     const showAuditLog = ref(false);
     const saving = ref(false);
+    const savingContact = ref(false);
     const selectedTemplate = ref("");
 
     // SAFETY FIX: Handle corrupted storage gracefully
@@ -70,6 +73,10 @@ createApp({
     });
 
     const editingClient = ref(null);
+    const editingContact = ref({
+      phone: "",
+      name: "",
+    });
 
     const templates = {
       default: {
@@ -137,6 +144,17 @@ createApp({
           (log.status && log.status.toLowerCase().includes(search));
         return clientMatch && searchMatch;
       });
+    });
+
+    const selectAllCallLogs = computed(() => {
+      if (filteredCallLogs.value.length === 0) return false;
+      return filteredCallLogs.value.every(log => selectedCallLogs.value.includes(log.id));
+    });
+
+    const selectAllIndeterminate = computed(() => {
+      if (filteredCallLogs.value.length === 0) return false;
+      const selectedCount = filteredCallLogs.value.filter(log => selectedCallLogs.value.includes(log.id)).length;
+      return selectedCount > 0 && selectedCount < filteredCallLogs.value.length;
     });
 
     // --- Auth Logic ---
@@ -337,6 +355,40 @@ createApp({
       alert("Bulk update not implemented yet");
     };
 
+    const deleteCallLogs = async () => {
+      if (selectedCallLogs.value.length === 0) return;
+      if (!confirm(`Are you sure you want to delete ${selectedCallLogs.value.length} call log(s)? This action cannot be undone.`)) return;
+      try {
+        await Promise.all(
+          selectedCallLogs.value.map((id) => axios.delete(`/api/conversation-logs/${id}`)),
+        );
+        callLogs.value = callLogs.value.filter(
+          (log) => !selectedCallLogs.value.includes(log.id),
+        );
+        addAuditLog(
+          "delete",
+          `Deleted ${selectedCallLogs.value.length} call log(s)`,
+        );
+        selectedCallLogs.value = [];
+      } catch (error) {
+        console.error("Failed to delete call logs:", error);
+        alert("Failed to delete call logs");
+      }
+    };
+
+    const toggleSelectAllCallLogs = () => {
+      if (selectAllCallLogs.value) {
+        // Deselect all
+        selectedCallLogs.value = selectedCallLogs.value.filter(
+          id => !filteredCallLogs.value.some(log => log.id === id)
+        );
+      } else {
+        // Select all filtered logs
+        const filteredIds = filteredCallLogs.value.map(log => log.id);
+        selectedCallLogs.value = [...new Set([...selectedCallLogs.value, ...filteredIds])];
+      }
+    };
+
     const applyTemplate = () => {
       if (selectedTemplate.value && templates[selectedTemplate.value]) {
         const template = templates[selectedTemplate.value];
@@ -405,6 +457,16 @@ createApp({
       return `${displayHour} ${period}`;
     };
 
+    const formatTimestamp = (timestampStr) => {
+      if (!timestampStr) return "";
+      try {
+        const date = new Date(timestampStr);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } catch (e) {
+        return "";
+      }
+    };
+
     const formatToolName = (toolKey) => {
       const map = {
         get_available_slots: "Avail",
@@ -420,6 +482,32 @@ createApp({
         contacts.value = response.data.contacts;
       } catch (error) {
         console.error("Failed to load contacts:", error);
+      }
+    };
+
+    const editContact = (contact) => {
+      editingContact.value = { ...contact };
+      showEditContactModal.value = true;
+    };
+
+    const closeEditContactModal = () => {
+      showEditContactModal.value = false;
+      editingContact.value = { phone: "", name: "" };
+    };
+
+    const updateContactName = async () => {
+      savingContact.value = true;
+      try {
+        await axios.put(`/api/contacts/${editingContact.value.phone}`, {
+          name: editingContact.value.name
+        });
+        await loadContacts(); // Refresh the contacts list
+        closeEditContactModal();
+      } catch (error) {
+        console.error("Failed to update contact name:", error);
+        alert("Failed to update contact name. Please try again.");
+      } finally {
+        savingContact.value = false;
       }
     };
 
@@ -692,6 +780,7 @@ createApp({
       clients,
       filteredClients: paginatedClients,
       selectedClients,
+      selectedCallLogs,
       searchQuery,
       filterStatus,
       sortBy,
@@ -701,11 +790,18 @@ createApp({
       showCreateModal,
       showEditModal,
       showBulkModal,
+      showEditContactModal,
       showAuditLog,
       saving,
+      savingContact,
       selectedTemplate,
       auditLogs,
       clientForm,
+      editingContact,
+      loadContacts,
+      editContact,
+      closeEditContactModal,
+      updateContactName,
       loadClients,
       filterClients,
       sortClients,
@@ -715,11 +811,16 @@ createApp({
       deleteClient,
       bulkDelete,
       bulkUpdate,
+      deleteCallLogs,
+      toggleSelectAllCallLogs,
+      selectAllCallLogs,
+      selectAllIndeterminate,
       applyTemplate,
       exportClients,
       closeModal,
       formatDate,
       formatHour,
+      formatTimestamp,
       formatToolName,
       activeTab,
       contacts,

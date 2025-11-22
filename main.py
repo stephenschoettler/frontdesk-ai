@@ -44,18 +44,20 @@ from pipecat.runner.utils import parse_telephony_websocket
 
 # Import database functions
 from services.supabase_client import (
+    get_supabase_client,
     get_or_create_contact,
-    log_conversation,
     get_client_config,
+    log_conversation,
+    update_contact_name,
     get_all_clients,
     create_client_record,
     update_client,
     delete_client,
+    delete_conversation,
     get_all_contacts,
     get_conversation_logs,
     get_conversation_by_id,
     get_client_by_phone,
-    get_supabase_client,  # New import for auth
 )
 
 # Import tool handlers
@@ -251,6 +253,9 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
     logger.info(f"Websocket connected for Client: {client_id}, Caller: {caller_phone}")
     await websocket.accept()
 
+    # Track call start time for duration calculation
+    call_start_time = datetime.datetime.now()
+
     _, call_data = await parse_telephony_websocket(websocket)
 
     # --- Contact Management (Scoped to Client) ---
@@ -366,10 +371,39 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
     finally:
         # Log Conversation
         if contact:
+            # Calculate call duration
+            call_end_time = datetime.datetime.now()
+            duration_seconds = int((call_end_time - call_start_time).total_seconds())
+
+            # Add timestamps to messages for transcript display
+            transcript_with_timestamps = []
+            base_time = call_end_time
+
+            for i, message in enumerate(context.messages):
+                # Skip system messages for transcript
+                if isinstance(message, dict) and message.get("role") == "system":
+                    continue
+
+                # Add timestamp (approximate based on message order)
+                timestamp = base_time - datetime.timedelta(seconds=len(context.messages) - i)
+                if isinstance(message, dict):
+                    transcript_with_timestamps.append({
+                        **message,
+                        "timestamp": timestamp.isoformat()
+                    })
+                else:
+                    # Handle non-dict messages
+                    transcript_with_timestamps.append({
+                        "role": getattr(message, "role", "unknown"),
+                        "content": getattr(message, "content", str(message)),
+                        "timestamp": timestamp.isoformat()
+                    })
+
             await log_conversation(
                 contact_id=contact["id"],
                 client_id=client_id,
-                transcript=context.messages,
+                transcript=transcript_with_timestamps,
+                duration=duration_seconds,
             )
 
         logger.info("Call ended. Cleaning up.")
@@ -531,6 +565,18 @@ async def api_get_all_contacts():
     return {"contacts": contacts}
 
 
+@app.put("/api/contacts/{phone}")
+async def api_update_contact_name(phone: str, request: Request):
+    data = await request.json()
+    name = data.get("name", "")
+    if not name:
+        raise HTTPException(400, "Name is required")
+    success = await update_contact_name(phone, name)
+    if not success:
+        raise HTTPException(500, "Failed to update contact name")
+    return {"message": "Contact name updated successfully"}
+
+
 @app.get("/api/conversation-logs")
 async def api_get_conversation_logs():
     logs = await get_conversation_logs()
@@ -540,11 +586,20 @@ async def api_get_conversation_logs():
 
 
 @app.get("/api/conversation-logs/{conversation_id}/transcript")
-async def api_get_conversation_transcript(conversation_id: int):
+async def api_get_conversation_transcript(conversation_id: str):
     conversation = await get_conversation_by_id(conversation_id)
     if not conversation:
         raise HTTPException(404, "Not found")
     return {"transcript": conversation.get("transcript")}
+
+
+@app.delete("/api/conversation-logs/{conversation_id}")
+async def api_delete_conversation_log(
+    conversation_id: str, token: str = Depends(get_current_user_token)
+):
+    if not await delete_conversation(conversation_id, token):
+        raise HTTPException(500, "Failed to delete")
+    return {"message": "Deleted"}
 
 
 async def main():

@@ -125,7 +125,7 @@ async def get_client_config(client_id: str) -> Optional[Dict[str, Any]]:
 
 
 async def log_conversation(
-    contact_id: str, client_id: str, transcript: Any, summary: Optional[str] = None
+    contact_id: str, client_id: str, transcript: Any, summary: Optional[str] = None, duration: Optional[int] = None
 ):
     """
     Logs the conversation details to the 'conversations' table.
@@ -141,6 +141,9 @@ async def log_conversation(
         "transcript": transcript,
         "summary": summary,
     }
+
+    if duration is not None:
+        data_to_insert["duration"] = duration
 
     try:
         response = supabase.table("conversations").insert(data_to_insert).execute()
@@ -390,7 +393,7 @@ async def get_conversation_logs() -> Optional[list[Dict[str, Any]]]:
         return None
 
 
-async def get_conversation_by_id(conversation_id: int) -> Optional[Dict[str, Any]]:
+async def get_conversation_by_id(conversation_id: str) -> Optional[Dict[str, Any]]:
     """
     Retrieves a single conversation log by its ID.
     """
@@ -417,6 +420,30 @@ async def get_conversation_by_id(conversation_id: int) -> Optional[Dict[str, Any
     except Exception as e:
         logger.error(f"Unexpected error in get_conversation_by_id: {e}")
         return None
+
+
+async def delete_conversation(conversation_id: str, jwt_token: str) -> bool:
+    """
+    Deletes a conversation log for the authenticated user.
+    """
+    supabase = get_authenticated_client(jwt_token)
+    if not supabase:
+        return False
+
+    try:
+        response = supabase.table("conversations").delete().eq("id", conversation_id).execute()
+        if response.data:
+            logger.info(f"Deleted conversation: {conversation_id}")
+            return True
+        else:
+            logger.error(f"Failed to delete conversation: {conversation_id}")
+            return False
+    except APIError as e:
+        logger.error(f"Supabase API error in delete_conversation: {e.body}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error in delete_conversation: {e}")
+        return False
 
 
 async def get_client_by_phone(phone_number: str) -> Optional[Dict[str, Any]]:

@@ -2,6 +2,7 @@ const { createApp, ref, computed, onMounted, watch } = Vue;
 
 createApp({
   setup() {
+    console.log("Vue setup running...");
     const authToken = ref(localStorage.getItem("authToken"));
     const currentUser = ref(null);
     const currentView = ref(authToken.value ? "dashboard" : "login");
@@ -35,10 +36,17 @@ createApp({
     const contacts = ref([]);
     const callLogs = ref([]);
     const selectedTranscript = ref(null);
+    const transcriptExpanded = ref(false);
 
     const contactSearchQuery = ref("");
     const logSearchQuery = ref("");
     const logFilterClient = ref("");
+
+    // Theme management
+    const themes = ref([]);
+    const currentTheme = ref(
+      localStorage.getItem("currentTheme") || "tokyo-night-default",
+    );
 
     // Auth related state
     const authForm = ref({
@@ -424,6 +432,215 @@ createApp({
       }
     };
 
+    const toggleTranscriptExpansion = () => {
+      transcriptExpanded.value = !transcriptExpanded.value;
+    };
+
+    // Theme management functions
+    const loadThemes = () => {
+      // Load default themes inline to avoid fetch issues
+      const defaultThemes = [
+        {
+          key: "tokyo-night-default",
+          name: "Tokyo Night Default",
+          data: {
+            background: "#1a1b26",
+            foreground: "#c0caf5",
+            cursor: "#7aa2f7",
+            selection: "#283457",
+            ansi_colors: {
+              black: "#15161E",
+              red: "#F77693",
+              green: "#9ECE6A",
+              yellow: "#E0AF68",
+              blue: "#7AA2F7",
+              magenta: "#BB9AF7",
+              cyan: "#7DCFFF",
+              white: "#A9B1D6",
+              bright_black: "#414868",
+              bright_red: "#F77693",
+              bright_green: "#9ECE6A",
+              bright_yellow: "#E0AF68",
+              bright_blue: "#7AA2F7",
+              bright_magenta: "#BB9AF7",
+              bright_cyan: "#7DCFFF",
+              bright_white: "#C0CAF5",
+            },
+          },
+        },
+        {
+          key: "tokyo-night-day",
+          name: "Tokyo Night Day",
+          data: {
+            background: "#E2E2E7",
+            foreground: "#3760BF",
+            cursor: "#2E7DE9",
+            selection: "#B7C1E3",
+            ansi_colors: {
+              black: "#B3B5B9",
+              red: "#F52A65",
+              green: "#587539",
+              yellow: "#8C6C3E",
+              blue: "#2E7DE9",
+              magenta: "#9854F1",
+              cyan: "#007197",
+              white: "#6172B0",
+              bright_black: "#A1A6C5",
+              bright_red: "#F52A65",
+              bright_green: "#587539",
+              bright_yellow: "#8C6C3E",
+              bright_blue: "#2E7DE9",
+              bright_magenta: "#9854F1",
+              bright_cyan: "#007197",
+              bright_white: "#3760BF",
+            },
+          },
+        },
+        {
+          key: "iceberg-dark",
+          name: "Iceberg Dark",
+          data: {
+            description: "Dark background theme",
+            background: "#161821",
+            foreground: "#C7C9D1",
+            cursor: "#89BFC3",
+            selection: "#272C41",
+            ansi_colors: {
+              black: "#1E212B",
+              red: "#E2777A",
+              green: "#B6BA89",
+              yellow: "#E2A677",
+              blue: "#83A5AD",
+              magenta: "#9F91A8",
+              cyan: "#89BFC3",
+              white: "#C7C9D1",
+              bright_black: "#6B7089",
+              bright_red: "#E98A8A",
+              bright_green: "#C0CAF5",
+              bright_yellow: "#E9B18A",
+              bright_blue: "#91A9C6",
+              bright_magenta: "#AD9FAD",
+              bright_cyan: "#95C4CC",
+              bright_white: "#D2D4DD",
+            },
+          },
+        },
+        {
+          key: "iceberg-light",
+          name: "Iceberg Light",
+          data: {
+            description: "Light background theme",
+            background: "#E8E9EC",
+            foreground: "#33374C",
+            cursor: "#3F83A6",
+            selection: "#CAD0D7",
+            ansi_colors: {
+              black: "#DCDFE7",
+              red: "#CC517A",
+              green: "#668E3D",
+              yellow: "#C57339",
+              blue: "#2D539E",
+              magenta: "#7759B5",
+              cyan: "#3F83A6",
+              white: "#33374C",
+              bright_black: "#838A96",
+              bright_red: "#CC3768",
+              bright_green: "#598030",
+              bright_yellow: "#B6662D",
+              bright_blue: "#22478E",
+              bright_magenta: "#6845AD",
+              bright_cyan: "#327698",
+              bright_white: "#3D425E",
+            },
+          },
+        },
+      ];
+
+      themes.value = defaultThemes;
+      applyTheme(currentTheme.value);
+    };
+
+    // Helper function to get brightness of a hex color
+    const getBrightness = (hexColor) => {
+      // Remove # if present
+      const color = hexColor.replace("#", "");
+      // Convert to RGB
+      const r = parseInt(color.substr(0, 2), 16);
+      const g = parseInt(color.substr(2, 2), 16);
+      const b = parseInt(color.substr(4, 2), 16);
+      // Calculate brightness (YIQ formula)
+      return (r * 299 + g * 587 + b * 114) / 1000;
+    };
+
+    const applyTheme = (themeKey) => {
+      const theme = themes.value.find((t) => t.key === themeKey);
+      if (!theme) {
+        console.warn(`Theme ${themeKey} not found, using default`);
+        return;
+      }
+
+      const root = document.documentElement;
+      const themeData = theme.data;
+
+      // Apply theme colors to CSS custom properties
+      root.style.setProperty("--theme-bg", themeData.background || "#1a1b26");
+      root.style.setProperty("--theme-fg", themeData.foreground || "#c0caf5");
+      root.style.setProperty("--theme-cursor", themeData.cursor || "#7aa2f7");
+      root.style.setProperty(
+        "--theme-selection",
+        themeData.selection || "#283457",
+      );
+
+      // Determine if this is a light theme and set appropriate muted text color
+      const bgBrightness = getBrightness(themeData.background || "#1a1b26");
+      const isLightTheme = bgBrightness > 128;
+      const mutedColor = isLightTheme ? "#555" : "#888"; // Light gray for dark themes, dark gray for light themes
+      root.style.setProperty("--theme-muted", mutedColor);
+
+      // Set logo color to white
+      root.style.setProperty("--theme-logo-color", "#ffffff");
+
+      // Apply ANSI colors
+      const ansiColors = themeData.ansi_colors;
+      if (ansiColors) {
+        // Map ANSI colors to our theme variables
+        root.style.setProperty(
+          "--theme-bg-dark",
+          ansiColors.black || "#16161e",
+        );
+        root.style.setProperty(
+          "--theme-bg-mid",
+          ansiColors.bright_black || "#2a2a37",
+        );
+        root.style.setProperty(
+          "--theme-card-bg",
+          ansiColors.black || "#16161e",
+        );
+        root.style.setProperty("--theme-blue", ansiColors.blue || "#7dcfff");
+        root.style.setProperty(
+          "--theme-purple",
+          ansiColors.magenta || "#bb9af7",
+        );
+        root.style.setProperty("--theme-green", ansiColors.green || "#9ece6a");
+        root.style.setProperty(
+          "--theme-orange",
+          ansiColors.yellow || "#e0af68",
+        );
+        root.style.setProperty("--theme-red", ansiColors.red || "#f7768e");
+        root.style.setProperty(
+          "--theme-comment",
+          ansiColors.bright_black || "#565f89",
+        );
+        root.style.setProperty(
+          "--theme-logo-white",
+          ansiColors.bright_white || "#ffffff",
+        );
+      }
+
+      currentTheme.value = themeKey;
+      localStorage.setItem("currentTheme", themeKey);
+    };
+
     watch(activeTab, (newTab) => {
       if (newTab === "contacts") {
         loadContacts();
@@ -453,6 +670,11 @@ createApp({
     );
 
     onMounted(() => {
+      // Load themes asynchronously without blocking app initialization
+      setTimeout(() => {
+        loadThemes();
+      }, 100);
+
       if (authToken.value) {
         setAuthToken(authToken.value);
         loadClients();
@@ -503,11 +725,17 @@ createApp({
       contacts,
       callLogs,
       selectedTranscript,
+      transcriptExpanded,
       contactSearchQuery,
       logSearchQuery,
       logFilterClient,
       filteredContacts,
       filteredCallLogs,
+      toggleTranscriptExpansion,
+      // Theme exports
+      themes,
+      currentTheme,
+      applyTheme,
       // Auth exports
       authToken,
       currentUser,

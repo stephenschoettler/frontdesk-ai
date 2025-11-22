@@ -12,9 +12,10 @@
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
-    <script src="https://unpkg.com/vue@3.4.19/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.19/dist/vue.global.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   </head>
   <body>
     <div id="app" class="container-fluid">
@@ -23,19 +24,22 @@
         v-if="currentView === 'dashboard'"
       >
         <div class="container-fluid">
-          <a
-            class="navbar-brand"
-            href="#"
-            style="font-size: 0.7em; line-height: 1"
-          >
-            <pre
-              class="mb-0"
-              style="
-                color: var(--tokyo-blue);
-                font-weight: 700;
-                text-shadow: 0 0 5px var(--tokyo-blue);
-              "
-            >
+           <a
+             class="navbar-brand"
+             href="#"
+             style="font-size: 1em; line-height: 1"
+           >
+             <pre
+               class="mb-0"
+               style="
+                 color: var(--theme-logo-color);
+                 font-weight: 700;
+                 text-shadow:
+                   0 0 10px var(--theme-logo-color),
+                   0 0 20px var(--theme-logo-color),
+                   0 0 30px var(--theme-logo-color);
+               "
+             >
 ░█▀▀░█▀▄░█▀█░█▀█░▀█▀░█▀▄░█▀▀░█▀▀░█░█░░░░░█▀█░▀█▀
 ░█▀▀░█▀▄░█░█░█░█░░█░░█░█░█▀▀░▀▀█░█▀▄░▄▄▄░█▀█░░█░
 ░▀░░░▀░▀░▀▀▀░▀░▀░░▀░░▀▀░░▀▀▀░▀▀▀░▀░▀░░░░░▀░▀░▀▀▀
@@ -43,12 +47,82 @@
             >
           </a>
           <div class="navbar-nav ms-auto">
-            <span class="nav-item nav-link"
-              >Total Clients: {{ clients.length }}</span
-            >
-            <span class="nav-item nav-link" v-if="currentUser"
-              >Logged in as: {{ currentUser }}</span
-            >
+            <div class="nav-item dropdown" v-if="currentUser">
+              <button
+                class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                type="button"
+                id="userDropdown"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                {{ currentUser }}
+              </button>
+               <ul class="dropdown-menu" aria-labelledby="userDropdown">
+                 <li>
+                   <span class="dropdown-item-text"
+                     >Total Clients: {{ clients.length }}</span
+                   >
+                 </li>
+                 <li><hr class="dropdown-divider" /></li>
+                 <li><h6 class="dropdown-header">🎨 Theme</h6></li>
+                 <li v-for="theme in themes" :key="theme.key">
+                   <a
+                     class="dropdown-item"
+                     href="#"
+                     @click.prevent="applyTheme(theme.key)"
+                     :class="{ active: currentTheme === theme.key }"
+                   >
+                     {{ theme.name }}
+                   </a>
+                 </li>
+                 <li><hr class="dropdown-divider" /></li>
+                 <li><h6 class="dropdown-header">📋 System Activity</h6></li>
+                 <li v-if="showAuditLog">
+                   <div
+                     class="audit-log p-2"
+                     style="
+                       max-height: 200px;
+                       overflow-y: auto;
+                       background: var(--theme-bg-dark);
+                       border-radius: 4px;
+                     "
+                   >
+                     <div
+                       v-for="log in auditLogs"
+                       :key="log.id"
+                       class="mb-2 border-bottom border-secondary pb-1"
+                     >
+                       <div class="d-flex justify-content-between">
+                         <span
+                           :class="log.type === 'create' ? 'text-success' : log.type === 'update' ? 'text-warning' : 'text-danger'"
+                           style="font-size: 0.8rem; font-weight: bold"
+                         >
+                           {{ log.action }}
+                         </span>
+                       </div>
+                       <small class="text-muted" style="font-size: 0.7rem"
+                         >{{ formatDate(log.timestamp) }}</small
+                       >
+                     </div>
+                     <div
+                       v-if="auditLogs.length === 0"
+                       class="text-muted text-center small my-2"
+                     >
+                       No recent activity.
+                     </div>
+                   </div>
+                 </li>
+                 <li>
+                   <a
+                     class="dropdown-item"
+                     href="#"
+                     @click.prevent="showAuditLog = !showAuditLog"
+                   >
+                     {{ showAuditLog ? 'Hide' : 'Show' }} Audit Log
+                   </a>
+                 </li>
+               </ul>
+            </div>
             <button @click="logout" class="btn btn-danger btn-sm ms-3">
               Logout
             </button>
@@ -359,133 +433,214 @@
             </div>
           </div>
 
-          <div v-if="activeTab === 'logs'" class="logs-tab">
-            <div class="row mb-3">
-              <div class="col-md-4">
-                <input
-                  v-model="logSearchQuery"
-                  type="text"
-                  class="form-control"
-                  placeholder="Search logs..."
-                />
-              </div>
-              <div class="col-md-3">
-                <select v-model="logFilterClient" class="form-select">
-                  <option value="">All Clients</option>
-                  <option
-                    v-for="client in clients"
-                    :key="client.id"
-                    :value="client.id"
-                  >
-                    {{ client.name }}
-                  </option>
-                </select>
-              </div>
-            </div>
-            <div class="row">
-              <div class="col-md-6">
-                <div class="table-responsive">
-                  <table class="table table-dark">
-                    <thead>
-                      <tr>
-                        <th>Date/Time</th>
-                        <th>Client</th>
-                        <th>Phone</th>
-                        <th>Duration</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr
-                        v-for="log in filteredCallLogs"
-                        :key="log.id"
-                        @click="selectedTranscript = log"
-                        :class="{ 'selected': selectedTranscript?.id === log.id }"
-                        style="cursor: pointer"
-                      >
-                        <td>{{ formatDate(log.timestamp) }}</td>
-                        <td>{{ log.client_name }}</td>
-                        <td>{{ log.phone }}</td>
-                        <td>{{ log.duration }}s</td>
-                        <td>{{ log.status }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div class="col-md-6" v-if="selectedTranscript">
-                <div class="card">
-                  <div class="card-header">
-                    <h6 class="mb-0">Call Transcript</h6>
-                  </div>
-                  <div class="card-body">
-                    <div class="conversation-transcript">
-                      <template
-                        v-for="(message, index) in selectedTranscript.transcript"
-                        :key="index"
-                      >
-                        <div
-                          v-if="message.role === 'user'"
-                          class="message user"
-                        >
-                          <strong>Caller:</strong>
-                          <p>{{ message.content }}</p>
-                        </div>
+           <div v-if="activeTab === 'logs'" class="logs-tab">
+             <!-- Expanded Transcript View -->
+             <div v-if="transcriptExpanded && selectedTranscript" class="expanded-transcript">
+               <div class="d-flex align-items-center mb-3">
+                 <button @click="toggleTranscriptExpansion" class="btn btn-outline-secondary me-3">
+                   ← Back to Logs
+                 </button>
+                 <h5 class="mb-0">Call Transcript - {{ selectedTranscript.client_name }} ({{ selectedTranscript.phone }})</h5>
+               </div>
+               <div class="card">
+                 <div class="card-body">
+                   <div class="conversation-transcript expanded">
+                     <template
+                       v-for="(message, index) in selectedTranscript.transcript"
+                       :key="index"
+                     >
+                       <div
+                         v-if="message.role === 'user'"
+                         class="message user"
+                       >
+                         <strong>Caller:</strong>
+                         <p>{{ message.content }}</p>
+                       </div>
 
-                        <div
-                          v-else-if="message.role === 'assistant' && message.content"
-                          class="message assistant"
-                        >
-                          <strong>Assistant:</strong>
-                          <p>{{ message.content }}</p>
-                        </div>
+                       <div
+                         v-else-if="message.role === 'assistant' && message.content"
+                         class="message assistant"
+                       >
+                         <strong>Assistant:</strong>
+                         <p>{{ message.content }}</p>
+                       </div>
 
-                        <div
-                          v-if="message.role === 'assistant' && message.tool_calls"
-                          class="message tool"
-                        >
-                          <strong style="color: var(--tokyo-orange)"
-                            >⚡ System Action:</strong
-                          >
-                          <div
-                            v-for="tool in message.tool_calls"
-                            :key="tool.id"
-                            class="mb-1"
-                          >
-                            <span class="text-warning"
-                              >{{ tool.function.name }}</span
-                            >
-                            <span class="text-muted"
-                              >({{ tool.function.arguments }})</span
-                            >
-                          </div>
-                        </div>
+                       <div
+                         v-if="message.role === 'assistant' && message.tool_calls"
+                         class="message tool"
+                       >
+                         <strong style="color: var(--theme-orange)"
+                           >⚡ System Action:</strong
+                         >
+                         <div
+                           v-for="tool in message.tool_calls"
+                           :key="tool.id"
+                           class="mb-1"
+                         >
+                           <span class="text-warning"
+                             >{{ tool.function.name }}</span
+                           >
+                           <span class="text-muted"
+                             >({{ tool.function.arguments }})</span
+                           >
+                         </div>
+                       </div>
 
-                        <div
-                          v-else-if="message.role === 'tool'"
-                          class="message tool"
-                        >
-                          <strong style="color: var(--tokyo-green)"
-                            >✓ Tool Result:</strong
-                          >
-                          <p style="white-space: pre-wrap">
-                            {{ message.content }}
-                          </p>
-                        </div>
-                      </template>
+                       <div
+                         v-else-if="message.role === 'tool'"
+                         class="message tool"
+                       >
+                         <strong style="color: var(--theme-green)"
+                           >✓ Tool Result:</strong
+                         >
+                         <p style="white-space: pre-wrap">
+                           {{ message.content }}
+                         </p>
+                       </div>
+                     </template>
 
-                      <div
-                        v-if="!selectedTranscript.transcript || selectedTranscript.transcript.length === 0"
-                        class="text-muted text-center mt-4"
-                      >
-                        Select a log to view transcript.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+                     <div
+                       v-if="!selectedTranscript.transcript || selectedTranscript.transcript.length === 0"
+                       class="text-muted text-center mt-4"
+                     >
+                       No transcript available.
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             </div>
+
+             <!-- Normal Logs View -->
+             <div v-else class="logs-view">
+               <div class="row mb-3">
+                 <div class="col-md-4">
+                   <input
+                     v-model="logSearchQuery"
+                     type="text"
+                     class="form-control"
+                     placeholder="Search logs..."
+                   />
+                 </div>
+                 <div class="col-md-3">
+                   <select v-model="logFilterClient" class="form-select">
+                     <option value="">All Clients</option>
+                     <option
+                       v-for="client in clients"
+                       :key="client.id"
+                       :value="client.id"
+                     >
+                       {{ client.name }}
+                     </option>
+                   </select>
+                 </div>
+               </div>
+               <div class="row">
+                 <div class="col-md-6">
+                   <div class="table-responsive">
+                     <table class="table table-dark">
+                       <thead>
+                         <tr>
+                           <th>Date/Time</th>
+                           <th>Client</th>
+                           <th>Phone</th>
+                           <th>Duration</th>
+                           <th>Status</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         <tr
+                           v-for="log in filteredCallLogs"
+                           :key="log.id"
+                           @click="selectedTranscript = log"
+                           :class="{ 'selected': selectedTranscript?.id === log.id }"
+                           style="cursor: pointer"
+                         >
+                           <td>{{ formatDate(log.timestamp) }}</td>
+                           <td>{{ log.client_name }}</td>
+                           <td>{{ log.phone }}</td>
+                           <td>{{ log.duration }}s</td>
+                           <td>{{ log.status }}</td>
+                         </tr>
+                       </tbody>
+                     </table>
+                   </div>
+                 </div>
+                 <div class="col-md-6" v-if="selectedTranscript">
+                   <div class="card">
+                     <div class="card-header d-flex justify-content-between align-items-center">
+                       <h6 class="mb-0">Call Transcript</h6>
+                       <button @click="toggleTranscriptExpansion" class="btn btn-sm btn-outline-primary">
+                         Expand
+                       </button>
+                     </div>
+                     <div class="card-body">
+                       <div class="conversation-transcript">
+                         <template
+                           v-for="(message, index) in selectedTranscript.transcript"
+                           :key="index"
+                         >
+                           <div
+                             v-if="message.role === 'user'"
+                             class="message user"
+                           >
+                             <strong>Caller:</strong>
+                             <p>{{ message.content }}</p>
+                           </div>
+
+                           <div
+                             v-else-if="message.role === 'assistant' && message.content"
+                             class="message assistant"
+                           >
+                             <strong>Assistant:</strong>
+                             <p>{{ message.content }}</p>
+                           </div>
+
+                           <div
+                             v-if="message.role === 'assistant' && message.tool_calls"
+                             class="message tool"
+                           >
+                           <strong style="color: var(--theme-orange)"
+                             >⚡ System Action:</strong
+                           >
+                           <div
+                             v-for="tool in message.tool_calls"
+                             :key="tool.id"
+                             class="mb-1"
+                           >
+                             <span class="text-warning"
+                               >{{ tool.function.name }}</span
+                             >
+                             <span class="text-muted"
+                               >({{ tool.function.arguments }})</span
+                             >
+                           </div>
+                         </div>
+
+                         <div
+                           v-else-if="message.role === 'tool'"
+                           class="message tool"
+                         >
+                           <strong style="color: var(--theme-green)"
+                             >✓ Tool Result:</strong
+                           >
+                           <p style="white-space: pre-wrap">
+                             {{ message.content }}
+                           </p>
+                         </div>
+                       </template>
+
+                       <div
+                         v-if="!selectedTranscript.transcript || selectedTranscript.transcript.length === 0"
+                         class="text-muted text-center mt-4"
+                       >
+                         Select a log to view transcript.
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </div>
         </div>
       </div>
 
@@ -604,7 +759,7 @@
 
                     <div
                       class="mb-3 border p-2 rounded"
-                      style="background: var(--tokyo-bg-dark)"
+                      style="background: var(--theme-bg-dark)"
                     >
                       <label class="form-label mb-2 text-warning"
                         >Enabled AI Tools</label
@@ -689,7 +844,7 @@
                 <div class="modal-footer">
                   <button
                     type="button"
-                    class="btn btn-secondary"
+                    class="btn btn-danger"
                     @click="closeModal"
                   >
                     Cancel
@@ -737,64 +892,8 @@
         </div>
       </div>
 
-      <div class="position-fixed bottom-0 end-0 m-4" style="z-index: 1050">
-        <div
-          class="card shadow-lg border-info"
-          v-if="showAuditLog"
-          style="width: 300px"
-        >
-          <div
-            class="card-header d-flex justify-content-between align-items-center py-2 bg-dark border-bottom border-secondary"
-          >
-            <h6 class="mb-0 text-info">System Activity</h6>
-            <button
-              @click="showAuditLog = false"
-              class="btn-close btn-close-white btn-sm"
-            ></button>
-          </div>
-          <div
-            class="card-body audit-log p-2"
-            style="
-              max-height: 250px;
-              overflow-y: auto;
-              background: var(--tokyo-bg-dark);
-            "
-          >
-            <div
-              v-for="log in auditLogs"
-              :key="log.id"
-              class="mb-2 border-bottom border-secondary pb-1"
-            >
-              <div class="d-flex justify-content-between">
-                <span
-                  :class="log.type === 'create' ? 'text-success' : log.type === 'update' ? 'text-warning' : 'text-danger'"
-                  style="font-size: 0.8rem; font-weight: bold"
-                >
-                  {{ log.action }}
-                </span>
-              </div>
-              <small class="text-muted" style="font-size: 0.7rem"
-                >{{ formatDate(log.timestamp) }}</small
-              >
-            </div>
-            <div
-              v-if="auditLogs.length === 0"
-              class="text-muted text-center small my-2"
-            >
-              No recent activity.
-            </div>
-          </div>
-        </div>
-        <button
-          v-else
-          @click="showAuditLog = true"
-          class="btn btn-outline-info rounded-pill shadow-lg"
-        >
-          <span class="me-2">📋</span>Audit Log
-        </button>
-      </div>
-    </div>
 
-    <script src="app.js"></script>
+    </div>
   </body>
+  <script src="app.js"></script>
 </html>

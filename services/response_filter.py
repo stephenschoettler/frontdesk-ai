@@ -26,5 +26,10 @@ class ToolStrippingAssistantAggregator(LLMAssistantAggregator):
         self._aggregation = []
         if aggregation:
             self._context.add_messages(
-                [{"role": "assistant", "content": " ".join(aggregation)}]
+                [
+                    {
+                        "role": "assistant",
+                        "content": " ".join(item.text for item in aggregation),
+                    }
+                ]
             )

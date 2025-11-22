@@ -274,6 +274,9 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
 
     logger.info(f"Context: {contact_context}")
 
+    # Inject CALLER_PHONE for tools
+    os.environ["CALLER_PHONE"] = caller_phone_decoded
+
     # --- Pipeline Setup ---
     serializer = TwilioFrameSerializer(
         stream_sid=call_data["stream_id"],
@@ -339,7 +342,18 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
 
     # --- Initial Greeting ---
     if initial_greeting:
-        await task.queue_frames([TextFrame(initial_greeting)])
+        # Final Robust Logic: Split by the period to deliver in two smaller, stable chunks.
+        # This mitigates timing issues and premature stream closure.
+        parts = initial_greeting.split(".", 1)
+
+        if len(parts) == 2:
+            # Send the introductory statement, and the question as a separate chunk
+            await task.queue_frames(
+                [TextFrame(parts[0].strip() + "."), TextFrame(parts[1].strip())]
+            )
+        else:
+            # Fallback for templates without the standard question
+            await task.queue_frames([TextFrame(initial_greeting)])
 
     runner_task = asyncio.create_task(runner.run(task))
 

@@ -213,7 +213,8 @@ async def handle_save_contact_name(params: FunctionCallParams, **kwargs) -> None
     Saves contact name. Robust against missing keys.
     """
     args = params.arguments.get("kwargs", params.arguments)
-    phone_number = args.get("phone_number")
+    # Use phone from LLM args or fall back to the environment variable
+    phone_number = args.get("phone_number") or os.environ.get("CALLER_PHONE")
     name = args.get("name") or args.get("contact_name")
 
     if not phone_number or not name:

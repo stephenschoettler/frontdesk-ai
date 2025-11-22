@@ -6,10 +6,29 @@ from typing import Optional
 import pytz
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+import urllib.parse  # NEW IMPORT: Required to parse embed URLs
 
 logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
+
+def _clean_calendar_id(
+    calendar_id: str,
+) -> str:  # NEW FUNCTION: Handles user error of copying the full embed link
+    """Extracts the actual calendar ID (email) from a full embed URL if needed."""
+    if "calendar.google.com/calendar/embed" in calendar_id:
+        try:
+            parsed = urllib.parse.urlparse(calendar_id)
+            query_params = urllib.parse.parse_qs(parsed.query)
+            if "src" in query_params:
+                # The ID is the first element of the 'src' list
+                return query_params["src"][0]
+        except Exception as e:
+            logger.warning(f"Failed to parse calendar URL: {e}")
+            # Fallback to original ID on failure
+            return calendar_id
+    return calendar_id
 
 
 def get_calendar_service():
@@ -49,6 +68,9 @@ async def get_available_slots(
         start_time (datetime): The start time for checking availability.
         end_time (datetime): The end time for checking availability.
     """
+    # Clean the calendar_id first
+    calendar_id = _clean_calendar_id(calendar_id)
+
     logger.info(
         f"Checking calendar [{calendar_id}] for slots between {start_time} and {end_time}"
     )
@@ -136,6 +158,9 @@ async def book_appointment(
     """
     Creates a new event on the Google Calendar.
     """
+    # Clean the calendar_id first
+    calendar_id = _clean_calendar_id(calendar_id)
+
     logger.info(f"Attempting to book appointment on [{calendar_id}]: {summary}")
 
     service = get_calendar_service()

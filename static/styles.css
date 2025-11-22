@@ -38,13 +38,11 @@ body {
 .navbar {
   background: var(--theme-bg-dark) !important;
   border-bottom: 1px solid var(--theme-bg-mid);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .navbar-brand {
-  color: var(--theme-blue) !important;
   font-weight: 700;
-  text-shadow: 0 0 5px var(--theme-blue);
 }
 
 .nav-link {
@@ -186,7 +184,7 @@ body {
 
 .modal-content {
   background: var(--theme-card-bg);
-  border: 1px solid #000;
+  border: 1px solid var(--theme-bg-dark);
   color: var(--theme-fg);
 }
 
@@ -443,6 +441,18 @@ tr.selected {
   }
 }
 
+/* ASCII Art Logo Styling */
+.ascii-logo {
+  color: var(--theme-blue) !important;
+  font-family: 'SF Mono', Monaco, 'Liberation Mono', Consolas, Menlo, monospace;
+  font-weight: 700;
+  text-shadow:
+    0 0 0 var(--theme-blue),
+    0 0 0 var(--theme-blue),
+    0 0 0 var(--theme-blue);
+  line-height: 1;
+}
+
 /* Fix Pre tag in navbar */
 .navbar-brand pre {
   font-family: "JetBrains Mono", monospace;
@@ -473,4 +483,37 @@ tr.selected {
 
 ::-webkit-scrollbar-corner {
   background: var(--theme-bg);
+}
+
+/* Fullscreen System Prompt Editor */
+.system-prompt-fullscreen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.3s ease;
+}
+
+.system-prompt-fullscreen-textarea {
+  flex: 1;
+  min-height: 500px !important;
+  height: 500px !important;
+  resize: vertical;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  border: 1px solid var(--theme-bg-mid);
+  background: var(--theme-bg-dark);
+  color: var(--theme-fg);
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.system-prompt-fullscreen-textarea:focus {
+  border-color: var(--theme-blue);
+  box-shadow: 0 0 0 0.2rem rgba(125, 207, 255, 0.25);
+  outline: none;
+}
+
+.system-prompt-fullscreen-textarea::placeholder {
+  color: var(--theme-comment);
 }

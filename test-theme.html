@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Test Theme Switching</h1>
+        <button id="themeBtn" class="btn btn-primary">Switch Theme</button>
+        <div class="mt-4">
+            <pre class="ascii-logo">
+░█▀▀░█▀▄░█▀█░█▀█░▀█▀░█▀▄░█▀▀░█▀▀░█░█░░░░░█▀█░▀█▀
+░█▀▀░█▀▄░█░█░█░█░░█░░█░█░█▀▀░▀▀█░█▀▄░▄▄▄░█▀█░░█░
+░▀░░░▀░▀░▀▀▀░▀░▀░░▀░░▀▀░░▀▀▀░▀▀▀░▀░▀░░░░░▀░▀░▀▀▀
+            </pre>
+        </div>
+    </div>
+
+    <script>
+        let currentTheme = 'tokyo-night-default';
+        const themes = {
+            'tokyo-night-default': {
+                background: '#1a1b26',
+                foreground: '#c0caf5',
+                blue: '#7AA2F7'
+            },
+            'tokyo-night-day': {
+                background: '#E2E2E7',
+                foreground: '#3760BF',
+                blue: '#2E7DE9'
+            }
+        };
+
+        function applyTheme(themeKey) {
+            const theme = themes[themeKey];
+            const root = document.documentElement;
+            root.style.setProperty('--theme-bg', theme.background);
+            root.style.setProperty('--theme-fg', theme.foreground);
+            root.style.setProperty('--theme-blue', theme.blue);
+            document.body.style.background = theme.background;
+            document.body.style.color = theme.foreground;
+        }
+
+        document.getElementById('themeBtn').addEventListener('click', () => {
+            currentTheme = currentTheme === 'tokyo-night-default' ? 'tokyo-night-day' : 'tokyo-night-default';
+            applyTheme(currentTheme);
+            document.getElementById('themeBtn').textContent = `Switch to ${currentTheme === 'tokyo-night-default' ? 'Day' : 'Default'} Theme`;
+        });
+
+        // Apply initial theme
+        applyTheme(currentTheme);
+    </script>
+</body>
+</html>

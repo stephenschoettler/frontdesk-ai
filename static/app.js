@@ -1,6 +1,13 @@
 const { createApp, ref, computed, onMounted, watch } = Vue;
 
-createApp({
+console.log('App.js loaded, checking Vue...');
+
+// Check if Vue is loaded
+if (typeof Vue === 'undefined' || typeof Vue.createApp === 'undefined') {
+  console.error('Vue.js is not loaded. Please check your internet connection and try refreshing the page.');
+  document.getElementById('app').innerHTML = '<div class="alert alert-danger">Vue.js failed to load. Please check your internet connection and refresh the page.</div>';
+} else {
+  Vue.createApp({
   setup() {
     console.log("Vue setup running...");
     const authToken = ref(localStorage.getItem("authToken"));
@@ -21,6 +28,7 @@ createApp({
     const showBulkModal = ref(false);
     const showEditContactModal = ref(false);
     const showAuditLog = ref(false);
+    const systemPromptExpanded = ref(false);
     const saving = ref(false);
     const savingContact = ref(false);
     const selectedTemplate = ref("");
@@ -524,6 +532,10 @@ createApp({
       transcriptExpanded.value = !transcriptExpanded.value;
     };
 
+    const toggleSystemPromptExpansion = () => {
+      systemPromptExpanded.value = !systemPromptExpanded.value;
+    };
+
     // Theme management functions
     const loadThemes = () => {
       // Load default themes inline to avoid fetch issues
@@ -685,9 +697,6 @@ createApp({
       const mutedColor = isLightTheme ? "#555" : "#888"; // Light gray for dark themes, dark gray for light themes
       root.style.setProperty("--theme-muted", mutedColor);
 
-      // Set logo color to white
-      root.style.setProperty("--theme-logo-color", "#ffffff");
-
       // Apply ANSI colors
       const ansiColors = themeData.ansi_colors;
       if (ansiColors) {
@@ -831,8 +840,10 @@ createApp({
       logSearchQuery,
       logFilterClient,
       filteredContacts,
-      filteredCallLogs,
-      toggleTranscriptExpansion,
+       filteredCallLogs,
+       toggleTranscriptExpansion,
+       systemPromptExpanded,
+       toggleSystemPromptExpansion,
       // Theme exports
       themes,
       currentTheme,
@@ -850,3 +861,4 @@ createApp({
     };
   },
 }).mount("#app");
+}

@@ -1,25 +1,27 @@
 {
-  "description": "Light background theme",
-  "background": "#E8E9EC",
-  "foreground": "#33374C",
-  "cursor": "#3F83A6",
-  "selection": "#CAD0D7",
-  "ansi_colors": {
-    "black": "#DCDFE7",
-    "red": "#CC517A",
-    "green": "#668E3D",
-    "yellow": "#C57339",
-    "blue": "#2D539E",
-    "magenta": "#7759B5",
-    "cyan": "#3F83A6",
-    "white": "#33374C",
-    "bright_black": "#838A96",
-    "bright_red": "#CC3768",
-    "bright_green": "#598030",
-    "bright_yellow": "#B6662D",
-    "bright_blue": "#22478E",
-    "bright_magenta": "#6845AD",
-    "bright_cyan": "#327698",
-    "bright_white": "#3D425E"
+  "iceberg-light": {
+    "description": "Light background theme",
+    "background": "#E8E9EC",
+    "foreground": "#33374C",
+    "cursor": "#3F83A6",
+    "selection": "#CAD0D7",
+    "ansi_colors": {
+      "black": "#DCDFE7",
+      "red": "#CC517A",
+      "green": "#668E3D",
+      "yellow": "#C57339",
+      "blue": "#2D539E",
+      "magenta": "#7759B5",
+      "cyan": "#3F83A6",
+      "white": "#33374C",
+      "bright_black": "#838A96",
+      "bright_red": "#CC3768",
+      "bright_green": "#598030",
+      "bright_yellow": "#B6662D",
+      "bright_blue": "#22478E",
+      "bright_magenta": "#6845AD",
+      "bright_cyan": "#327698",
+      "bright_white": "#3D425E"
+    }
   }
 }

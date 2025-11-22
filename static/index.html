@@ -12,7 +12,7 @@
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
-    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.19/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -24,22 +24,14 @@
         v-if="currentView === 'dashboard'"
       >
         <div class="container-fluid">
-           <a
-             class="navbar-brand"
-             href="#"
-             style="font-size: 1em; line-height: 1"
-           >
-             <pre
-               class="mb-0"
-               style="
-                 color: var(--theme-logo-color);
-                 font-weight: 700;
-                 text-shadow:
-                   0 0 10px var(--theme-logo-color),
-                   0 0 20px var(--theme-logo-color),
-                   0 0 30px var(--theme-logo-color);
-               "
-             >
+            <a
+              class="navbar-brand"
+              href="#"
+              style="font-size: 1.25em"
+            >
+              <pre
+                class="mb-0 ascii-logo"
+              >
 ░█▀▀░█▀▄░█▀█░█▀█░▀█▀░█▀▄░█▀▀░█▀▀░█░█░░░░░█▀█░▀█▀
 ░█▀▀░█▀▄░█░█░█░█░░█░░█░█░█▀▀░▀▀█░█▀▄░▄▄▄░█▀█░░█░
 ░▀░░░▀░▀░▀▀▀░▀░▀░░▀░░▀▀░░▀▀▀░▀▀▀░▀░▀░░░░░▀░▀░▀▀▀
@@ -712,203 +704,233 @@
                 @click="closeModal"
               ></button>
             </div>
-            <div class="modal-body">
-              <form @submit.prevent="saveClient">
-                <div class="row">
-                  <div class="col-md-6">
-                    <div class="mb-3">
-                      <label class="form-label">Name *</label>
-                      <input
-                        v-model="clientForm.name"
-                        type="text"
-                        class="form-control"
-                        required
-                      />
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label">Cell Phone</label>
-                      <input
-                        v-model="clientForm.cell"
-                        type="text"
-                        class="form-control"
-                        placeholder="+15551234567"
-                      />
-                      <div class="form-text text-muted">
-                        Must match Twilio 'To' number.
-                      </div>
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label">Calendar ID</label>
-                      <input
-                        v-model="clientForm.calendar_id"
-                        type="text"
-                        class="form-control"
-                      />
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label">Business Timezone</label>
-                      <select
-                        v-model="clientForm.business_timezone"
-                        class="form-select"
-                      >
-                        <option value="America/Los_Angeles">
-                          America/Los_Angeles
-                        </option>
-                        <option value="America/New_York">
-                          America/New_York
-                        </option>
-                        <option value="America/Chicago">America/Chicago</option>
-                        <option value="America/Denver">America/Denver</option>
-                      </select>
-                    </div>
-                    <div class="row">
-                      <div class="col-md-6">
-                        <div class="mb-3">
-                          <label class="form-label">Start Hour</label>
-                          <select
-                            v-model.number="clientForm.business_start_hour"
-                            class="form-select"
-                          >
-                            <option v-for="h in 24" :key="h-1" :value="h-1">
-                              {{ formatHour(h-1) }}
-                            </option>
-                          </select>
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <div class="mb-3">
-                          <label class="form-label">End Hour</label>
-                          <select
-                            v-model.number="clientForm.business_end_hour"
-                            class="form-select"
-                          >
-                            <option v-for="h in 24" :key="h-1" :value="h-1">
-                              {{ formatHour(h-1) }}
-                            </option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="mb-3">
-                      <label class="form-label">LLM Model</label>
-                      <select
-                        v-model="clientForm.llm_model"
-                        class="form-select"
-                      >
-                        <option value="openai/gpt-4o-mini">
-                          openai/gpt-4o-mini
-                        </option>
-                        <option value="openai/gpt-4">openai/gpt-4</option>
-                        <option value="anthropic/claude-3-haiku">
-                          anthropic/claude-3-haiku
-                        </option>
-                      </select>
-                    </div>
+             <div class="modal-body">
+               <!-- Full-screen System Prompt Editor -->
+               <div v-if="systemPromptExpanded" class="system-prompt-fullscreen">
+                 <div class="d-flex justify-content-between align-items-center mb-3">
+                   <h5 class="mb-0">System Prompt Editor</h5>
+                   <button
+                     type="button"
+                     class="btn btn-outline-secondary btn-sm"
+                     @click="toggleSystemPromptExpansion"
+                   >
+                     ← Back to Form
+                   </button>
+                 </div>
+                 <textarea
+                   v-model="clientForm.system_prompt"
+                   class="form-control system-prompt-fullscreen-textarea"
+                   rows="25"
+                   placeholder="Enter your system prompt here..."
+                 ></textarea>
+               </div>
 
-                    <div
-                      class="mb-3 border p-2 rounded"
-                      style="background: var(--theme-bg-dark)"
-                    >
-                      <label class="form-label mb-2 text-warning"
-                        >Enabled AI Tools</label
-                      >
-                      <div class="form-check">
-                        <input
-                          class="form-check-input"
-                          type="checkbox"
-                          value="get_available_slots"
-                          v-model="clientForm.enabled_tools"
-                          id="tool_slots"
-                        />
-                        <label class="form-check-label" for="tool_slots"
-                          >Check Availability</label
-                        >
-                      </div>
-                      <div class="form-check">
-                        <input
-                          class="form-check-input"
-                          type="checkbox"
-                          value="book_appointment"
-                          v-model="clientForm.enabled_tools"
-                          id="tool_book"
-                        />
-                        <label class="form-check-label" for="tool_book"
-                          >Book Appointments</label
-                        >
-                      </div>
-                      <div class="form-check">
-                        <input
-                          class="form-check-input"
-                          type="checkbox"
-                          value="save_contact_name"
-                          v-model="clientForm.enabled_tools"
-                          id="tool_save"
-                        />
-                        <label class="form-check-label" for="tool_save"
-                          >Save Contact Names</label
-                        >
-                      </div>
-                    </div>
+               <!-- Normal Form View -->
+               <form v-else @submit.prevent="saveClient">
+                 <div class="row">
+                   <div class="col-md-6">
+                     <div class="mb-3">
+                       <label class="form-label">Name *</label>
+                       <input
+                         v-model="clientForm.name"
+                         type="text"
+                         class="form-control"
+                         required
+                       />
+                     </div>
+                     <div class="mb-3">
+                       <label class="form-label">Cell Phone</label>
+                       <input
+                         v-model="clientForm.cell"
+                         type="text"
+                         class="form-control"
+                         placeholder="+15551234567"
+                       />
+                       <div class="form-text text-muted">
+                         Must match Twilio 'To' number.
+                       </div>
+                     </div>
+                     <div class="mb-3">
+                       <label class="form-label">Calendar ID</label>
+                       <input
+                         v-model="clientForm.calendar_id"
+                         type="text"
+                         class="form-control"
+                       />
+                     </div>
+                     <div class="mb-3">
+                       <label class="form-label">Business Timezone</label>
+                       <select
+                         v-model="clientForm.business_timezone"
+                         class="form-select"
+                       >
+                         <option value="America/Los_Angeles">
+                           America/Los_Angeles
+                         </option>
+                         <option value="America/New_York">
+                           America/New_York
+                         </option>
+                         <option value="America/Chicago">America/Chicago</option>
+                         <option value="America/Denver">America/Denver</option>
+                       </select>
+                     </div>
+                     <div class="row">
+                       <div class="col-md-6">
+                         <div class="mb-3">
+                           <label class="form-label">Start Hour</label>
+                           <select
+                             v-model.number="clientForm.business_start_hour"
+                             class="form-select"
+                           >
+                             <option v-for="h in 24" :key="h-1" :value="h-1">
+                               {{ formatHour(h-1) }}
+                             </option>
+                           </select>
+                         </div>
+                       </div>
+                       <div class="col-md-6">
+                         <div class="mb-3">
+                           <label class="form-label">End Hour</label>
+                           <select
+                             v-model.number="clientForm.business_end_hour"
+                             class="form-select"
+                           >
+                             <option v-for="h in 24" :key="h-1" :value="h-1">
+                               {{ formatHour(h-1) }}
+                             </option>
+                           </select>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                   <div class="col-md-6">
+                     <div class="mb-3">
+                       <label class="form-label">LLM Model</label>
+                       <select
+                         v-model="clientForm.llm_model"
+                         class="form-select"
+                       >
+                         <option value="openai/gpt-4o-mini">
+                           openai/gpt-4o-mini
+                         </option>
+                         <option value="openai/gpt-4">openai/gpt-4</option>
+                         <option value="anthropic/claude-3-haiku">
+                           anthropic/claude-3-haiku
+                         </option>
+                       </select>
+                     </div>
 
-                    <div class="mb-3">
-                      <label class="form-label">TTS Voice ID</label>
-                      <input
-                        v-model="clientForm.tts_voice_id"
-                        type="text"
-                        class="form-control"
-                      />
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label">Initial Greeting</label>
-                      <textarea
-                        v-model="clientForm.initial_greeting"
-                        class="form-control"
-                        rows="2"
-                      ></textarea>
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label">System Prompt</label>
-                      <textarea
-                        v-model="clientForm.system_prompt"
-                        class="form-control"
-                        rows="4"
-                      ></textarea>
-                    </div>
-                    <div class="mb-3">
-                      <label class="form-label">Use Template</label>
-                      <select
-                        v-model="selectedTemplate"
-                        @change="applyTemplate"
-                        class="form-select template-selector"
-                      >
-                        <option value="">Select Template</option>
-                        <option value="default">Default Front Desk</option>
-                        <option value="spa">Spa/Reception</option>
-                        <option value="restaurant">Restaurant</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                <div class="modal-footer">
-                  <button
-                    type="button"
-                    class="btn btn-danger"
-                    @click="closeModal"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    class="btn btn-primary"
-                    :disabled="saving"
-                  >
-                    {{ saving ? 'Saving...' : 'Save' }}
-                  </button>
-                </div>
-              </form>
-            </div>
+                     <div
+                       class="mb-3 border p-2 rounded"
+                       style="background: var(--theme-bg-dark)"
+                     >
+                       <label class="form-label mb-2 text-warning"
+                         >Enabled AI Tools</label
+                       >
+                       <div class="form-check">
+                         <input
+                           class="form-check-input"
+                           type="checkbox"
+                           value="get_available_slots"
+                           v-model="clientForm.enabled_tools"
+                           id="tool_slots"
+                         />
+                         <label class="form-check-label" for="tool_slots"
+                           >Check Availability</label
+                         >
+                       </div>
+                       <div class="form-check">
+                         <input
+                           class="form-check-input"
+                           type="checkbox"
+                           value="book_appointment"
+                           v-model="clientForm.enabled_tools"
+                           id="tool_book"
+                         />
+                         <label class="form-check-label" for="tool_book"
+                           >Book Appointments</label
+                         >
+                       </div>
+                       <div class="form-check">
+                         <input
+                           class="form-check-input"
+                           type="checkbox"
+                           value="save_contact_name"
+                           v-model="clientForm.enabled_tools"
+                           id="tool_save"
+                         />
+                         <label class="form-check-label" for="tool_save"
+                           >Save Contact Names</label
+                         >
+                       </div>
+                     </div>
+
+                     <div class="mb-3">
+                       <label class="form-label">TTS Voice ID</label>
+                       <input
+                         v-model="clientForm.tts_voice_id"
+                         type="text"
+                         class="form-control"
+                       />
+                     </div>
+                     <div class="mb-3">
+                       <label class="form-label">Initial Greeting</label>
+                       <textarea
+                         v-model="clientForm.initial_greeting"
+                         class="form-control"
+                         rows="2"
+                       ></textarea>
+                     </div>
+                     <div class="mb-3">
+                       <label class="form-label d-flex justify-content-between align-items-center">
+                         System Prompt
+                         <button
+                           type="button"
+                           class="btn btn-sm btn-outline-secondary"
+                           @click="toggleSystemPromptExpansion"
+                         >
+                           Expand to Full Screen
+                         </button>
+                       </label>
+                       <textarea
+                         v-model="clientForm.system_prompt"
+                         class="form-control"
+                         rows="4"
+                       ></textarea>
+                     </div>
+                     <div class="mb-3">
+                       <label class="form-label">Use Template</label>
+                       <select
+                         v-model="selectedTemplate"
+                         @change="applyTemplate"
+                         class="form-select template-selector"
+                       >
+                         <option value="">Select Template</option>
+                         <option value="default">Default Front Desk</option>
+                         <option value="spa">Spa/Reception</option>
+                         <option value="restaurant">Restaurant</option>
+                       </select>
+                     </div>
+                   </div>
+                 </div>
+                 <div class="modal-footer">
+                   <button
+                     type="button"
+                     class="btn btn-danger"
+                     @click="closeModal"
+                   >
+                     Cancel
+                   </button>
+                   <button
+                     type="submit"
+                     class="btn btn-primary"
+                     :disabled="saving"
+                   >
+                     {{ saving ? 'Saving...' : 'Save' }}
+                   </button>
+                 </div>
+               </form>
+             </div>
           </div>
         </div>
       </div>

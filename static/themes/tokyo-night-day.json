@@ -1,24 +1,27 @@
 {
-  "background": "#E2E2E7",
-  "foreground": "#3760BF",
-  "cursor": "#2E7DE9",
-  "selection": "#B7C1E3",
-  "ansi_colors": {
-    "black": "#B3B5B9",
-    "red": "#F52A65",
-    "green": "#587539",
-    "yellow": "#8C6C3E",
-    "blue": "#2E7DE9",
-    "magenta": "#9854F1",
-    "cyan": "#007197",
-    "white": "#6172B0",
-    "bright_black": "#A1A6C5",
-    "bright_red": "#F52A65",
-    "bright_green": "#587539",
-    "bright_yellow": "#8C6C3E",
-    "bright_blue": "#2E7DE9",
-    "bright_magenta": "#9854F1",
-    "bright_cyan": "#007197",
-    "bright_white": "#3760BF"
+  "tokyo-night-day": {
+    "description": "Light variant of Tokyo Night theme",
+    "background": "#E2E2E7",
+    "foreground": "#3760BF",
+    "cursor": "#2E7DE9",
+    "selection": "#B7C1E3",
+    "ansi_colors": {
+      "black": "#B3B5B9",
+      "red": "#F52A65",
+      "green": "#587539",
+      "yellow": "#8C6C3E",
+      "blue": "#2E7DE9",
+      "magenta": "#9854F1",
+      "cyan": "#007197",
+      "white": "#6172B0",
+      "bright_black": "#A1A6C5",
+      "bright_red": "#F52A65",
+      "bright_green": "#587539",
+      "bright_yellow": "#8C6C3E",
+      "bright_blue": "#2E7DE9",
+      "bright_magenta": "#9854F1",
+      "bright_cyan": "#007197",
+      "bright_white": "#3760BF"
+    }
   }
 }

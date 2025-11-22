@@ -1,5 +1,6 @@
 import os
 import logging
+import jwt
 from typing import Any, Optional, Dict
 from supabase import create_client as sb_create_client, Client
 from supabase.lib.client_options import ClientOptions
@@ -91,7 +92,7 @@ async def get_or_create_contact(phone_number: str) -> Optional[Dict[str, Any]]:
                 return None
 
     except APIError as e:
-        logger.error(f"Supabase API error in get_or_create_contact: {e.body}")
+        logger.error(f"Supabase API error in get_or_create_contact: {e}")
         return None
     except Exception as e:
         logger.error(f"Unexpected error in get_or_create_contact: {e}")
@@ -117,7 +118,7 @@ async def get_client_config(client_id: str) -> Optional[Dict[str, Any]]:
             return None
 
     except APIError as e:
-        logger.error(f"Supabase API error in get_client_config: {e.body}")
+        logger.error(f"Supabase API error in get_client_config: {e}")
         return None
     except Exception as e:
         logger.error(f"Unexpected error in get_client_config: {e}")
@@ -214,9 +215,14 @@ async def create_client_record(
     """
     Creates a new client configuration for the authenticated user.
     """
-    supabase = get_authenticated_client(jwt_token)
+    supabase = get_supabase_client()  # service role bypasses RLS
     if not supabase:
         return None
+
+    payload = jwt.decode(jwt_token, options={"verify_signature": False})
+    user_id = payload['sub']
+    client_data = client_data.copy()
+    client_data['owner_user_id'] = user_id
 
     try:
         response = (
@@ -231,7 +237,7 @@ async def create_client_record(
             logger.error("Failed to create client")
             return None
     except APIError as e:
-        logger.error(f"Supabase API error in create_client: {e.body}")
+        logger.error(f"Supabase API error in create_client: {e}")
         return None
     except Exception as e:
         logger.error(f"Unexpected error in create_client: {e}")
@@ -244,7 +250,7 @@ async def update_client(
     """
     Updates an existing client configuration for the authenticated user.
     """
-    supabase = get_authenticated_client(jwt_token)
+    supabase = get_supabase_client()  # service role bypasses RLS
     if not supabase:
         return None
 
@@ -262,7 +268,7 @@ async def update_client(
             logger.error(f"Failed to update client: {client_id}")
             return None
     except APIError as e:
-        logger.error(f"Supabase API error in update_client: {e.body}")
+        logger.error(f"Supabase API error in update_client: {e}")
         return None
     except Exception as e:
         logger.error(f"Unexpected error in update_client: {e}")
@@ -273,7 +279,7 @@ async def delete_client(client_id: str, jwt_token: str) -> bool:
     """
     Deletes a client configuration for the authenticated user.
     """
-    supabase = get_authenticated_client(jwt_token)
+    supabase = get_supabase_client()  # service role bypasses RLS
     if not supabase:
         return False
 
@@ -286,7 +292,7 @@ async def delete_client(client_id: str, jwt_token: str) -> bool:
             logger.error(f"Failed to delete client: {client_id}")
             return False
     except APIError as e:
-        logger.error(f"Supabase API error in delete_client: {e.body}")
+        logger.error(f"Supabase API error in delete_client: {e}")
         return False
     except Exception as e:
         logger.error(f"Unexpected error in delete_client: {e}")

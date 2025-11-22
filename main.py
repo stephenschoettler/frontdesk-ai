@@ -120,6 +120,8 @@ async def initialize_client_services(client_id: str):
     # Extract Config
     system_prompt = client_config.get("system_prompt", "You are an AI receptionist.")
     llm_model = client_config.get("llm_model", "openai/gpt-4o-mini")
+    stt_model = client_config.get("stt_model", "nova-2-phonecall")
+    tts_model = client_config.get("tts_model", "eleven_flash_v2_5")
     tts_voice_id = client_config.get("tts_voice_id", "21m00Tcm4TlvDq8ikWAM")
     initial_greeting = client_config.get("initial_greeting")
 
@@ -133,7 +135,7 @@ async def initialize_client_services(client_id: str):
     # STT (Deepgram)
     stt = DeepgramSTTService(
         api_key=os.environ["DEEPGRAM_API_KEY"],
-        model="nova-2-phonecall",
+        model=stt_model,
         vad_events=True,
     )
 
@@ -141,7 +143,7 @@ async def initialize_client_services(client_id: str):
     tts = ElevenLabsTTSService(
         api_key=os.environ["ELEVENLABS_API_KEY"],
         voice_id=tts_voice_id,
-        model_id="eleven_flash_v2_5",
+        model_id=tts_model,
         optimize_streaming_latency=4,
     )
 
@@ -426,6 +428,8 @@ class ClientCreate(BaseModel):
     business_start_hour: int = 9
     business_end_hour: int = 17
     llm_model: str = "openai/gpt-4o-mini"
+    stt_model: str = "nova-2-phonecall"
+    tts_model: str = "eleven_flash_v2_5"
     tts_voice_id: str = "21m00Tcm4TlvDq8ikWAM"
     initial_greeting: Optional[str] = None
     system_prompt: Optional[str] = None
@@ -440,6 +444,8 @@ class ClientUpdate(BaseModel):
     business_start_hour: Optional[int] = None
     business_end_hour: Optional[int] = None
     llm_model: Optional[str] = None
+    stt_model: Optional[str] = None
+    tts_model: Optional[str] = None
     tts_voice_id: Optional[str] = None
     initial_greeting: Optional[str] = None
     system_prompt: Optional[str] = None

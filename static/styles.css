@@ -444,8 +444,9 @@ tr.selected {
 /* ASCII Art Logo Styling */
 .ascii-logo {
   color: var(--theme-blue) !important;
-  font-family: 'SF Mono', Monaco, 'Liberation Mono', Consolas, Menlo, monospace;
+  font-family: "SF Mono", Monaco, "Liberation Mono", Consolas, Menlo, monospace;
   font-weight: 700;
+  font-size: 0.72em;
   text-shadow:
     0 0 0 var(--theme-blue),
     0 0 0 var(--theme-blue),

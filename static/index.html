@@ -804,21 +804,53 @@
                      </div>
                    </div>
                    <div class="col-md-6">
-                     <div class="mb-3">
-                       <label class="form-label">LLM Model</label>
-                       <select
-                         v-model="clientForm.llm_model"
-                         class="form-select"
-                       >
-                         <option value="openai/gpt-4o-mini">
-                           openai/gpt-4o-mini
-                         </option>
-                         <option value="openai/gpt-4">openai/gpt-4</option>
-                         <option value="anthropic/claude-3-haiku">
-                           anthropic/claude-3-haiku
-                         </option>
-                       </select>
-                     </div>
+                      <div class="mb-3">
+                        <label class="form-label">LLM Model</label>
+                        <select
+                          v-model="clientForm.llm_model"
+                          class="form-select"
+                        >
+                          <option value="openai/gpt-4o-mini">
+                            openai/gpt-4o-mini
+                          </option>
+                          <option value="openai/gpt-4">openai/gpt-4</option>
+                          <option value="anthropic/claude-3-haiku">
+                            anthropic/claude-3-haiku
+                          </option>
+                        </select>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label">STT Model</label>
+                        <select
+                          v-model="clientForm.stt_model"
+                          class="form-select"
+                        >
+                          <option value="nova-2-phonecall">
+                            Deepgram Nova 2 Phonecall
+                          </option>
+                          <option value="nova-2">Deepgram Nova 2</option>
+                          <option value="nova-2-general">Deepgram Nova 2 General</option>
+                        </select>
+                      </div>
+
+                      <div class="mb-3">
+                        <label class="form-label">TTS Model</label>
+                        <select
+                          v-model="clientForm.tts_model"
+                          class="form-select"
+                        >
+                          <option value="eleven_flash_v2_5">
+                            ElevenLabs Flash v2.5
+                          </option>
+                          <option value="eleven_multilingual_v2">
+                            ElevenLabs Multilingual v2
+                          </option>
+                          <option value="eleven_turbo_v2">
+                            ElevenLabs Turbo v2
+                          </option>
+                        </select>
+                      </div>
 
                      <div
                        class="mb-3 border p-2 rounded"

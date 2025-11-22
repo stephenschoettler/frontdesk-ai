@@ -74,6 +74,8 @@ if (typeof Vue === 'undefined' || typeof Vue.createApp === 'undefined') {
       business_start_hour: 9,
       business_end_hour: 17,
       llm_model: "openai/gpt-4o-mini",
+      stt_model: "nova-2-phonecall",
+      tts_model: "eleven_flash_v2_5",
       tts_voice_id: "21m00Tcm4TlvDq8ikWAM",
       initial_greeting: "",
       system_prompt: "",

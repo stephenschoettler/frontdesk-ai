@@ -56,18 +56,7 @@
                    >
                  </li>
                  <li><hr class="dropdown-divider" /></li>
-                 <li><h6 class="dropdown-header">🎨 Theme</h6></li>
-                 <li v-for="theme in themes" :key="theme.key">
-                   <a
-                     class="dropdown-item"
-                     href="#"
-                     @click.prevent="applyTheme(theme.key)"
-                     :class="{ active: currentTheme === theme.key }"
-                   >
-                     {{ theme.name }}
-                   </a>
-                 </li>
-                 <li><hr class="dropdown-divider" /></li>
+
                  <li><h6 class="dropdown-header">📋 System Activity</h6></li>
                  <li v-if="showAuditLog">
                    <div
@@ -110,14 +99,30 @@
                      href="#"
                      @click.prevent="showAuditLog = !showAuditLog"
                    >
-                     {{ showAuditLog ? 'Hide' : 'Show' }} Audit Log
-                   </a>
-                 </li>
-               </ul>
-            </div>
-            <button @click="logout" class="btn btn-danger btn-sm ms-3">
-              Logout
-            </button>
+                      {{ showAuditLog ? 'Hide' : 'Show' }} Audit Log
+                    </a>
+                  </li>
+                   <li>
+                     <a
+                       class="dropdown-item"
+                       href="#"
+                       @click.prevent="showSettingsModal = true"
+                     >
+                       ⚙️ Settings
+                     </a>
+                   </li>
+                   <li><hr class="dropdown-divider" /></li>
+                   <li>
+                     <a
+                       class="dropdown-item logout-item"
+                       href="#"
+                       @click.prevent="logout"
+                     >
+                       LOGOUT
+                     </a>
+                   </li>
+                 </ul>
+             </div>
           </div>
         </div>
       </nav>
@@ -207,21 +212,36 @@
             </li>
 
             <li class="ms-auto pb-1">
-              <button
-                @click="showCreateModal = true"
-                class="btn btn-success btn-sm me-2"
-              >
-                Create New Client
-              </button>
-              <button
-                @click="showBulkModal = true"
-                v-if="selectedClients.length > 0"
-                class="btn btn-warning btn-sm"
-              >
-                Bulk Actions
-              </button>
-            </li>
-          </ul>
+               <button
+                 @click="showCreateModal = true"
+                 class="btn btn-outline-primary btn-sm me-2"
+               >
+                 Create New Client
+               </button>
+                      <button
+                        v-if="clients.length > 0"
+                        @click="toggleBulkSelect"
+                        class="btn btn-outline-secondary btn-sm me-2"
+                      >
+                        {{ allSelected ? 'Deselect All' : 'Select All' }} ({{ selectedClients.length }})
+                      </button>
+                       <button
+                         v-if="selectedClients.length > 0"
+                         @click="bulkDuplicateClients"
+                         class="btn btn-outline-primary btn-sm"
+                       >
+                         Duplicate ({{ selectedClients.length }})
+                       </button>
+                       <button
+                         v-if="selectedClients.length > 0"
+                         @click="bulkDeleteClients"
+                         class="btn btn-outline-danger btn-sm"
+                       >
+                         Delete ({{ selectedClients.length }})
+                       </button>
+
+                    </li>
+                  </ul>
 
           <div v-if="activeTab === 'clients'">
             <div class="row mb-3">
@@ -278,9 +298,9 @@
                     ></span>
                   </div>
                   <div class="card-body">
-                    <p class="card-text">
-                      <strong>Cell:</strong> {{ client.cell || 'Not set' }}
-                    </p>
+                     <p class="card-text">
+                       <strong>Cell:</strong> <span class="data-tech-highlight">{{ client.cell || 'Not set' }}</span>
+                     </p>
                     <p class="card-text">
                       <strong>Timezone:</strong> {{ client.business_timezone }}
                     </p>
@@ -289,9 +309,9 @@
                       formatHour(client.business_start_hour) }} - {{
                       formatHour(client.business_end_hour) }}
                     </p>
-                    <p class="card-text">
-                      <strong>LLM Model:</strong> {{ client.llm_model }}
-                    </p>
+                     <p class="card-text">
+                       <strong>LLM Model:</strong> <span class="data-tech-highlight">{{ client.llm_model }}</span>
+                     </p>
                     <div
                       class="mt-2"
                       v-if="client.enabled_tools && client.enabled_tools.length"
@@ -313,24 +333,7 @@
                     class="card-footer d-flex justify-content-between align-items-center"
                   >
                     <div>
-                      <button
-                        @click="editClient(client)"
-                        class="btn btn-primary btn-sm me-2"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        @click="duplicateClient(client)"
-                        class="btn btn-secondary btn-sm me-2"
-                      >
-                        Duplicate
-                      </button>
-                      <button
-                        @click="deleteClient(client.id)"
-                        class="btn btn-danger btn-sm"
-                      >
-                        Delete
-                      </button>
+                      <button @click="editClient(client)" class="btn btn-sm btn-outline-primary" title="Edit">Edit</button>
                     </div>
                     <div class="form-check m-0">
                       <input
@@ -415,15 +418,15 @@
                     <td>{{ contact.client_name }}</td>
                     <td>{{ formatDate(contact.last_contact) }}</td>
                      <td>
-                       <button
-                         @click="editContact(contact)"
-                         class="btn btn-sm btn-warning me-2"
-                       >
-                         Edit Name
-                       </button>
-                       <button class="btn btn-sm btn-primary">
-                         View History
-                       </button>
+                        <button
+                          @click="editContact(contact)"
+                          class="btn btn-sm btn-outline-primary me-2"
+                        >
+                          Edit Name
+                        </button>
+                        <button class="btn btn-sm btn-outline-info">
+                          View History
+                        </button>
                      </td>
                   </tr>
                 </tbody>
@@ -485,7 +488,7 @@
                             <span class="text-warning"
                               >{{ tool.function.name }}</span
                             >
-                            <span class="text-muted"
+                            <span class="text-success"
                               >({{ tool.function.arguments }})</span
                             >
                           </div>
@@ -651,8 +654,8 @@
                                <span class="text-warning"
                                  >{{ tool.function.name }}</span
                                >
-                               <span class="text-muted"
-                                 >({{ tool.function.arguments }})</span
+                                <span class="text-success"
+                                  >({{ tool.function.arguments }})</span
                                >
                              </div>
                            </div>
@@ -946,117 +949,81 @@
                    </div>
                  </div>
                  <div class="modal-footer">
-                   <button
-                     type="button"
-                     class="btn btn-danger"
-                     @click="closeModal"
-                   >
-                     Cancel
-                   </button>
-                   <button
-                     type="submit"
-                     class="btn btn-primary"
-                     :disabled="saving"
+                    <button
+                      type="button"
+                      class="btn btn-outline-danger"
+                      @click="closeModal"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      class="btn btn-outline-primary"
+                      :disabled="saving"
                    >
                      {{ saving ? 'Saving...' : 'Save' }}
                    </button>
                  </div>
-               </form>
-             </div>
+                </form>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-       <div
-         class="modal fade"
-         :class="{ show: showBulkModal }"
-         :style="{ display: showBulkModal ? 'block' : 'none' }"
-         tabindex="-1"
-       >
-         <div class="modal-dialog">
-           <div class="modal-content">
-             <div class="modal-header">
-               <h5 class="modal-title">Bulk Actions</h5>
-               <button
-                 type="button"
-                 class="btn-close"
-                 @click="showBulkModal = false"
-               ></button>
-             </div>
-             <div class="modal-body">
-               <p>Selected {{ selectedClients.length }} clients</p>
-               <button @click="bulkDelete" class="btn btn-danger me-2">
-                 Delete Selected
-               </button>
-               <button @click="bulkUpdate" class="btn btn-warning">
-                 Update Field
-               </button>
-             </div>
-           </div>
-         </div>
-       </div>
+        <!-- Settings Modal -->
+        <div
+          class="modal fade"
+          :class="{ show: showSettingsModal }"
+          :style="{ display: showSettingsModal ? 'block' : 'none' }"
+          tabindex="-1"
+        >
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">⚙️ Settings</h5>
+                <button
+                  type="button"
+                  class="btn-close"
+                  @click="closeSettingsModal"
+                ></button>
+              </div>
+              <div class="modal-body">
+                <!-- Themes Section -->
+                <div class="mb-4">
+                  <label class="form-label mb-2">
+                    <h6>🎨 Themes</h6>
+                  </label>
+                  <select
+                    v-model="currentTheme"
+                    @change="applyTheme(currentTheme)"
+                    class="form-select"
+                  >
+                    <option v-for="theme in themes" :key="theme.key" :value="theme.key">
+                      {{ theme.name }}
+                    </option>
+                  </select>
+                </div>
 
-       <div
-         class="modal fade"
-         :class="{ show: showEditContactModal }"
-         :style="{ display: showEditContactModal ? 'block' : 'none' }"
-         tabindex="-1"
-       >
-         <div class="modal-dialog">
-           <div class="modal-content">
-             <div class="modal-header">
-               <h5 class="modal-title">Edit Contact Name</h5>
-               <button
-                 type="button"
-                 class="btn-close"
-                 @click="closeEditContactModal"
-               ></button>
-             </div>
-             <div class="modal-body">
-               <form @submit.prevent="updateContactName">
-                 <div class="mb-3">
-                   <label class="form-label">Phone Number</label>
-                   <input
-                     v-model="editingContact.phone"
-                     type="text"
-                     class="form-control"
-                     readonly
-                   />
-                 </div>
-                 <div class="mb-3">
-                   <label class="form-label">Name</label>
-                   <input
-                     v-model="editingContact.name"
-                     type="text"
-                     class="form-control"
-                     placeholder="Enter contact name"
-                     required
-                   />
-                 </div>
-                 <div class="modal-footer">
-                   <button
-                     type="button"
-                     class="btn btn-secondary"
-                     @click="closeEditContactModal"
-                   >
-                     Cancel
-                   </button>
-                   <button
-                     type="submit"
-                     class="btn btn-primary"
-                     :disabled="savingContact"
-                   >
-                     {{ savingContact ? 'Saving...' : 'Save' }}
-                   </button>
-                 </div>
-               </form>
-             </div>
-           </div>
-         </div>
-       </div>
+                <!-- Future Settings -->
+                <div>
+                  <h6>🔧 Other Settings</h6>
+                  <p class="text-muted">More settings coming soon...</p>
+                </div>
+              </div>
+              <div class="modal-footer">
+                 <button
+                   type="button"
+                   class="btn btn-outline-secondary"
+                   @click="closeSettingsModal"
+                 >
+                   Close
+                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
-
-    </div>
+     </div>
+   <script src="app.js"></script>
   </body>
-  <script src="app.js"></script>
 </html>

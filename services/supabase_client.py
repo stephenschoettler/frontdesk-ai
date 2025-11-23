@@ -126,7 +126,11 @@ async def get_client_config(client_id: str) -> Optional[Dict[str, Any]]:
 
 
 async def log_conversation(
-    contact_id: str, client_id: str, transcript: Any, summary: Optional[str] = None, duration: Optional[int] = None
+    contact_id: str,
+    client_id: str,
+    transcript: Any,
+    summary: Optional[str] = None,
+    duration: Optional[int] = None,
 ):
     """
     Logs the conversation details to the 'conversations' table.
@@ -220,9 +224,9 @@ async def create_client_record(
         return None
 
     payload = jwt.decode(jwt_token, options={"verify_signature": False})
-    user_id = payload['sub']
+    user_id = payload["sub"]
     client_data = client_data.copy()
-    client_data['owner_user_id'] = user_id
+    client_data["owner_user_id"] = user_id
 
     try:
         response = (
@@ -338,7 +342,7 @@ async def get_all_contacts() -> Optional[list[Dict[str, Any]]]:
         logger.info(f"Fetched {len(contacts)} contacts with last contact info.")
         return contacts
     except APIError as e:
-        logger.error(f"Supabase API error in get_all_contacts: {e.body}")
+        logger.error(f"Supabase API error in get_all_contacts: {e}")
         return None
     except Exception as e:
         logger.error(f"Unexpected error in get_all_contacts: {e}")
@@ -392,7 +396,7 @@ async def get_conversation_logs() -> Optional[list[Dict[str, Any]]]:
             logger.info("No conversation logs found.")
             return []
     except APIError as e:
-        logger.error(f"Supabase API error in get_conversation_logs: {e.body}")
+        logger.error(f"Supabase API error in get_conversation_logs: {e}")
         return None
     except Exception as e:
         logger.error(f"Unexpected error in get_conversation_logs: {e}")
@@ -421,7 +425,7 @@ async def get_conversation_by_id(conversation_id: str) -> Optional[Dict[str, Any
             logger.info(f"No conversation found with ID: {conversation_id}.")
             return None
     except APIError as e:
-        logger.error(f"Supabase API error in get_conversation_by_id: {e.body}")
+        logger.error(f"Supabase API error in get_conversation_by_id: {e}")
         return None
     except Exception as e:
         logger.error(f"Unexpected error in get_conversation_by_id: {e}")
@@ -432,20 +436,63 @@ async def delete_conversation(conversation_id: str, jwt_token: str) -> bool:
     """
     Deletes a conversation log for the authenticated user.
     """
-    supabase = get_authenticated_client(jwt_token)
+    # Decode JWT to get user_id (no signature verification needed)
+    try:
+        payload = jwt.decode(jwt_token, options={"verify_signature": False})
+        user_id = payload.get("sub")
+        if not user_id:
+            logger.warning("No user_id found in JWT payload")
+            return False
+    except Exception as e:
+        logger.error(f"Failed to decode JWT token: {e}")
+        return False
+
+    supabase = get_supabase_client()
     if not supabase:
         return False
 
     try:
-        response = supabase.table("conversations").delete().eq("id", conversation_id).execute()
-        if response.data:
-            logger.info(f"Deleted conversation: {conversation_id}")
-            return True
-        else:
-            logger.error(f"Failed to delete conversation: {conversation_id}")
+        # Verify conversation exists and get its client_id
+        conv_resp = (
+            supabase.table("conversations")
+            .select("client_id")
+            .eq("id", conversation_id)
+            .execute()
+        )
+        if not conv_resp.data:
+            logger.info(f"Conversation not found: {conversation_id}")
             return False
+        conv_data = conv_resp.data[0]
+        client_id = conv_data.get("client_id")
+        if not client_id:
+            logger.warning(f"No client_id for conversation: {conversation_id}")
+            return False
+
+        # Verify client ownership
+        client_resp = (
+            supabase.table("clients")
+            .select("owner_user_id")
+            .eq("id", client_id)
+            .execute()
+        )
+        if not client_resp.data:
+            logger.warning(f"Client not found for conversation: {conversation_id}")
+            return False
+        client_data = client_resp.data[0]
+        if client_data.get("owner_user_id") != user_id:
+            logger.warning(
+                f"User {user_id} not authorized to delete conversation {conversation_id} (owned by {client_data.get('owner_user_id')})"
+            )
+            return False
+
+        # Perform deletion
+        (
+            supabase.table("conversations").delete().eq("id", conversation_id).execute()
+        )
+        logger.info(f"Deleted conversation {conversation_id} for user {user_id}")
+        return True
     except APIError as e:
-        logger.error(f"Supabase API error in delete_conversation: {e.body}")
+        logger.error(f"Supabase API error in delete_conversation: {e}")
         return False
     except Exception as e:
         logger.error(f"Unexpected error in delete_conversation: {e}")

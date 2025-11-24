@@ -211,7 +211,7 @@
               >
             </li>
 
-            <li class="ms-auto pb-1">
+            <li class="ms-auto pb-1" v-if="activeTab === 'clients'">
                <button
                  @click="showCreateModal = true"
                  class="btn btn-outline-primary btn-sm me-2"
@@ -301,14 +301,12 @@
                      <p class="card-text">
                        <strong>Cell:</strong> <span class="data-tech-highlight">{{ client.cell || 'Not set' }}</span>
                      </p>
-                    <p class="card-text">
-                      <strong>Timezone:</strong> {{ client.business_timezone }}
-                    </p>
-                    <p class="card-text">
-                      <strong>Hours:</strong> {{
-                      formatHour(client.business_start_hour) }} - {{
-                      formatHour(client.business_end_hour) }}
-                    </p>
+                     <p class="card-text">
+                       <strong>Timezone:</strong> <span class="data-tech-highlight">{{ client.business_timezone }}</span>
+                     </p>
+                     <p class="card-text">
+                       <strong>Hours:</strong> <span class="data-tech-highlight">{{ formatHour(client.business_start_hour) }} - {{ formatHour(client.business_end_hour) }}</span>
+                     </p>
                      <p class="card-text">
                        <strong>LLM Model:</strong> <span class="data-tech-highlight">{{ client.llm_model }}</span>
                      </p>
@@ -474,7 +472,7 @@
 
                         <div
                           v-if="message.role === 'assistant' && message.tool_calls"
-                          class="message tool"
+                          class="message tool msg-action"
                         >
                           <div class="d-flex justify-content-between align-items-start">
                             <strong style="color: var(--theme-orange)">⚡ System Action:</strong>
@@ -496,7 +494,7 @@
 
                         <div
                           v-else-if="message.role === 'tool'"
-                          class="message tool"
+                          class="message tool msg-result"
                         >
                           <div class="d-flex justify-content-between align-items-start">
                             <strong style="color: var(--theme-green)">✓ Tool Result:</strong>
@@ -640,7 +638,7 @@
 
                            <div
                              v-if="message.role === 'assistant' && message.tool_calls"
-                             class="message tool"
+                             class="message tool msg-action"
                            >
                              <div class="d-flex justify-content-between align-items-start">
                                <strong style="color: var(--theme-orange)">⚡ System Action:</strong>
@@ -662,7 +660,7 @@
 
                            <div
                              v-else-if="message.role === 'tool'"
-                             class="message tool"
+                             class="message tool msg-result"
                            >
                              <div class="d-flex justify-content-between align-items-start">
                                <strong style="color: var(--theme-green)">✓ Tool Result:</strong>

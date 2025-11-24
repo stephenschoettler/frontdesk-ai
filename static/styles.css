@@ -466,6 +466,14 @@ option {
   color: var(--theme-red) !important;
 }
 
+.text-blue {
+  color: var(--theme-blue) !important;
+}
+
+.text-red {
+  color: var(--theme-red) !important;
+}
+
 .client-card {
   background: var(--theme-bg-dark) !important;
   border: 1px solid var(--theme-bg-mid) !important;
@@ -1039,4 +1047,123 @@ tr.selected {
 
 .system-prompt-fullscreen-textarea::placeholder {
   color: var(--theme-comment);
+}
+
+/* Navbar User Dropdown - Force Wireframe */
+.navbar .nav-item .btn-outline-secondary,
+.navbar #userDropdown {
+  background: transparent !important;
+  border: 1px solid var(--theme-bg-mid) !important;
+  color: var(--theme-comment) !important;
+  font-family: "JetBrains Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.8rem;
+  box-shadow: none !important;
+}
+
+/* Hover/Active/Focus - Glass & Neon Only */
+.navbar .nav-item .btn-outline-secondary:hover,
+.navbar .nav-item .btn-outline-secondary:focus,
+.navbar .nav-item .btn-outline-secondary:active,
+.navbar .nav-item.show .btn-outline-secondary,
+.navbar #userDropdown:hover,
+.navbar #userDropdown:focus,
+.navbar .show > #userDropdown {
+  background-color: rgba(
+    125,
+    207,
+    255,
+    0.1
+  ) !important; /* Transparent Blue Tint */
+  color: var(--theme-blue) !important;
+  border-color: var(--theme-blue) !important;
+  box-shadow: 0 0 15px rgba(125, 207, 255, 0.3) !important; /* Neon Glow */
+  transform: none !important;
+}
+
+/* Dropdown Menu - Wireframe Terminal Overhaul */
+.dropdown-menu {
+  background: var(--theme-bg-dark) !important;
+  border: 1px solid var(--theme-blue) !important;
+  border-radius: 2px !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dropdown-item {
+  font-family: "JetBrains Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.75rem;
+  color: var(--theme-fg) !important;
+}
+
+.dropdown-item:hover {
+  background: transparent !important;
+  color: var(--theme-blue) !important;
+  text-shadow: 0 0 8px var(--theme-blue);
+  padding-left: 1.5rem;
+}
+
+.dropdown-item-text {
+  color: var(--theme-comment) !important;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.8;
+}
+
+.dropdown-header {
+  color: var(--theme-orange) !important;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding-left: 1rem;
+}
+
+.dropdown-item.logout-item {
+  color: var(--theme-red) !important;
+}
+
+.dropdown-item.logout-item:hover {
+  color: var(--theme-red) !important;
+  text-shadow: 0 0 8px var(--theme-red);
+}
+
+/* System Log Terminal */
+.terminal-console {
+  background-color: #000 !important; /* Pure black */
+  border: 1px solid var(--theme-bg-mid);
+  padding: 15px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  color: var(--theme-green); /* Matrix green text */
+  height: 400px;
+  overflow-y: auto;
+  border-radius: 2px;
+}
+.terminal-console .log-entry {
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.terminal-console .log-timestamp {
+  color: var(--theme-comment);
+  margin-right: 10px;
+}
+
+/* Global Wireframe for Secondary Buttons (Cancel, Select All, etc) */
+.btn-outline-secondary {
+    background: transparent !important;
+    color: var(--theme-comment) !important;
+    border: 1px solid var(--theme-comment) !important;
+    box-shadow: none !important;
+}
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus,
+.btn-outline-secondary:active {
+    background-color: rgba(86, 95, 137, 0.15) !important; /* Transparent tint */
+    color: var(--theme-fg) !important; /* Brighten text */
+    border-color: var(--theme-fg) !important; /* Brighten border */
+    box-shadow: 0 0 10px var(--theme-fg) !important; /* White/Grey Glow */
+    transform: translateY(-1px);
 }

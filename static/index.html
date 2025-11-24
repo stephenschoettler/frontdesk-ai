@@ -55,62 +55,22 @@
                      >Total Clients: {{ clients.length }}</span
                    >
                  </li>
-                 <li><hr class="dropdown-divider" /></li>
+                  <li><hr class="dropdown-divider" /></li>
 
-                 <li><h6 class="dropdown-header">📋 System Activity</h6></li>
-                 <li v-if="showAuditLog">
-                   <div
-                     class="audit-log p-2"
-                     style="
-                       max-height: 200px;
-                       overflow-y: auto;
-                       background: var(--theme-bg-dark);
-                       border-radius: 4px;
-                     "
-                   >
-                     <div
-                       v-for="log in auditLogs"
-                       :key="log.id"
-                       class="mb-2 border-bottom border-secondary pb-1"
-                     >
-                       <div class="d-flex justify-content-between">
-                         <span
-                           :class="log.type === 'create' ? 'text-success' : log.type === 'update' ? 'text-warning' : 'text-danger'"
-                           style="font-size: 0.8rem; font-weight: bold"
-                         >
-                           {{ log.action }}
-                         </span>
-                       </div>
-                       <small class="text-muted" style="font-size: 0.7rem"
-                         >{{ formatDate(log.timestamp) }}</small
-                       >
-                     </div>
-                     <div
-                       v-if="auditLogs.length === 0"
-                       class="text-muted text-center small my-2"
-                     >
-                       No recent activity.
-                     </div>
-                   </div>
-                 </li>
-                 <li>
-                   <a
-                     class="dropdown-item"
-                     href="#"
-                     @click.prevent="showAuditLog = !showAuditLog"
-                   >
-                      {{ showAuditLog ? 'Hide' : 'Show' }} Audit Log
+                  <li>
+                    <a class="dropdown-item" href="#" @click.prevent="showAuditLog = true">
+                      VIEW SYSTEM LOGS
                     </a>
                   </li>
-                   <li>
-                     <a
-                       class="dropdown-item"
-                       href="#"
-                       @click.prevent="showSettingsModal = true"
-                     >
-                       ⚙️ Settings
-                     </a>
-                   </li>
+                    <li>
+                      <a
+                        class="dropdown-item"
+                        href="#"
+                        @click.prevent="showSettingsModal = true"
+                      >
+                        Settings
+                      </a>
+                    </li>
                    <li><hr class="dropdown-divider" /></li>
                    <li>
                      <a
@@ -213,13 +173,12 @@
 
             <li class="ms-auto pb-1" v-if="activeTab === 'clients'">
                 <button
-                  v-if="clients.length > 0"
-                  @click="toggleBulkSelect"
-                  class="btn btn-sm btn-outline-secondary me-2"
+                  v-if="selectedClients.length > 0"
+                  @click="bulkDeleteClients"
+                  class="btn btn-sm btn-outline-danger me-2"
                 >
-                  {{ allSelected ? 'DESELECT ALL' : 'SELECT ALL' }} ({{ selectedClients.length }})
+                  DELETE ({{ selectedClients.length }})
                 </button>
-
                 <button
                   v-if="selectedClients.length > 0"
                   @click="bulkDuplicateClients"
@@ -228,11 +187,11 @@
                   DUPLICATE ({{ selectedClients.length }})
                 </button>
                 <button
-                  v-if="selectedClients.length > 0"
-                  @click="bulkDeleteClients"
-                  class="btn btn-sm btn-outline-danger"
+                  v-if="clients.length > 0"
+                  @click="toggleBulkSelect"
+                  class="btn btn-sm btn-outline-secondary"
                 >
-                  DELETE ({{ selectedClients.length }})
+                  {{ allSelected ? 'DESELECT ALL' : 'SELECT ALL' }} ({{ selectedClients.length }})
                 </button>
 
                     </li>
@@ -973,45 +932,53 @@
           <div class="modal-dialog modal-lg">
             <div class="modal-content">
               <div class="modal-header">
-                <h5 class="modal-title">⚙️ Settings</h5>
+                <h5 class="modal-title">Settings</h5>
                 <button
                   type="button"
                   class="btn-close"
                   @click="closeSettingsModal"
                 ></button>
               </div>
-              <div class="modal-body">
-                <!-- Themes Section -->
-                <div class="mb-4">
-                  <label class="form-label mb-2">
-                    <h6>🎨 Themes</h6>
-                  </label>
-                  <select
-                    v-model="currentTheme"
-                    @change="applyTheme(currentTheme)"
-                    class="form-select"
+               <div class="modal-body">
+  <div class="mb-4">
+    <label class="form-label text-blue mb-2">>> APPEARANCE</label>
+    <div class="p-3 border rounded" style="border-color: var(--theme-bg-mid) !important; background: var(--theme-bg-dark);">
+      <label class="form-label small">THEME PRESET</label>
+      <select v-model="currentTheme" @change="applyTheme(currentTheme)" class="form-select">
+        <option v-for="theme in themes" :key="theme.key" :value="theme.key">
+          {{ theme.name }}
+        </option>
+      </select>
+    </div>
+  </div>
+<label class="form-label text-blue mb-2">>> SYSTEM STATUS</label>
+<div class="p-3 border rounded" style="border-color: var(--theme-bg-mid) !important; background: var(--theme-bg-dark);">
+  <div class="d-flex justify-content-between mb-2">
+    <span class="text-muted">OPENAI API</span>
+    <span class="text-success">[ONLINE]</span>
+  </div>
+  <div class="d-flex justify-content-between">
+    <span class="text-muted">TWILIO GATEWAY</span>
+    <span class="text-success">[ONLINE]</span>
+  </div>
+</div>
+<label class="form-label text-red mb-2">>> DANGER ZONE</label>
+<div class="p-3 border rounded" style="border-color: var(--theme-red) !important; background: var(--theme-bg-dark);">
+  <div class="d-flex justify-content-between align-items-center">
+    <span class="text-muted small">Clear all local system logs?</span>
+    <button class="btn btn-sm btn-outline-danger" onclick="localStorage.removeItem('auditLogs'); location.reload();">PURGE LOGS</button>
+  </div>
+</div>
+               </div>
+               <div class="modal-footer">
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    @click="closeSettingsModal"
                   >
-                    <option v-for="theme in themes" :key="theme.key" :value="theme.key">
-                      {{ theme.name }}
-                    </option>
-                  </select>
-                </div>
-
-                <!-- Future Settings -->
-                <div>
-                  <h6>🔧 Other Settings</h6>
-                  <p class="text-muted">More settings coming soon...</p>
-                </div>
-              </div>
-              <div class="modal-footer">
-                 <button
-                   type="button"
-                   class="btn btn-outline-secondary"
-                   @click="closeSettingsModal"
-                 >
-                   Close
-                 </button>
-              </div>
+                    CANCEL
+                  </button>
+               </div>
             </div>
           </div>
          </div>
@@ -1025,7 +992,32 @@
           +
         </button>
 
+       </div>
+    <div class="modal fade" :class="{ show: showAuditLog }" :style="{ display: showAuditLog ? 'block' : 'none' }" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">SYSTEM ACTIVITY LOG</h5>
+        <button type="button" class="btn-close" @click="showAuditLog = false"></button>
       </div>
-   <script src="app.js"></script>
+      <div class="modal-body p-0">
+        <div class="terminal-console">
+          <div v-if="auditLogs.length === 0" class="text-muted">System silent. No activity recorded.</div>
+          <div v-for="log in auditLogs" :key="log.id" class="log-entry">
+            <span class="log-timestamp">[{{ formatTimestamp(log.timestamp) }}]</span>
+            <span :class="log.type === 'create' ? 'text-success' : log.type === 'update' ? 'text-warning' : 'text-danger'">
+              [{{ log.type.toUpperCase() }}]
+            </span>
+            <span class="text-fg"> {{ log.action }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" @click="showAuditLog = false">CLOSE</button>
+      </div>
+    </div>
+  </div>
+</div>
+    <script src="app.js"></script>
   </body>
 </html>

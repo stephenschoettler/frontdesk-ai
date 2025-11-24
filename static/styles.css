@@ -58,8 +58,13 @@ body {
 }
 
 #app {
-  /* Global Gaps (Outer Gaps) */
-  padding: 20px;
+  padding: 20px; /* Standard gap all around */
+  min-height: 100vh; /* Ensure full height */
+}
+
+/* Utility Class for FAB Clearance */
+.fab-clearance {
+  padding-bottom: 120px !important; /* Extra space for the + button */
 }
 
 .navbar {
@@ -266,9 +271,15 @@ body {
   color: var(--theme-purple);
 }
 
-.btn-outline-info:hover {
-  background: var(--theme-purple);
-  color: var(--theme-bg);
+.btn-outline-info:hover,
+.btn-outline-info:active,
+.btn-outline-info:focus,
+.btn-outline-info.active {
+  background-color: rgba(187, 154, 247, 0.15) !important;
+  color: var(--theme-purple) !important;
+  border-color: var(--theme-purple) !important;
+  box-shadow: 0 0 15px var(--theme-purple) !important;
+  outline: none !important;
 }
 
 .btn-outline-secondary {
@@ -457,7 +468,7 @@ option {
 
 .client-card {
   background: var(--theme-bg-dark) !important;
-  border: 2px solid var(--theme-bg-mid) !important;
+  border: 1px solid var(--theme-bg-mid) !important;
   border-radius: 2px !important;
   box-shadow: none;
   overflow: hidden;
@@ -468,12 +479,17 @@ option {
   background: var(--theme-bg-dark);
 }
 
-.client-card:hover,
 .client-card.focused {
   background: var(--theme-bg-dark) !important;
-  border: 3px solid var(--theme-blue) !important;
+  border: var(--theme-border-active) solid var(--theme-blue) !important;
   box-shadow: none !important;
   transform: none !important;
+}
+
+.client-card:hover {
+  box-shadow: none !important;
+  transform: none !important;
+  border-color: var(--theme-bg-mid) !important;
 }
 
 .client-card .card-header {
@@ -677,14 +693,57 @@ h6 {
 }
 
 /* Top Right Action Buttons */
-.nav-tabs .btn.btn-outline-primary.btn-sm {
-  background: var(--theme-bg-mid);
-  color: var(--theme-blue);
-  border: none;
-  padding: 4px 10px;
-  font-size: 0.75rem;
+.nav-tabs .btn.btn-sm {
+  background: transparent !important;
+  border: 1px solid currentColor !important;
+  padding: 4px 12px;
+  border-radius: 2px;
   text-transform: uppercase;
   letter-spacing: 1px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  box-shadow: none !important;
+}
+
+.nav-tabs .btn.btn-sm:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  box-shadow: 0 0 10px currentColor !important;
+  transform: translateY(-1px);
+}
+
+.nav-tabs .btn-outline-secondary {
+  color: var(--theme-fg) !important;
+  border-color: var(--theme-fg) !important;
+  opacity: 0.8;
+}
+
+.nav-tabs .btn-outline-secondary:hover {
+  opacity: 1;
+  box-shadow: 0 0 10px var(--theme-fg) !important;
+  background: rgba(125, 125, 125, 0.1) !important;
+}
+
+.btn-fab {
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  z-index: 1000;
+  width: 50px;
+  height: 50px;
+  border-radius: 2px;
+  background: var(--theme-bg-dark) !important;
+  border: 2px solid var(--theme-green) !important;
+  color: var(--theme-green) !important;
+  font-size: 1.5rem;
+  font-weight: bold;
+  box-shadow: 0 0 15px rgba(158, 206, 106, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-fab:hover {
+  box-shadow: 0 0 25px var(--theme-green);
+  transform: translateY(-2px);
+  text-shadow: 0 0 10px var(--theme-green);
 }
 
 /* Table Styling */
@@ -749,12 +808,19 @@ tr.selected {
 /* Logs View Split-Pane Layout */
 .logs-view .table-responsive,
 .contacts-tab .table-responsive {
-  border: 1px solid var(--theme-blue);
+  border: 1px solid var(--theme-bg-mid) !important;
   border-radius: 4px;
-  background: var(--theme-bg-dark);
+  background: var(--theme-bg-dark) !important;
   height: calc(100vh - 240px);
   overflow-y: auto;
   display: block;
+  transition: border 0.2s ease;
+}
+
+.logs-view .table-responsive::-webkit-scrollbar-track,
+.contacts-tab .table-responsive::-webkit-scrollbar-track {
+  margin-top: 48px !important;
+  background-color: transparent !important;
 }
 
 .logs-view .table-dark thead th {
@@ -764,10 +830,40 @@ tr.selected {
   border-bottom: 1px solid var(--theme-bg-mid) !important;
 }
 
+/* Uppercase System Status in Call Logs */
+.logs-view .table-dark tbody td:last-child {
+  text-transform: uppercase !important;
+  letter-spacing: 1px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.logs-view .table-dark thead th,
+.contacts-tab .table-dark thead th {
+  position: sticky;
+  top: 0;
+  border-bottom: none !important;
+  box-shadow: inset 0 -1px 0 var(--theme-bg-mid) !important;
+  background: var(--theme-bg-dark) !important;
+}
+
 .logs-view .card {
   height: calc(100vh - 240px);
   display: flex;
   flex-direction: column;
+  border: 1px solid var(--theme-bg-mid) !important;
+  background: var(--theme-bg-dark) !important;
+  transition: border 0.2s ease;
+}
+
+.logs-view .table-responsive.focused,
+.contacts-tab .table-responsive.focused {
+  border: var(--theme-border-active) solid var(--theme-blue) !important;
+}
+
+/* Keep Contacts container static on hover */
+.logs-view .card.focused {
+  border: var(--theme-border-active) solid var(--theme-blue) !important;
 }
 
 .logs-view .card-body {
@@ -891,25 +987,25 @@ tr.selected {
 
 /* Theme-aware scrollbars */
 ::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--theme-bg);
+  background: transparent !important;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--theme-bg-mid);
-  border-radius: 6px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--theme-comment);
+  background: var(--theme-blue);
 }
 
 ::-webkit-scrollbar-corner {
-  background: var(--theme-bg);
+  background: transparent !important;
 }
 
 /* Fullscreen System Prompt Editor */

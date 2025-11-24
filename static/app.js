@@ -819,6 +819,9 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
           );
         }
 
+        // Set Default (Dark Mode) Border Variables
+        root.style.setProperty("--theme-border-active", "2px");
+
         // Set Default (Dark Mode) Tools Variables
         root.style.setProperty("--theme-tools-bg", "transparent");
         root.style.setProperty("--theme-tools-border", "var(--theme-bg-mid)");
@@ -851,6 +854,9 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
             "--theme-gradient-2",
             "rgba(120, 117, 213, 0.15)",
           );
+
+          // Border Thickness (Light Mode Override)
+          root.style.setProperty("--theme-border-active", "3px");
 
           // Tools Container (Light Mode Override)
           root.style.setProperty(

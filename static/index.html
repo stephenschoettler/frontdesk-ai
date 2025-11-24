@@ -18,7 +18,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   </head>
   <body>
-    <div id="app" class="container-fluid">
+    <div id="app" class="container-fluid" :class="{ 'fab-clearance': activeTab === 'clients' }">
       <nav
         class="navbar navbar-expand-lg navbar-dark bg-primary mb-4"
         v-if="currentView === 'dashboard'"
@@ -212,33 +212,28 @@
             </li>
 
             <li class="ms-auto pb-1" v-if="activeTab === 'clients'">
-               <button
-                 @click="showCreateModal = true"
-                 class="btn btn-outline-primary btn-sm me-2"
-               >
-                 Create New Client
-               </button>
-                      <button
-                        v-if="clients.length > 0"
-                        @click="toggleBulkSelect"
-                        class="btn btn-outline-secondary btn-sm me-2"
-                      >
-                        {{ allSelected ? 'Deselect All' : 'Select All' }} ({{ selectedClients.length }})
-                      </button>
-                       <button
-                         v-if="selectedClients.length > 0"
-                         @click="bulkDuplicateClients"
-                         class="btn btn-outline-primary btn-sm"
-                       >
-                         Duplicate ({{ selectedClients.length }})
-                       </button>
-                       <button
-                         v-if="selectedClients.length > 0"
-                         @click="bulkDeleteClients"
-                         class="btn btn-outline-danger btn-sm"
-                       >
-                         Delete ({{ selectedClients.length }})
-                       </button>
+                <button
+                  v-if="clients.length > 0"
+                  @click="toggleBulkSelect"
+                  class="btn btn-sm btn-outline-secondary me-2"
+                >
+                  {{ allSelected ? 'DESELECT ALL' : 'SELECT ALL' }} ({{ selectedClients.length }})
+                </button>
+
+                <button
+                  v-if="selectedClients.length > 0"
+                  @click="bulkDuplicateClients"
+                  class="btn btn-sm btn-outline-info me-2"
+                >
+                  DUPLICATE ({{ selectedClients.length }})
+                </button>
+                <button
+                  v-if="selectedClients.length > 0"
+                  @click="bulkDeleteClients"
+                  class="btn btn-sm btn-outline-danger"
+                >
+                  DELETE ({{ selectedClients.length }})
+                </button>
 
                     </li>
                   </ul>
@@ -1019,9 +1014,18 @@
               </div>
             </div>
           </div>
-        </div>
+         </div>
 
-     </div>
+        <button
+          v-if="activeTab === 'clients'"
+          @click="showCreateModal = true"
+          class="btn btn-fab"
+          title="Create New Client"
+        >
+          +
+        </button>
+
+      </div>
    <script src="app.js"></script>
   </body>
 </html>

@@ -208,3 +208,110 @@ async def book_appointment(
     else:
         logger.error("Failed to create event.")
         return None
+
+
+async def reschedule_appointment(
+    calendar_id: str,
+    event_id: str,
+    new_start_time: datetime,
+    new_end_time: Optional[datetime] = None,
+) -> Optional[dict]:
+    """
+    Updates an existing event's start and end times on the Google Calendar.
+    """
+    calendar_id = _clean_calendar_id(calendar_id)
+
+    logger.info(
+        f"Attempting to reschedule event [{event_id}] on [{calendar_id}] to {new_start_time}"
+    )
+
+    service = get_calendar_service()
+    if not service:
+        logger.error("Google Calendar service is not available.")
+        return None
+
+    if new_end_time is None:
+        new_end_time = new_start_time + timedelta(hours=1)
+
+    try:
+        # Fetch current event to preserve other fields
+        def _run_get():
+            return (
+                service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+            )
+
+        loop = asyncio.get_running_loop()
+        current_event = await loop.run_in_executor(None, _run_get)
+
+        if not current_event:
+            logger.error(f"Event {event_id} not found.")
+            return None
+
+        # Update start and end
+        current_event["start"] = {
+            "dateTime": new_start_time.isoformat(),
+            "timeZone": str(new_start_time.tzinfo) if new_start_time.tzinfo else "UTC",
+        }
+        current_event["end"] = {
+            "dateTime": new_end_time.isoformat(),
+            "timeZone": str(new_end_time.tzinfo) if new_end_time.tzinfo else "UTC",
+        }
+
+        def _run_update():
+            return (
+                service.events()
+                .update(calendarId=calendar_id, eventId=event_id, body=current_event)
+                .execute()
+            )
+
+        updated_event = await loop.run_in_executor(None, _run_update)
+
+        if updated_event:
+            logger.info(f"Successfully rescheduled event {event_id}")
+            return updated_event
+        else:
+            logger.error("Failed to update event.")
+            return None
+    except Exception as e:
+        logger.error(f"Error rescheduling appointment: {e}")
+        return None
+
+
+async def get_upcoming_appointments(calendar_id: str, phone_number: str) -> str:
+    """
+    Searches for future events containing the phone number in the description/summary.
+    Returns a context string for the LLM.
+    """
+    calendar_id = _clean_calendar_id(calendar_id)
+    service = get_calendar_service()
+    if not service:
+        return ""
+
+    now = datetime.utcnow().isoformat() + "Z"
+
+    def _run_search():
+        # 'q' searches summary, description, and attendees
+        events_result = service.events().list(
+            calendarId=calendar_id,
+            timeMin=now,
+            maxResults=3,
+            singleEvents=True,
+            orderBy='startTime',
+            q=phone_number
+        ).execute()
+        return events_result.get('items', [])
+
+    loop = asyncio.get_running_loop()
+    events = await loop.run_in_executor(None, _run_search)
+
+    if not events:
+        return ""
+
+    context_lines = []
+    for event in events:
+        start = event['start'].get('dateTime', event['start'].get('date'))
+        # Simple formatting for the AI to read
+        # e.g. "Dental Cleaning on 2023-11-28T14:00:00 (ID: 12345)"
+        context_lines.append(f"- {event.get('summary', 'Appointment')} at {start} (ID: {event['id']})")
+
+    return "\n".join(context_lines)

@@ -40,6 +40,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
       const saving = ref(false);
       const savingContact = ref(false);
       const selectedTemplate = ref("");
+      const templates = ref({});
       const importFile = ref(null);
 
       // SAFETY FIX: Handle corrupted storage gracefully
@@ -95,6 +96,8 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         initial_greeting: "",
         system_prompt: "",
         enabled_tools: [],
+        enable_scheduling: false,
+        enable_contact_memory: false,
       });
 
       const editingClient = ref(null);
@@ -102,26 +105,6 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         phone: "",
         name: "",
       });
-
-      const templates = {
-        default: {
-          initial_greeting:
-            "Hi, I'm Front Desk — your friendly AI receptionist. How can I help you today?",
-          system_prompt:
-            "[System Identity]\nYou are Front Desk, an AI receptionist...",
-        },
-        spa: {
-          initial_greeting: "Welcome to our spa! How may I assist you today?",
-          system_prompt:
-            "[System Identity]\nYou are the AI receptionist for our spa...",
-        },
-        restaurant: {
-          initial_greeting:
-            "Welcome to our restaurant! How can I help with your reservation?",
-          system_prompt:
-            "[System Identity]\nYou are the AI receptionist for our restaurant...",
-        },
-      };
 
       const totalPages = computed(() =>
         Math.ceil(filteredClients.value.length / pageSize.value),
@@ -299,6 +282,15 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         }
       };
 
+      const loadTemplates = async () => {
+        try {
+          const response = await axios.get("/api/templates");
+          templates.value = response.data;
+        } catch (error) {
+          console.error("Failed to load templates:", error);
+        }
+      };
+
       const importClients = (event) => {
         const file = event.target.files[0];
 
@@ -357,9 +349,12 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
 
       const editClient = (client) => {
         editingClient.value = client.id;
+        const enabledTools = client.enabled_tools || [];
         clientForm.value = {
           ...client,
-          enabled_tools: client.enabled_tools || [],
+          enabled_tools: enabledTools,
+          enable_scheduling: enabledTools.includes("book_appointment"),
+          enable_contact_memory: enabledTools.includes("save_contact_name"),
         };
         showEditModal.value = true;
       };
@@ -369,7 +364,12 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         delete duplicated.id;
         delete duplicated.created_at;
         duplicated.name += " (Copy)";
-        duplicated.enabled_tools = client.enabled_tools || [];
+        const enabledTools = client.enabled_tools || [];
+        duplicated.enabled_tools = enabledTools;
+        duplicated.enable_scheduling =
+          enabledTools.includes("book_appointment");
+        duplicated.enable_contact_memory =
+          enabledTools.includes("save_contact_name");
         editingClient.value = null;
         clientForm.value = duplicated;
         showCreateModal.value = true;
@@ -378,11 +378,28 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
       const saveClient = async () => {
         saving.value = true;
         try {
+          // Translate bundles to enabled_tools
+          const payload = { ...clientForm.value };
+          payload.enabled_tools = [];
+          if (payload.enable_scheduling) {
+            payload.enabled_tools.push(
+              "get_available_slots",
+              "book_appointment",
+              "reschedule_appointment",
+            );
+          }
+          if (payload.enable_contact_memory) {
+            payload.enabled_tools.push("save_contact_name");
+          }
+          // Remove bundle fields from payload
+          delete payload.enable_scheduling;
+          delete payload.enable_contact_memory;
+
           let response;
           if (editingClient.value) {
             response = await axios.put(
               `/api/clients/${editingClient.value}`,
-              clientForm.value,
+              payload,
             );
             const index = clients.value.findIndex(
               (c) => c.id === editingClient.value,
@@ -390,7 +407,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
             clients.value[index] = response.data;
             addAuditLog("update", `Updated client: ${response.data.name}`);
           } else {
-            response = await axios.post("/api/clients", clientForm.value);
+            response = await axios.post("/api/clients", payload);
             clients.value.push(response.data);
             addAuditLog("create", `Created client: ${response.data.name}`);
           }
@@ -494,8 +511,8 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
       };
 
       const applyTemplate = () => {
-        if (selectedTemplate.value && templates[selectedTemplate.value]) {
-          const template = templates[selectedTemplate.value];
+        if (selectedTemplate.value && templates.value[selectedTemplate.value]) {
+          const template = templates.value[selectedTemplate.value];
           clientForm.value.initial_greeting = template.initial_greeting;
           clientForm.value.system_prompt = template.system_prompt;
         }
@@ -647,14 +664,14 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
           business_start_hour: 9,
           business_end_hour: 17,
           llm_model: "openai/gpt-4o-mini",
+          stt_model: "nova-2-phonecall",
+          tts_model: "eleven_flash_v2_5",
           tts_voice_id: "21m00Tcm4TlvDq8ikWAM",
           initial_greeting: "",
           system_prompt: "",
-          enabled_tools: [
-            "get_available_slots",
-            "book_appointment",
-            "save_contact_name",
-          ],
+          enabled_tools: [],
+          enable_scheduling: false,
+          enable_contact_memory: false,
         };
         selectedTemplate.value = "";
       };
@@ -702,6 +719,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         const map = {
           get_available_slots: "Avail",
           book_appointment: "Book",
+          reschedule_appointment: "Reschedule",
           save_contact_name: "Save Name",
         };
         return map[toolKey] || toolKey;
@@ -1092,6 +1110,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         // Load themes asynchronously without blocking app initialization
         setTimeout(() => {
           loadThemes();
+          loadTemplates();
         }, 100);
 
         if (authToken.value) {
@@ -1126,6 +1145,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         saving,
         savingContact,
         selectedTemplate,
+        templates,
         auditLogs,
         clientForm,
         editingContact,
@@ -1191,6 +1211,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         themes,
         currentTheme,
         applyTheme,
+        templates,
         // Auth exports
         authToken,
         currentUser,

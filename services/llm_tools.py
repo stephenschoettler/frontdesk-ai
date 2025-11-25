@@ -4,7 +4,11 @@ from datetime import datetime, timedelta
 import pytz
 
 # Import our actual calendar functions
-from services.google_calendar import get_available_slots, book_appointment
+from services.google_calendar import (
+    get_available_slots,
+    book_appointment,
+    reschedule_appointment,
+)
 
 # Import our new database function and the new client config function
 from services.supabase_client import update_contact_name, get_client_config
@@ -232,3 +236,62 @@ async def handle_save_contact_name(params: FunctionCallParams, **kwargs) -> None
         )
     else:
         await params.result_callback({"status": "error", "message": "Database error."})
+
+
+async def handle_reschedule_appointment(params: FunctionCallParams, **kwargs) -> None:
+    """
+    Reschedule an existing appointment to a new time.
+    """
+    client_id = os.environ.get("CLIENT_ID")
+    if not client_id:
+        await params.result_callback(
+            {"status": "error", "message": "Client ID missing."}
+        )
+        return
+
+    client_config = await get_client_config(client_id)
+    if not client_config:
+        await params.result_callback({"status": "error", "message": "Config missing."})
+        return
+
+    calendar_id = client_config.get("calendar_id", "primary")
+
+    try:
+        args = params.arguments.get("kwargs", params.arguments)
+        logger.info(f"Reschedule args: {args}")
+
+        booking_id = args.get("booking_id")
+        if not booking_id:
+            raise ValueError("booking_id is required.")
+
+        new_time_str = args.get("new_time")
+        if not new_time_str:
+            raise ValueError("new_time is required.")
+
+        new_start = datetime.fromisoformat(new_time_str)
+        new_end = new_start + timedelta(hours=1)
+
+        event = await reschedule_appointment(
+            calendar_id=calendar_id,
+            event_id=booking_id,
+            new_start_time=new_start,
+            new_end_time=new_end,
+        )
+
+        if event:
+            if new_start.minute == 0:
+                human_time = new_start.strftime("%-I %p")
+            else:
+                human_time = new_start.strftime("%-I:%M %p")
+
+            result = {
+                "status": "success",
+                "message": f"Rescheduled appointment to {human_time}",
+            }
+        else:
+            result = {"status": "error", "message": "Failed to reschedule appointment."}
+        await params.result_callback(result)
+
+    except Exception as e:
+        logger.error(f"Error in handle_reschedule_appointment: {e}")
+        await params.result_callback({"status": "error", "message": str(e)})

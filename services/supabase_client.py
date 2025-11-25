@@ -486,9 +486,7 @@ async def delete_conversation(conversation_id: str, jwt_token: str) -> bool:
             return False
 
         # Perform deletion
-        (
-            supabase.table("conversations").delete().eq("id", conversation_id).execute()
-        )
+        (supabase.table("conversations").delete().eq("id", conversation_id).execute())
         logger.info(f"Deleted conversation {conversation_id} for user {user_id}")
         return True
     except APIError as e:

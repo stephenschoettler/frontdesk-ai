@@ -969,50 +969,42 @@
                         </select>
                       </div>
 
-                      <div
-                        class="mb-3 border p-2 rounded"
-                        style="background: var(--theme-bg-dark)"
-                      >
-                        <label class="form-label mb-2 text-warning"
-                          >Enabled AI Tools</label
-                        >
-                        <div class="form-check">
-                          <input
-                            class="form-check-input"
-                            type="checkbox"
-                            value="get_available_slots"
-                            v-model="clientForm.enabled_tools"
-                            id="tool_slots"
-                          />
-                          <label class="form-check-label" for="tool_slots"
-                            >Check Availability</label
-                          >
-                        </div>
-                        <div class="form-check">
-                          <input
-                            class="form-check-input"
-                            type="checkbox"
-                            value="book_appointment"
-                            v-model="clientForm.enabled_tools"
-                            id="tool_book"
-                          />
-                          <label class="form-check-label" for="tool_book"
-                            >Book Appointments</label
-                          >
-                        </div>
-                        <div class="form-check">
-                          <input
-                            class="form-check-input"
-                            type="checkbox"
-                            value="save_contact_name"
-                            v-model="clientForm.enabled_tools"
-                            id="tool_save"
-                          />
-                          <label class="form-check-label" for="tool_save"
-                            >Save Contact Names</label
-                          >
-                        </div>
-                      </div>
+                       <div
+                         class="mb-3 border p-2 rounded"
+                         style="background: var(--theme-bg-dark)"
+                       >
+                         <label class="form-label mb-2 text-warning"
+                           >Tools</label
+                         >
+                         <div class="form-check">
+                           <input
+                             class="form-check-input"
+                             type="checkbox"
+                             v-model="clientForm.enable_scheduling"
+                             id="bundle_scheduling"
+                           />
+                           <label class="form-check-label" for="bundle_scheduling"
+                             >Enable Scheduling</label
+                           >
+                           <small class="text-muted d-block ms-3">
+                             Check Availability, Book Appointments, Reschedule
+                           </small>
+                         </div>
+                         <div class="form-check">
+                           <input
+                             class="form-check-input"
+                             type="checkbox"
+                             v-model="clientForm.enable_contact_memory"
+                             id="bundle_contact"
+                           />
+                           <label class="form-check-label" for="bundle_contact"
+                             >Contact Memory</label
+                           >
+                           <small class="text-muted d-block ms-3">
+                             Save Contact Names
+                           </small>
+                         </div>
+                       </div>
 
                       <div class="mb-3">
                         <label class="form-label">TTS Voice ID</label>
@@ -1049,19 +1041,17 @@
                           rows="4"
                         ></textarea>
                       </div>
-                      <div class="mb-3">
-                        <label class="form-label">Use Template</label>
-                        <select
-                          v-model="selectedTemplate"
-                          @change="applyTemplate"
-                          class="form-select template-selector"
-                        >
-                          <option value="">Select Template</option>
-                          <option value="default">Default Front Desk</option>
-                          <option value="spa">Spa/Reception</option>
-                          <option value="restaurant">Restaurant</option>
-                        </select>
-                      </div>
+                       <div class="mb-3">
+                         <label class="form-label">Use Template</label>
+                         <select
+                           v-model="selectedTemplate"
+                           @change="applyTemplate"
+                           class="form-select template-selector"
+                         >
+                           <option value="">Select Template</option>
+                           <option v-for="(template, key) in templates" :key="key" :value="key">{{ template.name }}</option>
+                         </select>
+                       </div>
                     </div>
                   </div>
                 </form>

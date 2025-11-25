@@ -25,15 +25,20 @@ class TemplateManager:
             return templates
 
         for filename in os.listdir(self.templates_dir):
-            if filename.endswith('.json'):
+            if filename.endswith(".json"):
                 filepath = os.path.join(self.templates_dir, filename)
                 try:
-                    with open(filepath, 'r', encoding='utf-8') as f:
+                    with open(filepath, "r", encoding="utf-8") as f:
                         template_data = json.load(f)
 
                         # Validate required fields
-                        if 'name' not in template_data or 'system_prompt' not in template_data:
-                            logger.warning(f"Template {filename} missing required fields")
+                        if (
+                            "name" not in template_data
+                            or "system_prompt" not in template_data
+                        ):
+                            logger.warning(
+                                f"Template {filename} missing required fields"
+                            )
                             continue
 
                         # Use filename without extension as key
@@ -62,9 +67,9 @@ class TemplateManager:
         templates = self._load_templates()
         return [
             {
-                'key': key,
-                'name': data['name'],
-                'description': data.get('description', '')
+                "key": key,
+                "name": data["name"],
+                "description": data.get("description", ""),
             }
             for key, data in templates.items()
         ]
@@ -72,7 +77,7 @@ class TemplateManager:
     def get_system_prompt(self, template_key: str) -> Optional[str]:
         """Get just the system prompt text for a template."""
         template = self.get_template(template_key)
-        return template['system_prompt'] if template else None
+        return template["system_prompt"] if template else None
 
     def invalidate_cache(self):
         """Clear the template cache to force reload."""

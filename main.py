@@ -65,10 +65,17 @@ from services.llm_tools import (
     handle_get_available_slots,
     handle_book_appointment,
     handle_save_contact_name,
+    handle_reschedule_appointment,
 )
+
+# Import Google Calendar functions
+from services.google_calendar import get_upcoming_appointments
 
 # Import Response Filter
 from services.response_filter import ToolStrippingAssistantAggregator
+
+# Import Template Manager
+from services.template_manager import TemplateManager
 
 from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 
@@ -130,6 +137,7 @@ async def initialize_client_services(client_id: str):
         "get_available_slots",
         "book_appointment",
         "save_contact_name",
+        "reschedule_appointment",
     ]
 
     # STT (Deepgram)
@@ -169,6 +177,7 @@ async def initialize_client_services(client_id: str):
         "get_available_slots": handle_get_available_slots,
         "book_appointment": handle_book_appointment,
         "save_contact_name": handle_save_contact_name,
+        "reschedule_appointment": handle_reschedule_appointment,
     }
 
     logger.info(f"Enabling tools for client {client_id}: {enabled_tools}")
@@ -279,6 +288,19 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
     else:
         contact_context = f"New caller (phone: {caller_phone_decoded})"
 
+    # --- Calendar Context Injection ---
+    # Fetch calendar_id again or reuse from initialize_client_services if refactored,
+    # but for safety we can grab it from the config we know exists.
+    client_config = await get_client_config(client_id)
+    if client_config:
+        calendar_id = client_config.get("calendar_id", "primary")
+
+        appt_context = await get_upcoming_appointments(calendar_id, caller_phone_decoded)
+
+        if appt_context:
+            contact_context += f"\n[EXISTING BOOKINGS]\n{appt_context}"
+            logger.info(f"Injected appointments: {appt_context}")
+
     logger.info(f"Context: {contact_context}")
 
     # Inject CALLER_PHONE for tools
@@ -387,19 +409,22 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
                     continue
 
                 # Add timestamp (approximate based on message order)
-                timestamp = base_time - datetime.timedelta(seconds=len(context.messages) - i)
+                timestamp = base_time - datetime.timedelta(
+                    seconds=len(context.messages) - i
+                )
                 if isinstance(message, dict):
-                    transcript_with_timestamps.append({
-                        **message,
-                        "timestamp": timestamp.isoformat()
-                    })
+                    transcript_with_timestamps.append(
+                        {**message, "timestamp": timestamp.isoformat()}
+                    )
                 else:
                     # Handle non-dict messages
-                    transcript_with_timestamps.append({
-                        "role": getattr(message, "role", "unknown"),
-                        "content": getattr(message, "content", str(message)),
-                        "timestamp": timestamp.isoformat()
-                    })
+                    transcript_with_timestamps.append(
+                        {
+                            "role": getattr(message, "role", "unknown"),
+                            "content": getattr(message, "content", str(message)),
+                            "timestamp": timestamp.isoformat(),
+                        }
+                    )
 
             await log_conversation(
                 contact_id=contact["id"],
@@ -608,15 +633,23 @@ async def api_delete_conversation_log(
     return {"message": "Deleted"}
 
 
+@app.get("/api/templates")
+async def get_templates():
+    template_manager = app.state.template_manager
+    return template_manager.get_all_templates()
+
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--test-mode", action="store_true")
     args = parser.parse_args()
 
     runner = PipelineRunner()
+    template_manager = TemplateManager()
     shutdown_event = asyncio.Event()
 
     app.state.runner = runner
+    app.state.template_manager = template_manager
     app.state.test_mode = args.test_mode
     app.state.shutdown_event = shutdown_event
 

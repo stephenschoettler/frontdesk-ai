@@ -40,6 +40,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
       const saving = ref(false);
       const savingContact = ref(false);
       const selectedTemplate = ref("");
+      const importFile = ref(null);
 
       // SAFETY FIX: Handle corrupted storage gracefully
       let initialLogs = [];
@@ -53,13 +54,19 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
 
       const activeTab = ref("clients");
       const contacts = ref([]);
+      const selectedContacts = ref([]);
       const callLogs = ref([]);
       const selectedTranscript = ref(null);
       const transcriptExpanded = ref(false);
+      const isLoading = ref(false);
 
       const contactSearchQuery = ref("");
       const logSearchQuery = ref("");
       const logFilterClient = ref("");
+
+      // Inline editing state for contacts
+      const editingContactPhone = ref(null);
+      const tempContactName = ref("");
 
       // Theme management
       const themes = ref([]);
@@ -144,6 +151,23 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
             contact.phone.toLowerCase().includes(search)
           );
         });
+      });
+
+      const allContactsSelected = computed(() => {
+        if (filteredContacts.value.length === 0) return false;
+        return filteredContacts.value.every((contact) =>
+          selectedContacts.value.includes(contact.phone),
+        );
+      });
+
+      const contactsSelectIndeterminate = computed(() => {
+        if (filteredContacts.value.length === 0) return false;
+        const selectedCount = filteredContacts.value.filter((contact) =>
+          selectedContacts.value.includes(contact.phone),
+        ).length;
+        return (
+          selectedCount > 0 && selectedCount < filteredContacts.value.length
+        );
       });
 
       const filteredCallLogs = computed(() => {
@@ -251,14 +275,53 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
 
       const loadClients = async () => {
         try {
+          const localClients = localStorage.getItem("clients");
+
+          if (localClients) {
+            clients.value = JSON.parse(localClients);
+
+            filterClients();
+
+            return;
+          }
+
           const response = await axios.get("/api/clients");
+
           clients.value = response.data.clients.map((c) => ({
             ...c,
+
             enabled_tools: c.enabled_tools || [],
           }));
+
           filterClients();
         } catch (error) {
           console.error("Failed to load clients:", error);
+        }
+      };
+
+      const importClients = (event) => {
+        const file = event.target.files[0];
+
+        if (file) {
+          const reader = new FileReader();
+
+          reader.onload = (e) => {
+            try {
+              const data = JSON.parse(e.target.result);
+
+              clients.value = Array.isArray(data.clients) ? data.clients : data;
+
+              localStorage.setItem("clients", JSON.stringify(clients.value));
+
+              filterClients();
+
+              alert("Clients imported successfully!");
+            } catch (err) {
+              alert("Invalid JSON file");
+            }
+          };
+
+          reader.readAsText(file);
         }
       };
 
@@ -479,6 +542,46 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         }
       };
 
+      const toggleSelectAllContacts = () => {
+        if (allContactsSelected.value) {
+          // Deselect all
+          selectedContacts.value = selectedContacts.value.filter(
+            (phone) =>
+              !filteredContacts.value.some(
+                (contact) => contact.phone === phone,
+              ),
+          );
+        } else {
+          // Select all filtered contacts
+          const filteredPhones = filteredContacts.value.map(
+            (contact) => contact.phone,
+          );
+          selectedContacts.value = [
+            ...new Set([...selectedContacts.value, ...filteredPhones]),
+          ];
+        }
+      };
+
+      const bulkDeleteContacts = async () => {
+        if (!confirm(`Delete ${selectedContacts.value.length} contacts?`))
+          return;
+        try {
+          await Promise.all(
+            selectedContacts.value.map((phone) =>
+              axios.delete(`/api/contacts/${encodeURIComponent(phone)}`),
+            ),
+          );
+          // Update local state
+          contacts.value = contacts.value.filter(
+            (c) => !selectedContacts.value.includes(c.phone),
+          );
+          selectedContacts.value = [];
+        } catch (error) {
+          console.error("Bulk delete contacts failed:", error);
+          alert("Failed to delete contacts.");
+        }
+      };
+
       const exportClients = () => {
         const dataStr = JSON.stringify(clients.value, null, 2);
         const dataUri =
@@ -488,6 +591,48 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         linkElement.setAttribute("href", dataUri);
         linkElement.setAttribute("download", exportFileDefaultName);
         linkElement.click();
+      };
+
+      const handleFileSelect = (event) => {
+        importFile.value = event.target.files[0];
+      };
+
+      const executeImport = () => {
+        if (!importFile.value) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = JSON.parse(e.target.result);
+            const importedClients = Array.isArray(data.clients)
+              ? data.clients
+              : data;
+
+            // Filter out duplicates by ID
+            const existingIds = new Set(clients.value.map((c) => c.id));
+            const newUniqueClients = importedClients.filter(
+              (c) => !existingIds.has(c.id),
+            );
+
+            // Append new clients
+            clients.value = [...clients.value, ...newUniqueClients];
+
+            // Save to localStorage
+            localStorage.setItem("clients", JSON.stringify(clients.value));
+
+            // Filter and update UI
+            filterClients();
+
+            // Alert result
+            alert(`Imported ${newUniqueClients.length} new clients.`);
+
+            // Reset importFile
+            importFile.value = null;
+          } catch (err) {
+            alert("Invalid JSON file");
+          }
+        };
+        reader.readAsText(importFile.value);
       };
 
       const closeModal = () => {
@@ -563,11 +708,37 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
       };
 
       const loadContacts = async () => {
+        if (contacts.value.length === 0) isLoading.value = true;
         try {
           const response = await axios.get("/api/contacts");
           contacts.value = response.data.contacts;
         } catch (error) {
           console.error("Failed to load contacts:", error);
+        } finally {
+          isLoading.value = false;
+        }
+      };
+
+      const startInlineEdit = (contact) => {
+        editingContactPhone.value = contact.phone;
+        tempContactName.value = contact.name;
+      };
+
+      const cancelInlineEdit = () => {
+        editingContactPhone.value = null;
+        tempContactName.value = "";
+      };
+
+      const saveInlineEdit = async (contact) => {
+        try {
+          await axios.put(`/api/contacts/${contact.phone}`, {
+            name: tempContactName.value,
+          });
+          await loadContacts(); // Refresh the contacts list
+          cancelInlineEdit();
+        } catch (error) {
+          console.error("Failed to update contact name:", error);
+          alert("Failed to update contact name. Please try again.");
         }
       };
 
@@ -601,12 +772,27 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         }
       };
 
+      const deleteContact = async (phone) => {
+        if (!confirm("Are you sure you want to delete this contact?")) return;
+        try {
+          await axios.delete(`/api/contacts/${encodeURIComponent(phone)}`);
+          // Update local state instantly
+          contacts.value = contacts.value.filter((c) => c.phone !== phone);
+        } catch (error) {
+          console.error("Failed to delete contact:", error);
+          alert("Failed to delete contact.");
+        }
+      };
+
       const loadLogs = async () => {
+        if (callLogs.value.length === 0) isLoading.value = true;
         try {
           const response = await axios.get("/api/conversation-logs");
           callLogs.value = response.data.conversation_logs;
         } catch (error) {
           console.error("Failed to load call logs:", error);
+        } finally {
+          isLoading.value = false;
         }
       };
 
@@ -949,6 +1135,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         showSettingsModal,
         closeSettingsModal,
         updateContactName,
+        deleteContact,
         loadClients,
         filterClients,
         sortClients,
@@ -964,6 +1151,9 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         selectAllIndeterminate,
         applyTemplate,
         exportClients,
+        handleFileSelect,
+        executeImport,
+        importFile,
         toggleBulkSelect,
         bulkDuplicateClients,
         bulkDeleteClients,
@@ -974,7 +1164,9 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         formatTimestamp,
         formatToolName,
         activeTab,
+        isLoading,
         contacts,
+        selectedContacts,
         callLogs,
         selectedTranscript,
         transcriptExpanded,
@@ -982,6 +1174,15 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         logSearchQuery,
         logFilterClient,
         filteredContacts,
+        allContactsSelected,
+        contactsSelectIndeterminate,
+        editingContactPhone,
+        tempContactName,
+        startInlineEdit,
+        cancelInlineEdit,
+        saveInlineEdit,
+        toggleSelectAllContacts,
+        bulkDeleteContacts,
         filteredCallLogs,
         toggleTranscriptExpansion,
         systemPromptExpanded,

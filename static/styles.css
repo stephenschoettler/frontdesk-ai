@@ -1153,17 +1153,90 @@ tr.selected {
 
 /* Global Wireframe for Secondary Buttons (Cancel, Select All, etc) */
 .btn-outline-secondary {
-    background: transparent !important;
-    color: var(--theme-comment) !important;
-    border: 1px solid var(--theme-comment) !important;
-    box-shadow: none !important;
+  background: transparent !important;
+  color: var(--theme-comment) !important;
+  border: 1px solid var(--theme-comment) !important;
+  box-shadow: none !important;
 }
 .btn-outline-secondary:hover,
 .btn-outline-secondary:focus,
 .btn-outline-secondary:active {
-    background-color: rgba(86, 95, 137, 0.15) !important; /* Transparent tint */
-    color: var(--theme-fg) !important; /* Brighten text */
-    border-color: var(--theme-fg) !important; /* Brighten border */
-    box-shadow: 0 0 10px var(--theme-fg) !important; /* White/Grey Glow */
-    transform: translateY(-1px);
+  background-color: rgba(86, 95, 137, 0.15) !important; /* Transparent tint */
+  color: var(--theme-fg) !important; /* Brighten text */
+  border-color: var(--theme-fg) !important; /* Brighten border */
+  box-shadow: 0 0 10px var(--theme-fg) !important; /* White/Grey Glow */
+  transform: translateY(-1px);
+}
+
+/* Inline table input styling */
+.table-inline-input {
+  background: transparent !important;
+  border: none;
+  border-bottom: 1px solid var(--theme-blue); /* Underline only */
+  color: var(--theme-fg) !important;
+  font-family: "JetBrains Mono", monospace;
+  padding: 0;
+  height: auto;
+  width: 100%;
+  outline: none;
+  box-shadow: none !important;
+}
+.table-inline-input:focus {
+  border-bottom: 2px solid var(--theme-green);
+}
+
+/* Delete button styling for contacts table */
+.contacts-tab .table-dark .btn-action-delete {
+  border: none !important;
+  background: transparent !important;
+  color: var(--theme-comment) !important;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  padding: 0;
+  margin-left: 15px; /* Spacing from View History */
+}
+.contacts-tab .table-dark .btn-action-delete:hover {
+  color: var(--theme-red) !important;
+  text-shadow: 0 0 8px var(--theme-red);
+  text-decoration: underline;
+}
+
+/* Fix File Input Alignment */
+.form-control[type="file"] {
+  padding: 0.2rem !important;
+  background: var(--theme-bg-dark) !important;
+  border: 1px solid var(--theme-bg-mid) !important;
+  height: 31px; /* Match btn-sm height */
+}
+
+/* Custom Wireframe File Input */
+input[type="file"] {
+  background: transparent !important;
+  border: 1px solid var(--theme-bg-mid) !important;
+  color: var(--theme-comment) !important;
+  padding: 0.3rem !important;
+  height: auto !important;
+  cursor: pointer !important;
+}
+/* Target the internal button */
+input[type="file"]::file-selector-button {
+  background: transparent !important;
+  border: 1px solid var(--theme-blue) !important;
+  color: var(--theme-blue) !important;
+  text-transform: uppercase;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 6px 16px;
+  margin-right: 15px;
+  min-width: 120px;
+  text-align: center;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+input[type="file"]::file-selector-button:hover {
+  background: rgba(125, 207, 255, 0.15) !important;
+  box-shadow: 0 0 10px var(--theme-blue);
 }

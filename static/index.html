@@ -18,20 +18,18 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   </head>
   <body>
-    <div id="app" class="container-fluid" :class="{ 'fab-clearance': activeTab === 'clients' }">
+    <div
+      id="app"
+      class="container-fluid"
+      :class="{ 'fab-clearance': activeTab === 'clients' }"
+    >
       <nav
         class="navbar navbar-expand-lg navbar-dark bg-primary mb-4"
         v-if="currentView === 'dashboard'"
       >
         <div class="container-fluid">
-            <a
-              class="navbar-brand"
-              href="#"
-              style="font-size: 1.25em"
-            >
-              <pre
-                class="mb-0 ascii-logo"
-              >
+          <a class="navbar-brand" href="#" style="font-size: 1.25em">
+            <pre class="mb-0 ascii-logo">
 ░█▀▀░█▀▄░█▀█░█▀█░▀█▀░█▀▄░█▀▀░█▀▀░█░█░░░░░█▀█░▀█▀
 ░█▀▀░█▀▄░█░█░█░█░░█░░█░█░█▀▀░▀▀█░█▀▄░▄▄▄░█▀█░░█░
 ░▀░░░▀░▀░▀▀▀░▀░▀░░▀░░▀▀░░▀▀▀░▀▀▀░▀░▀░░░░░▀░▀░▀▀▀
@@ -49,40 +47,44 @@
               >
                 {{ currentUser }}
               </button>
-               <ul class="dropdown-menu" aria-labelledby="userDropdown">
-                 <li>
-                   <span class="dropdown-item-text"
-                     >Total Clients: {{ clients.length }}</span
-                   >
-                 </li>
-                  <li><hr class="dropdown-divider" /></li>
+              <ul class="dropdown-menu" aria-labelledby="userDropdown">
+                <li>
+                  <span class="dropdown-item-text"
+                    >Total Clients: {{ clients.length }}</span
+                  >
+                </li>
+                <li><hr class="dropdown-divider" /></li>
 
-                  <li>
-                    <a class="dropdown-item" href="#" @click.prevent="showAuditLog = true">
-                      VIEW SYSTEM LOGS
-                    </a>
-                  </li>
-                    <li>
-                      <a
-                        class="dropdown-item"
-                        href="#"
-                        @click.prevent="showSettingsModal = true"
-                      >
-                        Settings
-                      </a>
-                    </li>
-                   <li><hr class="dropdown-divider" /></li>
-                   <li>
-                     <a
-                       class="dropdown-item logout-item"
-                       href="#"
-                       @click.prevent="logout"
-                     >
-                       LOGOUT
-                     </a>
-                   </li>
-                 </ul>
-             </div>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="showAuditLog = true"
+                  >
+                    VIEW SYSTEM LOGS
+                  </a>
+                </li>
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    @click.prevent="showSettingsModal = true"
+                  >
+                    Settings
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider" /></li>
+                <li>
+                  <a
+                    class="dropdown-item logout-item"
+                    href="#"
+                    @click.prevent="logout"
+                  >
+                    LOGOUT
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </nav>
@@ -171,35 +173,69 @@
               >
             </li>
 
-            <li class="ms-auto pb-1" v-if="activeTab === 'clients'">
-                <button
-                  v-if="selectedClients.length > 0"
-                  @click="bulkDeleteClients"
-                  class="btn btn-sm btn-outline-danger me-2"
-                >
-                  DELETE ({{ selectedClients.length }})
-                </button>
-                <button
-                  v-if="selectedClients.length > 0"
-                  @click="bulkDuplicateClients"
-                  class="btn btn-sm btn-outline-info me-2"
-                >
-                  DUPLICATE ({{ selectedClients.length }})
-                </button>
-                <button
-                  v-if="clients.length > 0"
-                  @click="toggleBulkSelect"
-                  class="btn btn-sm btn-outline-secondary"
-                >
-                  {{ allSelected ? 'DESELECT ALL' : 'SELECT ALL' }} ({{ selectedClients.length }})
-                </button>
+            <li class="ms-5 pb-1" v-if="activeTab === 'clients'">
+              <button
+                v-if="clients.length > 0"
+                @click="toggleBulkSelect"
+                class="btn btn-sm btn-outline-secondary me-2"
+              >
+                {{ allSelected ? 'DESELECT ALL' : 'SELECT ALL' }} ({{
+                selectedClients.length }})
+              </button>
+              <button
+                v-if="selectedClients.length > 0"
+                @click="bulkDuplicateClients"
+                class="btn btn-sm btn-outline-info me-2"
+              >
+                DUPLICATE ({{ selectedClients.length }})
+              </button>
+              <button
+                v-if="selectedClients.length > 0"
+                @click="bulkDeleteClients"
+                class="btn btn-sm btn-outline-danger"
+              >
+                DELETE ({{ selectedClients.length }})
+              </button>
+            </li>
+            <li class="ms-5 pb-1" v-if="activeTab === 'contacts'">
+              <button
+                v-if="contacts.length > 0"
+                @click="toggleSelectAllContacts"
+                class="btn btn-sm btn-outline-secondary me-2"
+              >
+                {{ allContactsSelected ? 'DESELECT ALL' : 'SELECT ALL' }} ({{
+                selectedContacts.length }})
+              </button>
+              <button
+                v-if="selectedContacts.length > 0"
+                @click="bulkDeleteContacts"
+                class="btn btn-sm btn-outline-danger"
+              >
+                DELETE ({{ selectedContacts.length }})
+              </button>
+            </li>
 
-                    </li>
-                  </ul>
-
+            <li class="ms-5 pb-1" v-if="activeTab === 'logs'">
+              <button
+                v-if="filteredCallLogs.length > 0"
+                @click="toggleSelectAllCallLogs"
+                class="btn btn-sm btn-outline-secondary me-2"
+              >
+                {{ selectAllCallLogs ? 'DESELECT ALL' : 'SELECT ALL' }} ({{
+                selectedCallLogs.length }})
+              </button>
+              <button
+                v-if="selectedCallLogs.length > 0"
+                @click="deleteCallLogs"
+                class="btn btn-sm btn-outline-danger"
+              >
+                DELETE ({{ selectedCallLogs.length }})
+              </button>
+            </li>
+          </ul>
           <div v-if="activeTab === 'clients'">
             <div class="row mb-3">
-              <div class="col-md-4">
+              <div class="col-md-6">
                 <input
                   v-model="searchQuery"
                   @input="filterClients"
@@ -208,7 +244,7 @@
                   placeholder="Search clients..."
                 />
               </div>
-              <div class="col-md-2">
+              <div class="col-md-3">
                 <select
                   v-model="filterStatus"
                   @change="filterClients"
@@ -219,7 +255,7 @@
                   <option value="inactive">Inactive</option>
                 </select>
               </div>
-              <div class="col-md-2">
+              <div class="col-md-3">
                 <select
                   v-model="sortBy"
                   @change="sortClients"
@@ -228,11 +264,6 @@
                   <option value="name">Sort by Name</option>
                   <option value="created_at">Sort by Created</option>
                 </select>
-              </div>
-              <div class="col-md-2">
-                <button @click="exportClients" class="btn btn-outline-primary">
-                  Export
-                </button>
               </div>
             </div>
 
@@ -252,18 +283,31 @@
                     ></span>
                   </div>
                   <div class="card-body">
-                     <p class="card-text">
-                       <strong>Cell:</strong> <span class="data-tech-highlight">{{ client.cell || 'Not set' }}</span>
-                     </p>
-                     <p class="card-text">
-                       <strong>Timezone:</strong> <span class="data-tech-highlight">{{ client.business_timezone }}</span>
-                     </p>
-                     <p class="card-text">
-                       <strong>Hours:</strong> <span class="data-tech-highlight">{{ formatHour(client.business_start_hour) }} - {{ formatHour(client.business_end_hour) }}</span>
-                     </p>
-                     <p class="card-text">
-                       <strong>LLM Model:</strong> <span class="data-tech-highlight">{{ client.llm_model }}</span>
-                     </p>
+                    <p class="card-text">
+                      <strong>Cell:</strong>
+                      <span class="data-tech-highlight"
+                        >{{ client.cell || 'Not set' }}</span
+                      >
+                    </p>
+                    <p class="card-text">
+                      <strong>Timezone:</strong>
+                      <span class="data-tech-highlight"
+                        >{{ client.business_timezone }}</span
+                      >
+                    </p>
+                    <p class="card-text">
+                      <strong>Hours:</strong>
+                      <span class="data-tech-highlight"
+                        >{{ formatHour(client.business_start_hour) }} - {{
+                        formatHour(client.business_end_hour) }}</span
+                      >
+                    </p>
+                    <p class="card-text">
+                      <strong>LLM Model:</strong>
+                      <span class="data-tech-highlight"
+                        >{{ client.llm_model }}</span
+                      >
+                    </p>
                     <div
                       class="mt-2"
                       v-if="client.enabled_tools && client.enabled_tools.length"
@@ -285,7 +329,13 @@
                     class="card-footer d-flex justify-content-between align-items-center"
                   >
                     <div>
-                      <button @click="editClient(client)" class="btn btn-sm btn-outline-primary" title="Edit">Edit</button>
+                      <button
+                        @click="editClient(client)"
+                        class="btn btn-sm btn-outline-primary"
+                        title="Edit"
+                      >
+                        Edit
+                      </button>
                     </div>
                     <div class="form-check m-0">
                       <input
@@ -352,10 +402,22 @@
                 />
               </div>
             </div>
-            <div class="table-responsive">
+            <div
+              v-if="isLoading"
+              class="d-flex justify-content-center align-items-center p-5 text-center"
+            >
+              <div
+                class="h5 text-blue"
+                style="letter-spacing: 2px; animation: pulse 1s infinite"
+              >
+                &gt;&gt; ACCESSING DATABASE...
+              </div>
+            </div>
+            <div v-else class="table-responsive">
               <table class="table table-dark">
                 <thead>
                   <tr>
+                    <th></th>
                     <th>Phone Number</th>
                     <th>Name</th>
                     <th>Client</th>
@@ -365,400 +427,498 @@
                 </thead>
                 <tbody>
                   <tr v-for="contact in filteredContacts" :key="contact.phone">
+                    <td>
+                      <input
+                        type="checkbox"
+                        v-model="selectedContacts"
+                        :value="contact.phone"
+                        class="form-check-input"
+                      />
+                    </td>
                     <td>{{ contact.phone }}</td>
-                    <td>{{ contact.name }}</td>
+                    <td>
+                      <span v-if="editingContactPhone !== contact.phone"
+                        >{{ contact.name }}</span
+                      >
+                      <input
+                        v-else
+                        v-model="tempContactName"
+                        class="table-inline-input"
+                        @keyup.enter="saveInlineEdit(contact)"
+                        @keyup.esc="cancelInlineEdit()"
+                      />
+                    </td>
                     <td>{{ contact.client_name }}</td>
                     <td>{{ formatDate(contact.last_contact) }}</td>
-                     <td>
-                        <button
-                          @click="editContact(contact)"
-                          class="btn btn-sm btn-outline-primary me-2"
-                        >
-                          Edit Name
-                        </button>
-                        <button class="btn btn-sm btn-outline-info">
-                          View History
-                        </button>
-                     </td>
+                    <td>
+                      <button
+                        v-if="editingContactPhone !== contact.phone"
+                        @click="startInlineEdit(contact)"
+                        class="btn btn-sm btn-outline-primary me-2"
+                      >
+                        EDIT NAME
+                      </button>
+                      <button
+                        v-if="editingContactPhone === contact.phone"
+                        @click="saveInlineEdit(contact)"
+                        class="btn btn-sm text-success me-2"
+                      >
+                        SAVE
+                      </button>
+                      <button
+                        v-if="editingContactPhone === contact.phone"
+                        @click="cancelInlineEdit"
+                        class="btn btn-sm text-danger me-2"
+                      >
+                        X
+                      </button>
+                      <button
+                        v-if="editingContactPhone !== contact.phone"
+                        class="btn btn-sm btn-outline-info"
+                      >
+                        View History
+                      </button>
+                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
 
-           <div v-if="activeTab === 'logs'" class="logs-tab">
-             <!-- Expanded Transcript View -->
-             <div v-if="transcriptExpanded && selectedTranscript" class="expanded-transcript">
-               <div class="d-flex align-items-center mb-3">
-                 <button @click="toggleTranscriptExpansion" class="btn btn-outline-secondary me-3">
-                   ← Back to Logs
-                 </button>
-                 <h5 class="mb-0">Call Transcript - {{ selectedTranscript.client_name }} ({{ selectedTranscript.phone }})</h5>
-               </div>
-               <div class="card">
-                 <div class="card-body">
-                   <div class="conversation-transcript expanded">
-                     <template
-                       v-for="(message, index) in selectedTranscript.transcript"
-                       :key="index"
-                     >
-                        <div
-                          v-if="message.role === 'user'"
-                          class="message user"
-                        >
-                          <div class="d-flex justify-content-between align-items-start">
-                            <strong>Caller:</strong>
-                            <small class="text-muted">{{ formatTimestamp(message.timestamp) }}</small>
-                          </div>
-                          <p>{{ message.content }}</p>
-                        </div>
-
-                        <div
-                          v-else-if="message.role === 'assistant' && message.content"
-                          class="message assistant"
-                        >
-                          <div class="d-flex justify-content-between align-items-start">
-                            <strong>Assistant:</strong>
-                            <small class="text-muted">{{ formatTimestamp(message.timestamp) }}</small>
-                          </div>
-                          <p>{{ message.content }}</p>
-                        </div>
-
-                        <div
-                          v-if="message.role === 'assistant' && message.tool_calls"
-                          class="message tool msg-action"
-                        >
-                          <div class="d-flex justify-content-between align-items-start">
-                            <strong style="color: var(--theme-orange)">⚡ System Action:</strong>
-                            <small class="text-muted">{{ formatTimestamp(message.timestamp) }}</small>
-                          </div>
-                          <div
-                            v-for="tool in message.tool_calls"
-                            :key="tool.id"
-                            class="mb-1"
-                          >
-                            <span class="text-warning"
-                              >{{ tool.function.name }}</span
-                            >
-                            <span class="text-success"
-                              >({{ tool.function.arguments }})</span
-                            >
-                          </div>
-                        </div>
-
-                        <div
-                          v-else-if="message.role === 'tool'"
-                          class="message tool msg-result"
-                        >
-                          <div class="d-flex justify-content-between align-items-start">
-                            <strong style="color: var(--theme-green)">✓ Tool Result:</strong>
-                            <small class="text-muted">{{ formatTimestamp(message.timestamp) }}</small>
-                          </div>
-                          <p style="white-space: pre-wrap">
-                            {{ message.content }}
-                          </p>
-                        </div>
-                     </template>
-
-                     <div
-                       v-if="!selectedTranscript.transcript || selectedTranscript.transcript.length === 0"
-                       class="text-muted text-center mt-4"
-                     >
-                       No transcript available.
-                     </div>
-                   </div>
-                 </div>
-               </div>
-             </div>
-
-             <!-- Normal Logs View -->
-             <div v-else class="logs-view">
-                <div class="row mb-3">
-                  <div class="col-md-4">
-                    <input
-                      v-model="logSearchQuery"
-                      type="text"
-                      class="form-control"
-                      placeholder="Search logs..."
-                    />
-                  </div>
-                  <div class="col-md-3">
-                    <select v-model="logFilterClient" class="form-select">
-                      <option value="">All Clients</option>
-                      <option
-                        v-for="client in clients"
-                        :key="client.id"
-                        :value="client.id"
-                      >
-                        {{ client.name }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="col-md-5 d-flex justify-content-end">
-                    <button
-                      @click="deleteCallLogs"
-                      v-if="selectedCallLogs.length > 0"
-                      class="btn btn-danger"
+          <div v-if="activeTab === 'logs'" class="logs-tab">
+            <!-- Expanded Transcript View -->
+            <div
+              v-if="transcriptExpanded && selectedTranscript"
+              class="expanded-transcript"
+            >
+              <div class="d-flex align-items-center mb-3">
+                <button
+                  @click="toggleTranscriptExpansion"
+                  class="btn btn-outline-secondary me-3"
+                >
+                  ← Back to Logs
+                </button>
+                <h5 class="mb-0">
+                  Call Transcript - {{ selectedTranscript.client_name }} ({{
+                  selectedTranscript.phone }})
+                </h5>
+              </div>
+              <div class="card">
+                <div class="card-body">
+                  <div class="conversation-transcript expanded">
+                    <template
+                      v-for="(message, index) in selectedTranscript.transcript"
+                      :key="index"
                     >
-                      Delete Selected ({{ selectedCallLogs.length }})
-                    </button>
+                      <div v-if="message.role === 'user'" class="message user">
+                        <div
+                          class="d-flex justify-content-between align-items-start"
+                        >
+                          <strong>Caller:</strong>
+                          <small class="text-muted"
+                            >{{ formatTimestamp(message.timestamp) }}</small
+                          >
+                        </div>
+                        <p>{{ message.content }}</p>
+                      </div>
+
+                      <div
+                        v-else-if="message.role === 'assistant' && message.content"
+                        class="message assistant"
+                      >
+                        <div
+                          class="d-flex justify-content-between align-items-start"
+                        >
+                          <strong>Assistant:</strong>
+                          <small class="text-muted"
+                            >{{ formatTimestamp(message.timestamp) }}</small
+                          >
+                        </div>
+                        <p>{{ message.content }}</p>
+                      </div>
+
+                      <div
+                        v-if="message.role === 'assistant' && message.tool_calls"
+                        class="message tool msg-action"
+                      >
+                        <div
+                          class="d-flex justify-content-between align-items-start"
+                        >
+                          <strong style="color: var(--theme-orange)"
+                            >⚡ System Action:</strong
+                          >
+                          <small class="text-muted"
+                            >{{ formatTimestamp(message.timestamp) }}</small
+                          >
+                        </div>
+                        <div
+                          v-for="tool in message.tool_calls"
+                          :key="tool.id"
+                          class="mb-1"
+                        >
+                          <span class="text-warning"
+                            >{{ tool.function.name }}</span
+                          >
+                          <span class="text-success"
+                            >({{ tool.function.arguments }})</span
+                          >
+                        </div>
+                      </div>
+
+                      <div
+                        v-else-if="message.role === 'tool'"
+                        class="message tool msg-result"
+                      >
+                        <div
+                          class="d-flex justify-content-between align-items-start"
+                        >
+                          <strong style="color: var(--theme-green)"
+                            >✓ Tool Result:</strong
+                          >
+                          <small class="text-muted"
+                            >{{ formatTimestamp(message.timestamp) }}</small
+                          >
+                        </div>
+                        <p style="white-space: pre-wrap">
+                          {{ message.content }}
+                        </p>
+                      </div>
+                    </template>
+
+                    <div
+                      v-if="!selectedTranscript.transcript || selectedTranscript.transcript.length === 0"
+                      class="text-muted text-center mt-4"
+                    >
+                      No transcript available.
+                    </div>
                   </div>
                 </div>
-               <div class="row">
-                 <div class="col-md-6">
-                   <div class="table-responsive">
-                      <table class="table table-dark">
-                        <thead>
-                          <tr>
-                            <th>
-                              <input
-                                type="checkbox"
-                                :checked="selectAllCallLogs"
-                                :indeterminate.prop="selectAllIndeterminate"
-                                @change="toggleSelectAllCallLogs"
-                                class="form-check-input"
-                                title="Select all visible logs"
-                              />
-                            </th>
-                            <th>Date/Time</th>
-                            <th>Client</th>
-                            <th>Phone</th>
-                            <th>Duration</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr
-                            v-for="log in filteredCallLogs"
-                            :key="log.id"
-                            @click="selectedTranscript = log"
-                            :class="{ 'selected': selectedTranscript?.id === log.id }"
-                            style="cursor: pointer"
-                          >
-                            <td @click.stop>
-                              <input
-                                type="checkbox"
-                                v-model="selectedCallLogs"
-                                :value="log.id"
-                                class="form-check-input"
-                                title="Select this log"
-                              />
-                            </td>
-                            <td>{{ formatDate(log.timestamp) }}</td>
-                            <td>{{ log.client_name }}</td>
-                            <td>{{ log.phone }}</td>
-                            <td>{{ log.duration }}s</td>
-                            <td>{{ log.status }}</td>
-                          </tr>
-                        </tbody>
-                     </table>
-                   </div>
-                 </div>
-                 <div class="col-md-6" v-if="selectedTranscript">
-                   <div class="card">
-                     <div class="card-header d-flex justify-content-between align-items-center">
-                       <h6 class="mb-0">Call Transcript</h6>
-                       <button @click="toggleTranscriptExpansion" class="btn btn-sm btn-outline-primary">
-                         Expand
-                       </button>
-                     </div>
-                     <div class="card-body">
-                       <div class="conversation-transcript">
-                         <template
-                           v-for="(message, index) in selectedTranscript.transcript"
-                           :key="index"
-                         >
-                        <div
-                          v-if="message.role === 'user'"
-                          class="message user"
-                        >
-                          <div class="d-flex justify-content-between align-items-start">
-                            <strong>Caller:</strong>
-                            <small class="text-muted">{{ formatTimestamp(message.timestamp) }}</small>
-                          </div>
-                          <p>{{ message.content }}</p>
-                        </div>
-
-                        <div
-                          v-else-if="message.role === 'assistant' && message.content"
-                          class="message assistant"
-                        >
-                          <div class="d-flex justify-content-between align-items-start">
-                            <strong>Assistant:</strong>
-                            <small class="text-muted">{{ formatTimestamp(message.timestamp) }}</small>
-                          </div>
-                          <p>{{ message.content }}</p>
-                        </div>
-
-                           <div
-                             v-if="message.role === 'assistant' && message.tool_calls"
-                             class="message tool msg-action"
-                           >
-                             <div class="d-flex justify-content-between align-items-start">
-                               <strong style="color: var(--theme-orange)">⚡ System Action:</strong>
-                               <small class="text-muted">{{ formatTimestamp(message.timestamp) }}</small>
-                             </div>
-                             <div
-                               v-for="tool in message.tool_calls"
-                               :key="tool.id"
-                               class="mb-1"
-                             >
-                               <span class="text-warning"
-                                 >{{ tool.function.name }}</span
-                               >
-                                <span class="text-success"
-                                  >({{ tool.function.arguments }})</span
-                               >
-                             </div>
-                           </div>
-
-                           <div
-                             v-else-if="message.role === 'tool'"
-                             class="message tool msg-result"
-                           >
-                             <div class="d-flex justify-content-between align-items-start">
-                               <strong style="color: var(--theme-green)">✓ Tool Result:</strong>
-                               <small class="text-muted">{{ formatTimestamp(message.timestamp) }}</small>
-                             </div>
-                             <p style="white-space: pre-wrap">
-                               {{ message.content }}
-                             </p>
-                           </div>
-                       </template>
-
-                       <div
-                         v-if="!selectedTranscript.transcript || selectedTranscript.transcript.length === 0"
-                         class="text-muted text-center mt-4"
-                       >
-                         Select a log to view transcript.
-                       </div>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-             </div>
-           </div>
-        </div>
-      </div>
-
-      <div
-        class="modal fade"
-        :class="{ show: showCreateModal || showEditModal }"
-        :style="{ display: (showCreateModal || showEditModal) ? 'block' : 'none' }"
-        tabindex="-1"
-      >
-        <div class="modal-dialog modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">
-                {{ showEditModal ? 'Edit Client' : 'Create New Client' }}
-              </h5>
-              <button
-                type="button"
-                class="btn-close"
-                @click="closeModal"
-              ></button>
+              </div>
             </div>
-             <div class="modal-body">
-               <!-- Full-screen System Prompt Editor -->
-               <div v-if="systemPromptExpanded" class="system-prompt-fullscreen">
-                 <div class="d-flex justify-content-between align-items-center mb-3">
-                   <h5 class="mb-0">System Prompt Editor</h5>
-                   <button
-                     type="button"
-                     class="btn btn-outline-secondary btn-sm"
-                     @click="toggleSystemPromptExpansion"
-                   >
-                     ← Back to Form
-                   </button>
-                 </div>
-                 <textarea
-                   v-model="clientForm.system_prompt"
-                   class="form-control system-prompt-fullscreen-textarea"
-                   rows="25"
-                   placeholder="Enter your system prompt here..."
-                 ></textarea>
-               </div>
 
-               <!-- Normal Form View -->
-               <form v-else @submit.prevent="saveClient">
-                 <div class="row">
-                   <div class="col-md-6">
-                     <div class="mb-3">
-                       <label class="form-label">Name *</label>
-                       <input
-                         v-model="clientForm.name"
-                         type="text"
-                         class="form-control"
-                         required
-                       />
-                     </div>
-                     <div class="mb-3">
-                       <label class="form-label">Cell Phone</label>
-                       <input
-                         v-model="clientForm.cell"
-                         type="text"
-                         class="form-control"
-                         placeholder="+15551234567"
-                       />
-                       <div class="form-text text-muted">
-                         Must match Twilio 'To' number.
-                       </div>
-                     </div>
-                     <div class="mb-3">
-                       <label class="form-label">Calendar ID</label>
-                       <input
-                         v-model="clientForm.calendar_id"
-                         type="text"
-                         class="form-control"
-                       />
-                     </div>
-                     <div class="mb-3">
-                       <label class="form-label">Business Timezone</label>
-                       <select
-                         v-model="clientForm.business_timezone"
-                         class="form-select"
-                       >
-                         <option value="America/Los_Angeles">
-                           America/Los_Angeles
-                         </option>
-                         <option value="America/New_York">
-                           America/New_York
-                         </option>
-                         <option value="America/Chicago">America/Chicago</option>
-                         <option value="America/Denver">America/Denver</option>
-                       </select>
-                     </div>
-                     <div class="row">
-                       <div class="col-md-6">
-                         <div class="mb-3">
-                           <label class="form-label">Start Hour</label>
-                           <select
-                             v-model.number="clientForm.business_start_hour"
-                             class="form-select"
-                           >
-                             <option v-for="h in 24" :key="h-1" :value="h-1">
-                               {{ formatHour(h-1) }}
-                             </option>
-                           </select>
-                         </div>
-                       </div>
-                       <div class="col-md-6">
-                         <div class="mb-3">
-                           <label class="form-label">End Hour</label>
-                           <select
-                             v-model.number="clientForm.business_end_hour"
-                             class="form-select"
-                           >
-                             <option v-for="h in 24" :key="h-1" :value="h-1">
-                               {{ formatHour(h-1) }}
-                             </option>
-                           </select>
-                         </div>
-                       </div>
-                     </div>
-                   </div>
-                   <div class="col-md-6">
+            <!-- Normal Logs View -->
+            <div v-else class="logs-view">
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <input
+                    v-model="logSearchQuery"
+                    type="text"
+                    class="form-control"
+                    placeholder="Search logs..."
+                  />
+                </div>
+                <div class="col-md-3">
+                  <select v-model="logFilterClient" class="form-select">
+                    <option value="">All Clients</option>
+                    <option
+                      v-for="client in clients"
+                      :key="client.id"
+                      :value="client.id"
+                    >
+                      {{ client.name }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6">
+                  <div
+                    v-if="isLoading"
+                    class="d-flex justify-content-center align-items-center p-5 text-center"
+                  >
+                    <div
+                      class="h5 text-blue"
+                      style="letter-spacing: 2px; animation: pulse 1s infinite"
+                    >
+                      &gt;&gt; ACCESSING DATABASE...
+                    </div>
+                  </div>
+                  <div v-else class="table-responsive">
+                    <table class="table table-dark">
+                      <thead>
+                        <tr>
+                          <th></th>
+                          <th>Date/Time</th>
+                          <th>Client</th>
+                          <th>Phone</th>
+                          <th>Duration</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          v-for="log in filteredCallLogs"
+                          :key="log.id"
+                          @click="selectedTranscript = log"
+                          :class="{ 'selected': selectedTranscript?.id === log.id }"
+                          style="cursor: pointer"
+                        >
+                          <td @click.stop>
+                            <input
+                              type="checkbox"
+                              v-model="selectedCallLogs"
+                              :value="log.id"
+                              class="form-check-input"
+                              title="Select this log"
+                            />
+                          </td>
+                          <td>{{ formatDate(log.timestamp) }}</td>
+                          <td>{{ log.client_name }}</td>
+                          <td>{{ log.phone }}</td>
+                          <td>{{ log.duration }}s</td>
+                          <td>{{ log.status }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="col-md-6" v-if="selectedTranscript">
+                  <div class="card">
+                    <div
+                      class="card-header d-flex justify-content-between align-items-center"
+                    >
+                      <h6 class="mb-0">Call Transcript</h6>
+                      <button
+                        @click="toggleTranscriptExpansion"
+                        class="btn btn-sm btn-outline-primary"
+                      >
+                        Expand
+                      </button>
+                    </div>
+                    <div class="card-body">
+                      <div class="conversation-transcript">
+                        <template
+                          v-for="(message, index) in selectedTranscript.transcript"
+                          :key="index"
+                        >
+                          <div
+                            v-if="message.role === 'user'"
+                            class="message user"
+                          >
+                            <div
+                              class="d-flex justify-content-between align-items-start"
+                            >
+                              <strong>Caller:</strong>
+                              <small class="text-muted"
+                                >{{ formatTimestamp(message.timestamp) }}</small
+                              >
+                            </div>
+                            <p>{{ message.content }}</p>
+                          </div>
+
+                          <div
+                            v-else-if="message.role === 'assistant' && message.content"
+                            class="message assistant"
+                          >
+                            <div
+                              class="d-flex justify-content-between align-items-start"
+                            >
+                              <strong>Assistant:</strong>
+                              <small class="text-muted"
+                                >{{ formatTimestamp(message.timestamp) }}</small
+                              >
+                            </div>
+                            <p>{{ message.content }}</p>
+                          </div>
+
+                          <div
+                            v-if="message.role === 'assistant' && message.tool_calls"
+                            class="message tool msg-action"
+                          >
+                            <div
+                              class="d-flex justify-content-between align-items-start"
+                            >
+                              <strong style="color: var(--theme-orange)"
+                                >⚡ System Action:</strong
+                              >
+                              <small class="text-muted"
+                                >{{ formatTimestamp(message.timestamp) }}</small
+                              >
+                            </div>
+                            <div
+                              v-for="tool in message.tool_calls"
+                              :key="tool.id"
+                              class="mb-1"
+                            >
+                              <span class="text-warning"
+                                >{{ tool.function.name }}</span
+                              >
+                              <span class="text-success"
+                                >({{ tool.function.arguments }})</span
+                              >
+                            </div>
+                          </div>
+
+                          <div
+                            v-else-if="message.role === 'tool'"
+                            class="message tool msg-result"
+                          >
+                            <div
+                              class="d-flex justify-content-between align-items-start"
+                            >
+                              <strong style="color: var(--theme-green)"
+                                >✓ Tool Result:</strong
+                              >
+                              <small class="text-muted"
+                                >{{ formatTimestamp(message.timestamp) }}</small
+                              >
+                            </div>
+                            <p style="white-space: pre-wrap">
+                              {{ message.content }}
+                            </p>
+                          </div>
+                        </template>
+
+                        <div
+                          v-if="!selectedTranscript.transcript || selectedTranscript.transcript.length === 0"
+                          class="text-muted text-center mt-4"
+                        >
+                          Select a log to view transcript.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="modal fade"
+          :class="{ show: showCreateModal || showEditModal }"
+          :style="{ display: (showCreateModal || showEditModal) ? 'block' : 'none' }"
+          tabindex="-1"
+        >
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">
+                  {{ showEditModal ? 'Edit Client' : 'Create New Client' }}
+                </h5>
+                <div class="ms-auto">
+                  <button
+                    type="submit"
+                    form="clientForm"
+                    class="btn btn-sm btn-outline-primary me-3"
+                    :disabled="saving"
+                  >
+                    {{ saving ? 'SAVING...' : 'SAVE' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-close"
+                    @click="closeModal"
+                  ></button>
+                </div>
+              </div>
+              <div class="modal-body">
+                <!-- Full-screen System Prompt Editor -->
+                <div
+                  v-if="systemPromptExpanded"
+                  class="system-prompt-fullscreen"
+                >
+                  <div
+                    class="d-flex justify-content-between align-items-center mb-3"
+                  >
+                    <h5 class="mb-0">System Prompt Editor</h5>
+                    <button
+                      type="button"
+                      class="btn btn-outline-secondary btn-sm"
+                      @click="toggleSystemPromptExpansion"
+                    >
+                      ← Back to Form
+                    </button>
+                  </div>
+                  <textarea
+                    v-model="clientForm.system_prompt"
+                    class="form-control system-prompt-fullscreen-textarea"
+                    rows="25"
+                    placeholder="Enter your system prompt here..."
+                  ></textarea>
+                </div>
+
+                <!-- Normal Form View -->
+                <form v-else id="clientForm" @submit.prevent="saveClient">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="mb-3">
+                        <label class="form-label">Name *</label>
+                        <input
+                          v-model="clientForm.name"
+                          type="text"
+                          class="form-control"
+                          required
+                        />
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Cell Phone</label>
+                        <input
+                          v-model="clientForm.cell"
+                          type="text"
+                          class="form-control"
+                          placeholder="+15551234567"
+                        />
+                        <div class="form-text text-muted">
+                          Must match Twilio 'To' number.
+                        </div>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Calendar ID</label>
+                        <input
+                          v-model="clientForm.calendar_id"
+                          type="text"
+                          class="form-control"
+                        />
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Business Timezone</label>
+                        <select
+                          v-model="clientForm.business_timezone"
+                          class="form-select"
+                        >
+                          <option value="America/Los_Angeles">
+                            America/Los_Angeles
+                          </option>
+                          <option value="America/New_York">
+                            America/New_York
+                          </option>
+                          <option value="America/Chicago">
+                            America/Chicago
+                          </option>
+                          <option value="America/Denver">America/Denver</option>
+                        </select>
+                      </div>
+                      <div class="row">
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label class="form-label">Start Hour</label>
+                            <select
+                              v-model.number="clientForm.business_start_hour"
+                              class="form-select"
+                            >
+                              <option v-for="h in 24" :key="h-1" :value="h-1">
+                                {{ formatHour(h-1) }}
+                              </option>
+                            </select>
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label class="form-label">End Hour</label>
+                            <select
+                              v-model.number="clientForm.business_end_hour"
+                              class="form-select"
+                            >
+                              <option v-for="h in 24" :key="h-1" :value="h-1">
+                                {{ formatHour(h-1) }}
+                              </option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
                       <div class="mb-3">
                         <label class="form-label">LLM Model</label>
                         <select
@@ -785,7 +945,9 @@
                             Deepgram Nova 2 Phonecall
                           </option>
                           <option value="nova-2">Deepgram Nova 2</option>
-                          <option value="nova-2-general">Deepgram Nova 2 General</option>
+                          <option value="nova-2-general">
+                            Deepgram Nova 2 General
+                          </option>
                         </select>
                       </div>
 
@@ -807,115 +969,101 @@
                         </select>
                       </div>
 
-                     <div
-                       class="mb-3 border p-2 rounded"
-                       style="background: var(--theme-bg-dark)"
-                     >
-                       <label class="form-label mb-2 text-warning"
-                         >Enabled AI Tools</label
-                       >
-                       <div class="form-check">
-                         <input
-                           class="form-check-input"
-                           type="checkbox"
-                           value="get_available_slots"
-                           v-model="clientForm.enabled_tools"
-                           id="tool_slots"
-                         />
-                         <label class="form-check-label" for="tool_slots"
-                           >Check Availability</label
-                         >
-                       </div>
-                       <div class="form-check">
-                         <input
-                           class="form-check-input"
-                           type="checkbox"
-                           value="book_appointment"
-                           v-model="clientForm.enabled_tools"
-                           id="tool_book"
-                         />
-                         <label class="form-check-label" for="tool_book"
-                           >Book Appointments</label
-                         >
-                       </div>
-                       <div class="form-check">
-                         <input
-                           class="form-check-input"
-                           type="checkbox"
-                           value="save_contact_name"
-                           v-model="clientForm.enabled_tools"
-                           id="tool_save"
-                         />
-                         <label class="form-check-label" for="tool_save"
-                           >Save Contact Names</label
-                         >
-                       </div>
-                     </div>
+                      <div
+                        class="mb-3 border p-2 rounded"
+                        style="background: var(--theme-bg-dark)"
+                      >
+                        <label class="form-label mb-2 text-warning"
+                          >Enabled AI Tools</label
+                        >
+                        <div class="form-check">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            value="get_available_slots"
+                            v-model="clientForm.enabled_tools"
+                            id="tool_slots"
+                          />
+                          <label class="form-check-label" for="tool_slots"
+                            >Check Availability</label
+                          >
+                        </div>
+                        <div class="form-check">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            value="book_appointment"
+                            v-model="clientForm.enabled_tools"
+                            id="tool_book"
+                          />
+                          <label class="form-check-label" for="tool_book"
+                            >Book Appointments</label
+                          >
+                        </div>
+                        <div class="form-check">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            value="save_contact_name"
+                            v-model="clientForm.enabled_tools"
+                            id="tool_save"
+                          />
+                          <label class="form-check-label" for="tool_save"
+                            >Save Contact Names</label
+                          >
+                        </div>
+                      </div>
 
-                     <div class="mb-3">
-                       <label class="form-label">TTS Voice ID</label>
-                       <input
-                         v-model="clientForm.tts_voice_id"
-                         type="text"
-                         class="form-control"
-                       />
-                     </div>
-                     <div class="mb-3">
-                       <label class="form-label">Initial Greeting</label>
-                       <textarea
-                         v-model="clientForm.initial_greeting"
-                         class="form-control"
-                         rows="2"
-                       ></textarea>
-                     </div>
-                     <div class="mb-3">
-                       <label class="form-label d-flex justify-content-between align-items-center">
-                         System Prompt
-                         <button
-                           type="button"
-                           class="btn btn-sm btn-outline-secondary"
-                           @click="toggleSystemPromptExpansion"
-                         >
-                           Expand to Full Screen
-                         </button>
-                       </label>
-                       <textarea
-                         v-model="clientForm.system_prompt"
-                         class="form-control"
-                         rows="4"
-                       ></textarea>
-                     </div>
-                     <div class="mb-3">
-                       <label class="form-label">Use Template</label>
-                       <select
-                         v-model="selectedTemplate"
-                         @change="applyTemplate"
-                         class="form-select template-selector"
-                       >
-                         <option value="">Select Template</option>
-                         <option value="default">Default Front Desk</option>
-                         <option value="spa">Spa/Reception</option>
-                         <option value="restaurant">Restaurant</option>
-                       </select>
-                     </div>
-                   </div>
-                 </div>
-                 <div class="modal-footer">
-                    <button
-                      type="button"
-                      class="btn btn-outline-danger"
-                      @click="closeModal"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      class="btn btn-outline-primary"
-                      :disabled="saving"
-                   >
-                     {{ saving ? 'Saving...' : 'Save' }}
-                   </button>
-                 </div>
+                      <div class="mb-3">
+                        <label class="form-label">TTS Voice ID</label>
+                        <input
+                          v-model="clientForm.tts_voice_id"
+                          type="text"
+                          class="form-control"
+                        />
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Initial Greeting</label>
+                        <textarea
+                          v-model="clientForm.initial_greeting"
+                          class="form-control"
+                          rows="2"
+                        ></textarea>
+                      </div>
+                      <div class="mb-3">
+                        <label
+                          class="form-label d-flex justify-content-between align-items-center"
+                        >
+                          System Prompt
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            @click="toggleSystemPromptExpansion"
+                          >
+                            Expand to Full Screen
+                          </button>
+                        </label>
+                        <textarea
+                          v-model="clientForm.system_prompt"
+                          class="form-control"
+                          rows="4"
+                        ></textarea>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Use Template</label>
+                        <select
+                          v-model="selectedTemplate"
+                          @change="applyTemplate"
+                          class="form-select template-selector"
+                        >
+                          <option value="">Select Template</option>
+                          <option value="default">Default Front Desk</option>
+                          <option value="spa">Spa/Reception</option>
+                          <option value="restaurant">Restaurant</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
                 </form>
               </div>
             </div>
@@ -939,85 +1087,207 @@
                   @click="closeSettingsModal"
                 ></button>
               </div>
-               <div class="modal-body">
-  <div class="mb-4">
-    <label class="form-label text-blue mb-2">>> APPEARANCE</label>
-    <div class="p-3 border rounded" style="border-color: var(--theme-bg-mid) !important; background: var(--theme-bg-dark);">
-      <label class="form-label small">THEME PRESET</label>
-      <select v-model="currentTheme" @change="applyTheme(currentTheme)" class="form-select">
-        <option v-for="theme in themes" :key="theme.key" :value="theme.key">
-          {{ theme.name }}
-        </option>
-      </select>
-    </div>
-  </div>
-<label class="form-label text-blue mb-2">>> SYSTEM STATUS</label>
-<div class="p-3 border rounded" style="border-color: var(--theme-bg-mid) !important; background: var(--theme-bg-dark);">
-  <div class="d-flex justify-content-between mb-2">
-    <span class="text-muted">OPENAI API</span>
-    <span class="text-success">[ONLINE]</span>
-  </div>
-  <div class="d-flex justify-content-between">
-    <span class="text-muted">TWILIO GATEWAY</span>
-    <span class="text-success">[ONLINE]</span>
-  </div>
-</div>
-<label class="form-label text-red mb-2">>> DANGER ZONE</label>
-<div class="p-3 border rounded" style="border-color: var(--theme-red) !important; background: var(--theme-bg-dark);">
-  <div class="d-flex justify-content-between align-items-center">
-    <span class="text-muted small">Clear all local system logs?</span>
-    <button class="btn btn-sm btn-outline-danger" onclick="localStorage.removeItem('auditLogs'); location.reload();">PURGE LOGS</button>
-  </div>
-</div>
-               </div>
-               <div class="modal-footer">
-                  <button
-                    type="button"
-                    class="btn btn-outline-secondary"
-                    @click="closeSettingsModal"
+              <div class="modal-body">
+                <div class="mb-4">
+                  <label class="form-label text-blue mb-2">>> APPEARANCE</label>
+                  <div
+                    class="p-3 border rounded"
+                    style="
+                      border-color: var(--theme-bg-mid) !important;
+                      background: var(--theme-bg-dark);
+                    "
                   >
-                    CANCEL
-                  </button>
-               </div>
+                    <label class="form-label small text-muted mb-1"
+                      >THEME PRESET</label
+                    >
+                    <select
+                      v-model="currentTheme"
+                      @change="applyTheme(currentTheme)"
+                      class="form-select form-select-sm"
+                    >
+                      <option
+                        v-for="theme in themes"
+                        :key="theme.key"
+                        :value="theme.key"
+                      >
+                        {{ theme.name }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="mb-4">
+                  <label class="form-label text-blue mb-2"
+                    >>> DATA OPERATIONS</label
+                  >
+                  <div
+                    class="p-3 border rounded"
+                    style="
+                      border-color: var(--theme-bg-mid) !important;
+                      background: var(--theme-bg-dark);
+                    "
+                  >
+                    <div
+                      class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom"
+                      style="border-color: var(--theme-bg-mid) !important"
+                    >
+                      <div>
+                        <span
+                          class="text-fg d-block"
+                          style="font-size: 0.85rem; letter-spacing: 1px"
+                          >EXPORT DATABASE</span
+                        >
+                        <small class="text-muted" style="font-size: 0.7rem"
+                          >Download full client list as JSON.</small
+                        >
+                      </div>
+                      <button
+                        @click="exportClients"
+                        class="btn btn-sm btn-outline-info"
+                      >
+                        DOWNLOAD .JSON
+                      </button>
+                    </div>
+
+                    <div>
+                      <span
+                        class="text-fg d-block mb-2"
+                        style="font-size: 0.85rem; letter-spacing: 1px"
+                        >IMPORT CLIENTS (APPEND)</span
+                      >
+                      <div class="d-flex gap-2 align-items-center">
+                        <input
+                          type="file"
+                          accept=".json"
+                          @change="handleFileSelect"
+                          class="form-control form-control-sm"
+                          style="background: transparent"
+                        />
+                        <button
+                          @click="executeImport"
+                          class="btn btn-sm btn-outline-success"
+                          :disabled="!importFile"
+                        >
+                          INJECT
+                        </button>
+                      </div>
+                      <div class="mt-2 text-muted" style="font-size: 0.65rem">
+                        * Skips existing IDs. Merges new data records only.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-4">
+                  <label class="form-label text-blue mb-2"
+                    >>> SYSTEM STATUS</label
+                  >
+                  <div
+                    class="p-3 border rounded"
+                    style="
+                      border-color: var(--theme-bg-mid) !important;
+                      background: var(--theme-bg-dark);
+                    "
+                  >
+                    <div class="d-flex justify-content-between mb-2">
+                      <span class="text-muted">OPENAI API</span>
+                      <span class="text-success">[ONLINE]</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                      <span class="text-muted">TWILIO GATEWAY</span>
+                      <span class="text-success">[ONLINE]</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  class="mt-4 pt-3 border-top"
+                  style="border-color: var(--theme-bg-mid) !important"
+                >
+                  <label class="form-label text-red mb-2">>> DANGER ZONE</label>
+                  <div
+                    class="p-3 border rounded"
+                    style="
+                      border-color: var(--theme-red) !important;
+                      background: var(--theme-bg-dark);
+                    "
+                  >
+                    <div
+                      class="d-flex justify-content-between align-items-center"
+                    >
+                      <span class="text-muted small"
+                        >Clear all local system logs?</span
+                      >
+                      <button
+                        class="btn btn-sm btn-outline-danger"
+                        onclick="localStorage.removeItem('auditLogs'); location.reload();"
+                      >
+                        PURGE LOGS
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-         </div>
-
-        <button
-          v-if="activeTab === 'clients'"
-          @click="showCreateModal = true"
-          class="btn btn-fab"
-          title="Create New Client"
-        >
-          +
-        </button>
-
-       </div>
-    <div class="modal fade" :class="{ show: showAuditLog }" :style="{ display: showAuditLog ? 'block' : 'none' }" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">SYSTEM ACTIVITY LOG</h5>
-        <button type="button" class="btn-close" @click="showAuditLog = false"></button>
-      </div>
-      <div class="modal-body p-0">
-        <div class="terminal-console">
-          <div v-if="auditLogs.length === 0" class="text-muted">System silent. No activity recorded.</div>
-          <div v-for="log in auditLogs" :key="log.id" class="log-entry">
-            <span class="log-timestamp">[{{ formatTimestamp(log.timestamp) }}]</span>
-            <span :class="log.type === 'create' ? 'text-success' : log.type === 'update' ? 'text-warning' : 'text-danger'">
-              [{{ log.type.toUpperCase() }}]
-            </span>
-            <span class="text-fg"> {{ log.action }}</span>
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" @click="showAuditLog = false">CLOSE</button>
+
+      <button
+        v-if="activeTab === 'clients'"
+        @click="showCreateModal = true"
+        class="btn btn-fab"
+        title="Create New Client"
+      >
+        +
+      </button>
+    </div>
+    <div
+      class="modal fade"
+      :class="{ show: showAuditLog }"
+      :style="{ display: showAuditLog ? 'block' : 'none' }"
+      tabindex="-1"
+    >
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">SYSTEM ACTIVITY LOG</h5>
+            <button
+              type="button"
+              class="btn-close"
+              @click="showAuditLog = false"
+            ></button>
+          </div>
+          <div class="modal-body p-0">
+            <div class="terminal-console">
+              <div v-if="auditLogs.length === 0" class="text-muted">
+                System silent. No activity recorded.
+              </div>
+              <div v-for="log in auditLogs" :key="log.id" class="log-entry">
+                <span class="log-timestamp"
+                  >[{{ formatTimestamp(log.timestamp) }}]</span
+                >
+                <span
+                  :class="log.type === 'create' ? 'text-success' : log.type === 'update' ? 'text-warning' : 'text-danger'"
+                >
+                  [{{ log.type.toUpperCase() }}]
+                </span>
+                <span class="text-fg"> {{ log.action }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              @click="showAuditLog = false"
+            >
+              CLOSE
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
     <script src="app.js"></script>
   </body>
 </html>

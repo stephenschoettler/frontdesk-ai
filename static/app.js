@@ -386,6 +386,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
               "get_available_slots",
               "book_appointment",
               "reschedule_appointment",
+              "list_my_appointments"
             );
           }
           if (payload.enable_contact_memory) {
@@ -720,6 +721,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
           get_available_slots: "Avail",
           book_appointment: "Book",
           reschedule_appointment: "Reschedule",
+          list_my_appointments: "List Appts", // <--- ADD THIS
           save_contact_name: "Save Name",
         };
         return map[toolKey] || toolKey;

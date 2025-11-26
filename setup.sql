@@ -43,7 +43,7 @@ CREATE TABLE "public"."clients" (
     "tts_model" text DEFAULT 'eleven_flash_v2_5',
     "tts_voice_id" text NOT NULL DEFAULT '21m00Tcm4TlvDq8ikWAM',
     -- Tools Configuration
-    "enabled_tools" text[] DEFAULT '{get_available_slots,book_appointment,save_contact_name}',
+    "enabled_tools" text[] DEFAULT '{get_available_slots,book_appointment,reschedule_appointment,save_contact_name,list_my_appointments}',
     -- Prompting
     "initial_greeting" text,
     "system_prompt" text
@@ -70,8 +70,7 @@ CREATE TABLE "public"."conversations" (
     "client_id" uuid REFERENCES "public"."clients"("id") ON DELETE SET NULL,
     "contact_id" uuid REFERENCES "public"."contacts"("id") ON DELETE SET NULL,
     "transcript" jsonb,
-    "summary" text,
-    "created_at" timestamp WITH TIME ZONE DEFAULT NOW()
+    "summary" text,\n    \"created_at\" timestamp WITH TIME ZONE DEFAULT NOW(),\n    \"duration\" integer DEFAULT 0
 );
 CREATE INDEX "idx_conversations_contact_id" ON "public"."conversations" ("contact_id");
 CREATE INDEX "idx_conversations_client_id" ON "public"."conversations" ("client_id");

@@ -66,6 +66,7 @@ from services.llm_tools import (
     handle_book_appointment,
     handle_save_contact_name,
     handle_reschedule_appointment,
+    handle_list_my_appointments,
 )
 
 # Import Google Calendar functions
@@ -178,6 +179,7 @@ async def initialize_client_services(client_id: str):
         "book_appointment": handle_book_appointment,
         "save_contact_name": handle_save_contact_name,
         "reschedule_appointment": handle_reschedule_appointment,
+        "list_my_appointments": handle_list_my_appointments,
     }
 
     logger.info(f"Enabling tools for client {client_id}: {enabled_tools}")
@@ -295,7 +297,9 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
     if client_config:
         calendar_id = client_config.get("calendar_id", "primary")
 
-        appt_context = await get_upcoming_appointments(calendar_id, caller_phone_decoded)
+        appt_context = await get_upcoming_appointments(
+            calendar_id, caller_phone_decoded
+        )
 
         if appt_context:
             contact_context += f"\n[EXISTING BOOKINGS]\n{appt_context}"

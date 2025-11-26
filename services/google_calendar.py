@@ -315,3 +315,47 @@ async def get_upcoming_appointments(calendar_id: str, phone_number: str) -> str:
         context_lines.append(f"- {event.get('summary', 'Appointment')} at {start} (ID: {event['id']})")
 
     return "\n".join(context_lines)
+
+
+async def list_my_appointments(calendar_id: str, phone_number: str) -> list[dict]:
+    """
+    Tool: Returns structured list of upcoming appointments matching caller phone.
+    """
+    calendar_id = _clean_calendar_id(calendar_id)
+    service = get_calendar_service()
+    if not service:
+        logger.warning("Calendar service unavailable.")
+        return []
+
+    tz = pytz.timezone("America/Los_Angeles")
+
+    now_utc = datetime.utcnow().isoformat() + "Z"
+
+    def _run_list():
+        events_result = service.events().list(
+            calendarId=calendar_id,
+            timeMin=now_utc,
+            maxResults=10,
+            singleEvents=True,
+            orderBy="startTime",
+            q=phone_number
+        ).execute()
+        return events_result.get("items", [])
+
+    loop = asyncio.get_running_loop()
+    events = await loop.run_in_executor(None, _run_list)
+
+    appointments = []
+    for event in events:
+        start_iso = event["start"].get("dateTime", event["start"].get("date"))
+        dt_utc = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
+        dt_local = dt_utc.astimezone(tz)
+        human_time = dt_local.strftime("%-I %p %B %d") if dt_local.minute == 0 else dt_local.strftime("%-I:%M %p %B %d")
+        appointments.append({
+            "booking_id": event["id"],
+            "summary": event.get("summary", "Appointment"),
+            "start_time": human_time,
+            "iso_start": dt_local.isoformat()
+        })
+    logger.info(f"Listed {len(appointments)} appointments for {phone_number}")
+    return appointments

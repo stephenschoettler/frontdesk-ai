@@ -8,6 +8,7 @@ from services.google_calendar import (
     get_available_slots,
     book_appointment,
     reschedule_appointment,
+    list_my_appointments,
 )
 
 # Import our new database function and the new client config function
@@ -166,10 +167,15 @@ async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
         description = args.get("description", "")
         contact_name = args.get("name") or args.get("caller_name")
 
-        # Fix F841: Use phone_number in description if available
-        phone_number = args.get("phone")
-        if phone_number and not description:
-            description = f"Caller Phone: {phone_number}"
+        # 1. Get phone from Args OR Environment (System Context)
+        phone_number = args.get("phone") or os.environ.get("CALLER_PHONE")
+
+        # 2. Force-append to description (Preserve AI's notes + System's data)
+        if phone_number:
+            if description:
+                description += f"\nCaller Phone: {phone_number}"
+            else:
+                description = f"Caller Phone: {phone_number}"
 
         if not summary:
             if contact_name:
@@ -264,12 +270,27 @@ async def handle_reschedule_appointment(params: FunctionCallParams, **kwargs) ->
         if not booking_id:
             raise ValueError("booking_id is required.")
 
-        new_time_str = args.get("new_time")
+        # --- FIX: ROBUST PARAMETER HANDLING (Catching 'new_start_time') ---
+        new_time_str = (
+            args.get("new_time") 
+            or args.get("start_time") 
+            or args.get("new_start_time")
+        )
+        
         if not new_time_str:
-            raise ValueError("new_time is required.")
+            # Log what we actually got to help debug if it fails again
+            logger.error(f"Missing time argument. Received keys: {list(args.keys())}")
+            raise ValueError("Could not determine new start time. Required: new_time, start_time, or new_start_time.")
 
         new_start = datetime.fromisoformat(new_time_str)
-        new_end = new_start + timedelta(hours=1)
+        
+        # Check for end time (also checking new_end_time just in case)
+        new_end_str = args.get("new_end_time") or args.get("end_time")
+        if new_end_str:
+             new_end = datetime.fromisoformat(new_end_str)
+        else:
+             # Default to 1 hour if not specified
+             new_end = new_start + timedelta(hours=1)
 
         event = await reschedule_appointment(
             calendar_id=calendar_id,
@@ -295,3 +316,27 @@ async def handle_reschedule_appointment(params: FunctionCallParams, **kwargs) ->
     except Exception as e:
         logger.error(f"Error in handle_reschedule_appointment: {e}")
         await params.result_callback({"status": "error", "message": str(e)})
+
+
+async def handle_list_my_appointments(params: FunctionCallParams, **kwargs) -> None:
+    """
+    List the caller's upcoming appointments with booking_ids.
+    """
+    client_id = os.environ.get("CLIENT_ID")
+    if not client_id:
+        await params.result_callback([{"error": "No CLIENT_ID."}])
+        return
+    client_config = await get_client_config(client_id)
+    if not client_config:
+        await params.result_callback([{"error": "No client config."}])
+        return
+    calendar_id = client_config.get("calendar_id", "primary")
+    phone = os.environ.get("CALLER_PHONE")
+    if not phone:
+        await params.result_callback([{"error": "No caller phone."}])
+        return
+    appointments = await list_my_appointments(calendar_id, phone)
+    if not appointments:
+        await params.result_callback("No upcoming appointments found.")
+    else:
+        await params.result_callback(appointments)

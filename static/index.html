@@ -308,19 +308,25 @@
                         >{{ client.llm_model }}</span
                       >
                     </p>
-                    <div
-                      class="mt-2"
-                      v-if="client.enabled_tools && client.enabled_tools.length"
-                    >
-                      <small class="text-muted">Tools: </small>
-                      <span
-                        v-for="tool in client.enabled_tools"
-                        :key="tool"
-                        class="badge bg-secondary me-1"
-                        style="font-size: 0.7em"
-                        >{{ formatToolName(tool) }}</span
-                      >
-                    </div>
+                    <div class="mt-2 d-flex gap-2">
+  <span
+    class="badge"
+    :style="hasScheduling(client) 
+        ? 'background-color: rgba(125, 207, 255, 0.1); color: var(--theme-blue); border: 1px solid var(--theme-blue); box-shadow: 0 0 5px var(--theme-blue); text-shadow: 0 0 3px var(--theme-blue);' 
+        : 'background-color: transparent; color: var(--theme-comment); border: 1px solid var(--theme-comment); opacity: 0.5;'"
+  >
+    SCHEDULING
+  </span>
+
+  <span
+    class="badge"
+    :style="hasMemory(client) 
+        ? 'background-color: rgba(187, 154, 247, 0.1); color: var(--theme-purple); border: 1px solid var(--theme-purple); box-shadow: 0 0 5px var(--theme-purple); text-shadow: 0 0 3px var(--theme-purple);' 
+        : 'background-color: transparent; color: var(--theme-comment); border: 1px solid var(--theme-comment); opacity: 0.5;'"
+  >
+    MEMORY
+  </span>
+</div>
                     <small class="text-muted d-block mt-2"
                       >Created: {{ formatDate(client.created_at) }}</small
                     >
@@ -498,7 +504,7 @@
                 >
                   ← Back to Logs
                 </button>
-                <h5 class="mb-0">
+                <h5 class="mb-0 text-uppercase">
                   Call Transcript - {{ selectedTranscript.client_name }} ({{
                   selectedTranscript.phone }})
                 </h5>
@@ -969,42 +975,44 @@
                         </select>
                       </div>
 
-                       <div
-                         class="mb-3 border p-2 rounded"
-                         style="background: var(--theme-bg-dark)"
-                       >
-                         <label class="form-label mb-2 text-warning"
-                           >Tools</label
-                         >
-                         <div class="form-check">
-                           <input
-                             class="form-check-input"
-                             type="checkbox"
-                             v-model="clientForm.enable_scheduling"
-                             id="bundle_scheduling"
-                           />
-                           <label class="form-check-label" for="bundle_scheduling"
-                             >Enable Scheduling</label
-                           >
-                           <small class="text-muted d-block ms-3">
-                             Check Availability, Book Appointments, Reschedule
-                           </small>
-                         </div>
-                         <div class="form-check">
-                           <input
-                             class="form-check-input"
-                             type="checkbox"
-                             v-model="clientForm.enable_contact_memory"
-                             id="bundle_contact"
-                           />
-                           <label class="form-check-label" for="bundle_contact"
-                             >Contact Memory</label
-                           >
-                           <small class="text-muted d-block ms-3">
-                             Save Contact Names
-                           </small>
-                         </div>
-                       </div>
+                      <div
+                        class="mb-3 border p-2 rounded"
+                        style="background: var(--theme-bg-dark)"
+                      >
+                        <label class="form-label mb-2 text-warning"
+                          >Tools</label
+                        >
+                        <div class="form-check">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            v-model="clientForm.enable_scheduling"
+                            id="bundle_scheduling"
+                          />
+                          <label
+                            class="form-check-label"
+                            for="bundle_scheduling"
+                            >Enable Scheduling</label
+                          >
+                          <small class="text-muted d-block ms-3">
+                            Check Availability, Book Appointments, Reschedule
+                          </small>
+                        </div>
+                        <div class="form-check">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            v-model="clientForm.enable_contact_memory"
+                            id="bundle_contact"
+                          />
+                          <label class="form-check-label" for="bundle_contact"
+                            >Contact Memory</label
+                          >
+                          <small class="text-muted d-block ms-3">
+                            Save Contact Names
+                          </small>
+                        </div>
+                      </div>
 
                       <div class="mb-3">
                         <label class="form-label">TTS Voice ID</label>
@@ -1041,17 +1049,23 @@
                           rows="4"
                         ></textarea>
                       </div>
-                       <div class="mb-3">
-                         <label class="form-label">Use Template</label>
-                         <select
-                           v-model="selectedTemplate"
-                           @change="applyTemplate"
-                           class="form-select template-selector"
-                         >
-                           <option value="">Select Template</option>
-                           <option v-for="(template, key) in templates" :key="key" :value="key">{{ template.name }}</option>
-                         </select>
-                       </div>
+                      <div class="mb-3">
+                        <label class="form-label">Use Template</label>
+                        <select
+                          v-model="selectedTemplate"
+                          @change="applyTemplate"
+                          class="form-select template-selector"
+                        >
+                          <option value="">Select Template</option>
+                          <option
+                            v-for="(template, key) in templates"
+                            :key="key"
+                            :value="key"
+                          >
+                            {{ template.name }}
+                          </option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </form>

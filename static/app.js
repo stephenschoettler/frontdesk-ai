@@ -386,7 +386,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
               "get_available_slots",
               "book_appointment",
               "reschedule_appointment",
-              "list_my_appointments"
+              "list_my_appointments",
             );
           }
           if (payload.enable_contact_memory) {
@@ -1128,6 +1128,23 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         }
       });
 
+      const hasScheduling = (client) => {
+        return (
+          client.enabled_tools?.some((tool) =>
+            [
+              "book_appointment",
+              "get_available_slots",
+              "reschedule_appointment",
+              "list_my_appointments",
+            ].includes(tool),
+          ) || false
+        );
+      };
+
+      const hasMemory = (client) => {
+        return client.enabled_tools?.includes("save_contact_name") || false;
+      };
+
       return {
         clients,
         filteredClients: paginatedClients,
@@ -1224,6 +1241,8 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         register,
         logout,
         toggleAuthView,
+        hasScheduling,
+        hasMemory,
       };
     },
   }).mount("#app");

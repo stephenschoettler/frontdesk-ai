@@ -64,6 +64,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
       const contactSearchQuery = ref("");
       const logSearchQuery = ref("");
       const logFilterClient = ref("");
+      const logFilterContact = ref("");
 
       // Inline editing state for contacts
       const editingContactPhone = ref(null);
@@ -163,11 +164,13 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
           const clientMatch =
             !logFilterClient.value ||
             (clientName && log.client_name === clientName);
+          const contactMatch =
+            !logFilterContact.value || log.phone === logFilterContact.value;
           const searchMatch =
             !search ||
             (log.phone && log.phone.toLowerCase().includes(search)) ||
             (log.status && log.status.toLowerCase().includes(search));
-          return clientMatch && searchMatch;
+          return clientMatch && searchMatch && contactMatch;
         });
       });
 
@@ -727,6 +730,11 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         return map[toolKey] || toolKey;
       };
 
+      const getContactName = (phone) => {
+        const contact = contacts.value.find((c) => c.phone === phone);
+        return contact ? contact.name : "UNKNOWN";
+      };
+
       const loadContacts = async () => {
         if (contacts.value.length === 0) isLoading.value = true;
         try {
@@ -802,6 +810,12 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
           console.error("Failed to delete contact:", error);
           alert("Failed to delete contact.");
         }
+      };
+
+      const viewContactHistory = (contact) => {
+        logFilterContact.value = contact.phone;
+        logFilterClient.value = ""; // Clear client filter to ensure we see the logs
+        activeTab.value = "logs";
       };
 
       const loadLogs = async () => {
@@ -1085,6 +1099,9 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
           loadContacts();
         } else if (newTab === "logs") {
           loadLogs();
+          if (contacts.value.length === 0) {
+            loadContacts();
+          }
         }
       });
 
@@ -1212,6 +1229,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         contactSearchQuery,
         logSearchQuery,
         logFilterClient,
+        logFilterContact,
         filteredContacts,
         allContactsSelected,
         contactsSelectIndeterminate,
@@ -1226,6 +1244,8 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         toggleTranscriptExpansion,
         systemPromptExpanded,
         toggleSystemPromptExpansion,
+        getContactName,
+        viewContactHistory,
         // Theme exports
         themes,
         currentTheme,

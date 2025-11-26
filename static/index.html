@@ -309,20 +309,20 @@
                       >
                     </p>
                     <div class="mt-2 d-flex gap-2">
-  <span
-    class="badge"
-    :style="hasScheduling(client) ? 'background-color: rgba(125, 207, 255, 0.05); color: var(--theme-blue); border: 1px solid var(--theme-blue); font-weight: 600;' : 'background-color: transparent; color: var(--theme-comment); border: 1px solid var(--theme-comment); opacity: 0.5;'"
-  >
-    SCHEDULING
-  </span>
+                      <span
+                        class="badge"
+                        :style="hasScheduling(client) ? 'background-color: rgba(125, 207, 255, 0.05); color: var(--theme-blue); border: 1px solid var(--theme-blue); font-weight: 600;' : 'background-color: transparent; color: var(--theme-comment); border: 1px solid var(--theme-comment); opacity: 0.5;'"
+                      >
+                        SCHEDULING
+                      </span>
 
-  <span
-    class="badge"
-    :style="hasMemory(client) ? 'background-color: rgba(187, 154, 247, 0.05); color: var(--theme-purple); border: 1px solid var(--theme-purple); font-weight: 600;' : 'background-color: transparent; color: var(--theme-comment); border: 1px solid var(--theme-comment); opacity: 0.5;'"
-  >
-    MEMORY
-  </span>
-</div>
+                      <span
+                        class="badge"
+                        :style="hasMemory(client) ? 'background-color: rgba(187, 154, 247, 0.05); color: var(--theme-purple); border: 1px solid var(--theme-purple); font-weight: 600;' : 'background-color: transparent; color: var(--theme-comment); border: 1px solid var(--theme-comment); opacity: 0.5;'"
+                      >
+                        MEMORY
+                      </span>
+                    </div>
                     <small class="text-muted d-block mt-2"
                       >Created: {{ formatDate(client.created_at) }}</small
                     >
@@ -476,6 +476,7 @@
                       </button>
                       <button
                         v-if="editingContactPhone !== contact.phone"
+                        @click="viewContactHistory(contact)"
                         class="btn btn-sm btn-outline-info"
                       >
                         View History
@@ -621,6 +622,18 @@
                     </option>
                   </select>
                 </div>
+                <div class="col-md-3">
+                  <select v-model="logFilterContact" class="form-select">
+                    <option value="">All Contacts</option>
+                    <option
+                      v-for="contact in contacts"
+                      :key="contact.phone"
+                      :value="contact.phone"
+                    >
+                      {{ contact.name }}
+                    </option>
+                  </select>
+                </div>
               </div>
               <div class="row">
                 <div class="col-md-6">
@@ -642,6 +655,7 @@
                           <th></th>
                           <th>Date/Time</th>
                           <th>Client</th>
+                          <th>Contact</th>
                           <th>Phone</th>
                           <th>Duration</th>
                           <th>Status</th>
@@ -666,6 +680,7 @@
                           </td>
                           <td>{{ formatDate(log.timestamp) }}</td>
                           <td>{{ log.client_name }}</td>
+                          <td>{{ getContactName(log.phone) }}</td>
                           <td>{{ log.phone }}</td>
                           <td>{{ log.duration }}s</td>
                           <td>{{ log.status }}</td>

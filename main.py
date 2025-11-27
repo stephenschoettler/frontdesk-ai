@@ -66,6 +66,7 @@ from services.llm_tools import (
     handle_book_appointment,
     handle_save_contact_name,
     handle_reschedule_appointment,
+    handle_cancel_appointment,
     handle_list_my_appointments,
 )
 
@@ -139,6 +140,7 @@ async def initialize_client_services(client_id: str):
         "book_appointment",
         "save_contact_name",
         "reschedule_appointment",
+        "cancel_appointment",
     ]
 
     # STT (Deepgram)
@@ -179,6 +181,7 @@ async def initialize_client_services(client_id: str):
         "book_appointment": handle_book_appointment,
         "save_contact_name": handle_save_contact_name,
         "reschedule_appointment": handle_reschedule_appointment,
+        "cancel_appointment": handle_cancel_appointment,
         "list_my_appointments": handle_list_my_appointments,
     }
 
@@ -406,6 +409,17 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
             # Add timestamps to messages for transcript display
             transcript_with_timestamps = []
             base_time = call_end_time
+
+            # Fetch initial_greeting from DB
+            client_config = await get_client_config(client_id)
+            initial_greeting = client_config.get("initial_greeting") if client_config else None
+            if initial_greeting:
+                greeting_timestamp = base_time - datetime.timedelta(seconds=len(context.messages) + 1)
+                transcript_with_timestamps.insert(0, {
+                    "role": "assistant",
+                    "content": initial_greeting,
+                    "timestamp": greeting_timestamp.isoformat()
+                })
 
             for i, message in enumerate(context.messages):
                 # Skip system messages for transcript

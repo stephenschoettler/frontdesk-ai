@@ -8,6 +8,7 @@ from services.google_calendar import (
     get_available_slots,
     book_appointment,
     reschedule_appointment,
+    cancel_appointment,
     list_my_appointments,
 )
 
@@ -272,25 +273,25 @@ async def handle_reschedule_appointment(params: FunctionCallParams, **kwargs) ->
 
         # --- FIX: ROBUST PARAMETER HANDLING (Catching 'new_start_time') ---
         new_time_str = (
-            args.get("new_time") 
-            or args.get("start_time") 
+            args.get("new_time")
+            or args.get("start_time")
             or args.get("new_start_time")
         )
-        
+
         if not new_time_str:
             # Log what we actually got to help debug if it fails again
             logger.error(f"Missing time argument. Received keys: {list(args.keys())}")
             raise ValueError("Could not determine new start time. Required: new_time, start_time, or new_start_time.")
 
         new_start = datetime.fromisoformat(new_time_str)
-        
+
         # Check for end time (also checking new_end_time just in case)
         new_end_str = args.get("new_end_time") or args.get("end_time")
         if new_end_str:
-             new_end = datetime.fromisoformat(new_end_str)
+              new_end = datetime.fromisoformat(new_end_str)
         else:
-             # Default to 1 hour if not specified
-             new_end = new_start + timedelta(hours=1)
+              # Default to 1 hour if not specified
+              new_end = new_start + timedelta(hours=1)
 
         event = await reschedule_appointment(
             calendar_id=calendar_id,
@@ -315,6 +316,51 @@ async def handle_reschedule_appointment(params: FunctionCallParams, **kwargs) ->
 
     except Exception as e:
         logger.error(f"Error in handle_reschedule_appointment: {e}")
+        await params.result_callback({"status": "error", "message": str(e)})
+
+
+async def handle_cancel_appointment(params: FunctionCallParams, **kwargs) -> None:
+    """
+    Cancel an existing appointment.
+    """
+    client_id = os.environ.get("CLIENT_ID")
+    if not client_id:
+        await params.result_callback(
+            {"status": "error", "message": "Client ID missing."}
+        )
+        return
+
+    client_config = await get_client_config(client_id)
+    if not client_config:
+        await params.result_callback({"status": "error", "message": "Config missing."})
+        return
+
+    calendar_id = client_config.get("calendar_id", "primary")
+
+    try:
+        args = params.arguments.get("kwargs", params.arguments)
+        logger.info(f"Cancel args: {args}")
+
+        booking_id = args.get("booking_id")
+        if not booking_id:
+            raise ValueError("booking_id is required.")
+
+        success = await cancel_appointment(
+            calendar_id=calendar_id,
+            event_id=booking_id,
+        )
+
+        if success:
+            result = {
+                "status": "success",
+                "message": "Appointment cancelled successfully.",
+            }
+        else:
+            result = {"status": "error", "message": "Failed to cancel appointment."}
+        await params.result_callback(result)
+
+    except Exception as e:
+        logger.error(f"Error in handle_cancel_appointment: {e}")
         await params.result_callback({"status": "error", "message": str(e)})
 
 

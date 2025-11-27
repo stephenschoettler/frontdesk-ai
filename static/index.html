@@ -59,7 +59,7 @@
                   <a
                     class="dropdown-item"
                     href="#"
-                    @click.prevent="showAuditLog = true"
+                    @click.prevent="openAuditLog"
                   >
                     VIEW SYSTEM LOGS
                   </a>
@@ -665,7 +665,7 @@
                         <tr
                           v-for="log in filteredCallLogs"
                           :key="log.id"
-                          @click="selectedTranscript = log"
+                          @click="selectTranscript(log)"
                           :class="{ 'selected': selectedTranscript?.id === log.id }"
                           style="cursor: pointer"
                         >
@@ -942,13 +942,10 @@
                           v-model="clientForm.llm_model"
                           class="form-select"
                         >
-                          <option value="openai/gpt-4o-mini">
-                            openai/gpt-4o-mini
-                          </option>
-                          <option value="openai/gpt-4">openai/gpt-4</option>
-                          <option value="anthropic/claude-3-haiku">
-                            anthropic/claude-3-haiku
-                          </option>
+                          <option value="openai/gpt-4o-mini">openai/gpt-4o-mini</option>
+                          <option value="anthropic/claude-3-haiku">anthropic/claude-3-haiku</option>
+                          <option value="google/gemini-flash-1.5">google/gemini-flash-1.5</option>
+                          <option value="x-ai/grok-4-fast">x-ai/grok-4-fast</option>
                         </select>
                       </div>
 
@@ -958,13 +955,10 @@
                           v-model="clientForm.stt_model"
                           class="form-select"
                         >
-                          <option value="nova-2-phonecall">
-                            Deepgram Nova 2 Phonecall
-                          </option>
-                          <option value="nova-2">Deepgram Nova 2</option>
-                          <option value="nova-2-general">
-                            Deepgram Nova 2 General
-                          </option>
+                          <option value="nova-2-phonecall">Deepgram Nova 2 Phonecall</option>
+                          <option value="nova-2-conversationalai">Deepgram Nova 2 Conversational AI</option>
+                          <option value="nova-2-medical">Deepgram Nova 2 Medical</option>
+                          <option value="nova-2-automotive">Deepgram Nova 2 Automotive</option>
                         </select>
                       </div>
 
@@ -974,15 +968,10 @@
                           v-model="clientForm.tts_model"
                           class="form-select"
                         >
-                          <option value="eleven_flash_v2_5">
-                            ElevenLabs Flash v2.5
-                          </option>
-                          <option value="eleven_multilingual_v2">
-                            ElevenLabs Multilingual v2
-                          </option>
-                          <option value="eleven_turbo_v2">
-                            ElevenLabs Turbo v2
-                          </option>
+                          <option value="eleven_flash_v2_5">ElevenLabs Flash v2.5</option>
+                          <option value="eleven_flash_v2">ElevenLabs Flash v2</option>
+                          <option value="eleven_turbo_v2_5">ElevenLabs Turbo v2.5</option>
+                          <option value="eleven_turbo_v2">ElevenLabs Turbo v2</option>
                         </select>
                       </div>
 
@@ -1006,7 +995,7 @@
                             >Enable Scheduling</label
                           >
                           <small class="text-muted d-block ms-3">
-                            Check Availability, Book Appointments, Reschedule
+                            Check Availability, Book, Reschedule, Cancel
                           </small>
                         </div>
                         <div class="form-check">
@@ -1257,12 +1246,7 @@
         +
       </button>
     </div>
-    <div
-      class="modal fade"
-      :class="{ show: showAuditLog }"
-      :style="{ display: showAuditLog ? 'block' : 'none' }"
-      tabindex="-1"
-    >
+    <div id="auditLogModal" class="modal fade" tabindex="-1">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <div class="modal-header">
@@ -1270,7 +1254,7 @@
             <button
               type="button"
               class="btn-close"
-              @click="showAuditLog = false"
+              @click="closeAuditLog"
             ></button>
           </div>
           <div class="modal-body p-0">
@@ -1295,7 +1279,7 @@
             <button
               type="button"
               class="btn btn-outline-secondary"
-              @click="showAuditLog = false"
+              @click="closeAuditLog"
             >
               CLOSE
             </button>

@@ -1,4 +1,4 @@
-const { createApp, ref, computed, onMounted, watch } = Vue;
+const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
 
 console.log("App.js loaded, checking Vue...");
 
@@ -36,6 +36,9 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
       const showEditContactModal = ref(false);
       const showSettingsModal = ref(false);
       const showAuditLog = ref(false);
+      const auditModal = ref(null);
+      const openAuditLog = () => auditModal.value?.show();
+      const closeAuditLog = () => auditModal.value?.hide();
       const systemPromptExpanded = ref(false);
       const saving = ref(false);
       const savingContact = ref(false);
@@ -390,6 +393,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
               "book_appointment",
               "reschedule_appointment",
               "list_my_appointments",
+              "cancel_appointment",
             );
           }
           if (payload.enable_contact_memory) {
@@ -724,8 +728,9 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
           get_available_slots: "Avail",
           book_appointment: "Book",
           reschedule_appointment: "Reschedule",
-          list_my_appointments: "List Appts", // <--- ADD THIS
+          list_my_appointments: "List Appts",
           save_contact_name: "Save Name",
+          cancel_appointment: "Cancel",
         };
         return map[toolKey] || toolKey;
       };
@@ -828,6 +833,38 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         } finally {
           isLoading.value = false;
         }
+      };
+
+      const selectTranscript = (log) => {
+        // 1. Create a deep copy of the log to avoid mutating the original data permanently
+        const logCopy = JSON.parse(JSON.stringify(log));
+
+        // 2. Find the associated client to get the greeting
+        // Note: logs currently only seem to have client_name, not ID, so we match on name
+        const client = clients.value.find(
+          (c) => c.name === logCopy.client_name,
+        );
+
+        if (client && client.initial_greeting) {
+          // 3. Calculate a fake timestamp slightly before the first message
+          let firstTime = new Date();
+          if (logCopy.transcript.length > 0) {
+            firstTime = new Date(logCopy.transcript[0].timestamp);
+          }
+          const greetingTime = new Date(
+            firstTime.getTime() - 1000,
+          ).toISOString();
+
+          // 4. Prepend the greeting
+          logCopy.transcript.unshift({
+            role: "assistant",
+            content: client.initial_greeting,
+            timestamp: greetingTime,
+            is_greeting: true, // Optional marker
+          });
+        }
+
+        selectedTranscript.value = logCopy;
       };
 
       const toggleTranscriptExpansion = () => {
@@ -1126,6 +1163,12 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
       );
 
       onMounted(() => {
+        nextTick(() => {
+          const modalEl = document.getElementById("auditLogModal");
+          if (modalEl) {
+            auditModal.value = new bootstrap.Modal(modalEl);
+          }
+        });
         // Load themes asynchronously without blocking app initialization
         setTimeout(() => {
           loadThemes();
@@ -1142,6 +1185,12 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
           }
         } else {
           currentView.value = "login";
+
+          nextTick(() => {
+            auditModal.value = new bootstrap.Modal(
+              document.getElementById("auditLogModal"),
+            );
+          });
         }
       });
 
@@ -1178,6 +1227,9 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         showBulkModal,
         showEditContactModal,
         showAuditLog,
+        auditModal,
+        openAuditLog,
+        closeAuditLog,
         saving,
         savingContact,
         selectedTemplate,
@@ -1246,6 +1298,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         toggleSystemPromptExpansion,
         getContactName,
         viewContactHistory,
+        selectTranscript,
         // Theme exports
         themes,
         currentTheme,

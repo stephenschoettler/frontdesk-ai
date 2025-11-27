@@ -639,7 +639,6 @@ h6 {
 .dropdown-item:hover {
   background-color: transparent !important;
   color: var(--theme-blue);
-  padding-left: 1.5rem;
 }
 
 .dropdown-item.active {
@@ -668,7 +667,6 @@ h6 {
   background-color: transparent !important;
   color: var(--theme-red);
   text-shadow: 0 0 8px var(--theme-red);
-  padding-left: 1.5rem;
 }
 
 /* Tabs Styling */
@@ -1102,7 +1100,6 @@ tr.selected {
   background: transparent !important;
   color: var(--theme-blue) !important;
   text-shadow: 0 0 8px var(--theme-blue);
-  padding-left: 1.5rem;
 }
 
 .dropdown-item-text {

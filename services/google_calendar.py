@@ -277,6 +277,32 @@ async def reschedule_appointment(
         return None
 
 
+async def cancel_appointment(calendar_id: str, event_id: str) -> bool:
+    """
+    Cancels (deletes) an event from the Google Calendar.
+    """
+    calendar_id = _clean_calendar_id(calendar_id)
+    logger.info(f"Attempting to cancel event [{event_id}] on [{calendar_id}]")
+
+    service = get_calendar_service()
+    if not service:
+        logger.error("Google Calendar service is not available.")
+        return False
+
+    try:
+        def _run_delete():
+            service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
+            return True
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, _run_delete)
+        logger.info(f"Successfully cancelled event {event_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error cancelling appointment: {e}")
+        return False
+
+
 async def get_upcoming_appointments(calendar_id: str, phone_number: str) -> str:
     """
     Searches for future events containing the phone number in the description/summary.

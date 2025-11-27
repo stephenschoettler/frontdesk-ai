@@ -43,7 +43,7 @@ CREATE TABLE "public"."clients" (
     "tts_model" text DEFAULT 'eleven_flash_v2_5',
     "tts_voice_id" text NOT NULL DEFAULT '21m00Tcm4TlvDq8ikWAM',
     -- Tools Configuration
-    "enabled_tools" text[] DEFAULT '{get_available_slots,book_appointment,reschedule_appointment,save_contact_name,list_my_appointments}',
+    "enabled_tools" text[] DEFAULT '{get_available_slots,book_appointment,reschedule_appointment,cancel_appointment,save_contact_name,list_my_appointments}',
     -- Prompting
     "initial_greeting" text,
     "system_prompt" text

@@ -656,7 +656,6 @@
                           <th>Date/Time</th>
                           <th>Client</th>
                           <th>Contact</th>
-                          <th>Phone</th>
                           <th>Duration</th>
                           <th>Status</th>
                         </tr>
@@ -680,9 +679,18 @@
                           </td>
                           <td>{{ formatDate(log.timestamp) }}</td>
                           <td>{{ log.client_name }}</td>
-                          <td>{{ getContactName(log.phone) }}</td>
-                          <td>{{ log.phone }}</td>
-                          <td>{{ log.duration }}s</td>
+
+                          <td @click.stop>
+                            <a
+                              href="#"
+                              @click.prevent="jumpToContact(log.phone)"
+                              class="text-decoration-none text-blue hover-underline"
+                              title="Jump to Contact History"
+                            >
+                              {{ getContactName(log.phone) }}
+                            </a>
+                          </td>
+                          <td>{{ formatDuration(log.duration) }}</td>
                           <td>{{ log.status }}</td>
                         </tr>
                       </tbody>
@@ -942,10 +950,18 @@
                           v-model="clientForm.llm_model"
                           class="form-select"
                         >
-                          <option value="openai/gpt-4o-mini">openai/gpt-4o-mini</option>
-                          <option value="anthropic/claude-3-haiku">anthropic/claude-3-haiku</option>
-                          <option value="google/gemini-flash-1.5">google/gemini-flash-1.5</option>
-                          <option value="x-ai/grok-4-fast">x-ai/grok-4-fast</option>
+                          <option value="openai/gpt-4o-mini">
+                            openai/gpt-4o-mini
+                          </option>
+                          <option value="anthropic/claude-3-haiku">
+                            anthropic/claude-3-haiku
+                          </option>
+                          <option value="google/gemini-flash-1.5">
+                            google/gemini-flash-1.5
+                          </option>
+                          <option value="x-ai/grok-4-fast">
+                            x-ai/grok-4-fast
+                          </option>
                         </select>
                       </div>
 
@@ -955,10 +971,18 @@
                           v-model="clientForm.stt_model"
                           class="form-select"
                         >
-                          <option value="nova-2-phonecall">Deepgram Nova 2 Phonecall</option>
-                          <option value="nova-2-conversationalai">Deepgram Nova 2 Conversational AI</option>
-                          <option value="nova-2-medical">Deepgram Nova 2 Medical</option>
-                          <option value="nova-2-automotive">Deepgram Nova 2 Automotive</option>
+                          <option value="nova-2-phonecall">
+                            Deepgram Nova 2 Phonecall
+                          </option>
+                          <option value="nova-2-conversationalai">
+                            Deepgram Nova 2 Conversational AI
+                          </option>
+                          <option value="nova-2-medical">
+                            Deepgram Nova 2 Medical
+                          </option>
+                          <option value="nova-2-automotive">
+                            Deepgram Nova 2 Automotive
+                          </option>
                         </select>
                       </div>
 
@@ -968,10 +992,18 @@
                           v-model="clientForm.tts_model"
                           class="form-select"
                         >
-                          <option value="eleven_flash_v2_5">ElevenLabs Flash v2.5</option>
-                          <option value="eleven_flash_v2">ElevenLabs Flash v2</option>
-                          <option value="eleven_turbo_v2_5">ElevenLabs Turbo v2.5</option>
-                          <option value="eleven_turbo_v2">ElevenLabs Turbo v2</option>
+                          <option value="eleven_flash_v2_5">
+                            ElevenLabs Flash v2.5
+                          </option>
+                          <option value="eleven_flash_v2">
+                            ElevenLabs Flash v2
+                          </option>
+                          <option value="eleven_turbo_v2_5">
+                            ElevenLabs Turbo v2.5
+                          </option>
+                          <option value="eleven_turbo_v2">
+                            ElevenLabs Turbo v2
+                          </option>
                         </select>
                       </div>
 

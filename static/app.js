@@ -723,6 +723,14 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         }
       };
 
+      const formatDuration = (seconds) => {
+        if (!seconds) return "0s";
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        if (m === 0) return `${s}s`;
+        return `${m}m ${s}s`;
+      };
+
       const formatToolName = (toolKey) => {
         const map = {
           get_available_slots: "Avail",
@@ -823,6 +831,12 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         activeTab.value = "logs";
       };
 
+      const jumpToContact = (phone) => {
+        activeTab.value = "contacts";
+        contactSearchQuery.value = phone;
+        // The filteredContacts computed property will automatically apply the filter
+      };
+
       const loadLogs = async () => {
         if (callLogs.value.length === 0) isLoading.value = true;
         try {
@@ -836,35 +850,8 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
       };
 
       const selectTranscript = (log) => {
-        // 1. Create a deep copy of the log to avoid mutating the original data permanently
-        const logCopy = JSON.parse(JSON.stringify(log));
-
-        // 2. Find the associated client to get the greeting
-        // Note: logs currently only seem to have client_name, not ID, so we match on name
-        const client = clients.value.find(
-          (c) => c.name === logCopy.client_name,
-        );
-
-        if (client && client.initial_greeting) {
-          // 3. Calculate a fake timestamp slightly before the first message
-          let firstTime = new Date();
-          if (logCopy.transcript.length > 0) {
-            firstTime = new Date(logCopy.transcript[0].timestamp);
-          }
-          const greetingTime = new Date(
-            firstTime.getTime() - 1000,
-          ).toISOString();
-
-          // 4. Prepend the greeting
-          logCopy.transcript.unshift({
-            role: "assistant",
-            content: client.initial_greeting,
-            timestamp: greetingTime,
-            is_greeting: true, // Optional marker
-          });
-        }
-
-        selectedTranscript.value = logCopy;
+        // Pure copy, no manual greeting prepended
+        selectedTranscript.value = JSON.parse(JSON.stringify(log));
       };
 
       const toggleTranscriptExpansion = () => {
@@ -1299,6 +1286,8 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         getContactName,
         viewContactHistory,
         selectTranscript,
+        jumpToContact,
+        formatDuration,
         // Theme exports
         themes,
         currentTheme,

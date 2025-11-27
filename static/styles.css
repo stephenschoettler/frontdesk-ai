@@ -617,7 +617,15 @@ h6 {
 }
 
 .btn-close {
-  filter: invert(1);
+  /* Universal mid-grey (#808080) for visibility on both light and dark themes */
+  filter: invert(0.5) !important;
+  opacity: 0.8; /* Slight transparency to blend better */
+}
+
+.btn-close:hover {
+  /* Brighten slightly on hover for feedback */
+  filter: invert(0.8) !important;
+  opacity: 1;
 }
 
 /* Dropdown Theming */

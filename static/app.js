@@ -1,15 +1,20 @@
-const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
-
 console.log("App.js loaded, checking Vue...");
 
 // Check if Vue is loaded
-if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
+if (
+  typeof Vue === "undefined" ||
+  typeof Vue.createApp === "undefined" ||
+  typeof axios === "undefined" ||
+  typeof bootstrap === "undefined"
+) {
   console.error(
-    "Vue.js is not loaded. Please check your internet connection and try refreshing the page.",
+    "Vue.js, Axios, or Bootstrap is not loaded. Please check your internet connection and try refreshing the page.",
   );
   document.getElementById("app").innerHTML =
-    '<div class="alert alert-danger">Vue.js failed to load. Please check your internet connection and refresh the page.</div>';
+    '<div class="alert alert-danger">Critical libraries (Vue.js, Axios, or Bootstrap) failed to load. Please check your internet connection and refresh the page.</div>';
 } else {
+  const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+
   Vue.createApp({
     setup() {
       console.log("Vue setup running...");
@@ -45,6 +50,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
       const selectedTemplate = ref("");
       const templates = ref({});
       const importFile = ref(null);
+      const activeClientTab = ref("basic"); // Added for tabbed UI
 
       // SAFETY FIX: Handle corrupted storage gracefully
       let initialLogs = [];
@@ -102,6 +108,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         enabled_tools: [],
         enable_scheduling: false,
         enable_contact_memory: false,
+        is_active: true, // Default active for new clients
       });
 
       const editingClient = ref(null);
@@ -264,23 +271,20 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
 
       const loadClients = async () => {
         try {
-          const localClients = localStorage.getItem("clients");
-
-          if (localClients) {
-            clients.value = JSON.parse(localClients);
-
-            filterClients();
-
-            return;
-          }
+          // Force network fetch to ensure fresh data
+          // const localClients = localStorage.getItem("clients");
+          // if (localClients) { ... }
 
           const response = await axios.get("/api/clients");
 
           clients.value = response.data.clients.map((c) => ({
             ...c,
-
             enabled_tools: c.enabled_tools || [],
+            is_active: c.is_active !== undefined ? c.is_active : true, // Default to true if missing
           }));
+
+          // Update Local Storage
+          localStorage.setItem("clients", JSON.stringify(clients.value));
 
           filterClients();
         } catch (error) {
@@ -330,10 +334,13 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
               .toLowerCase()
               .includes(searchQuery.value.toLowerCase()) ||
             (client.cell && client.cell.includes(searchQuery.value));
+
+          // UPDATED: Filter by is_active status
           const matchesStatus =
             !filterStatus.value ||
-            (filterStatus.value === "active" && client.cell) ||
-            (filterStatus.value === "inactive" && !client.cell);
+            (filterStatus.value === "active" && client.is_active) ||
+            (filterStatus.value === "inactive" && !client.is_active);
+
           return matchesSearch && matchesStatus;
         });
 
@@ -361,7 +368,9 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
           enabled_tools: enabledTools,
           enable_scheduling: enabledTools.includes("book_appointment"),
           enable_contact_memory: enabledTools.includes("save_contact_name"),
+          is_active: client.is_active !== undefined ? client.is_active : true,
         };
+        activeClientTab.value = "basic";
         showEditModal.value = true;
       };
 
@@ -376,8 +385,10 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
           enabledTools.includes("book_appointment");
         duplicated.enable_contact_memory =
           enabledTools.includes("save_contact_name");
+        duplicated.is_active = true; // Default copy to active
         editingClient.value = null;
         clientForm.value = duplicated;
+        activeClientTab.value = "basic";
         showCreateModal.value = true;
       };
 
@@ -473,6 +484,32 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
 
       const bulkUpdate = () => {
         alert("Bulk update not implemented yet");
+      };
+
+      // NEW: Toggle Client Status
+      const toggleClientStatus = async (client) => {
+        const newStatus = !client.is_active;
+        const actionWord = newStatus ? "Enable" : "Disable";
+
+        if (!confirm(`${actionWord} ${client.name}?`)) return;
+
+        try {
+          // Optimistic Update
+          client.is_active = newStatus;
+
+          await axios.put(`/api/clients/${client.id}`, {
+            ...client,
+            is_active: newStatus,
+          });
+
+          addAuditLog("update", `${actionWord}d client: ${client.name}`);
+          filterClients(); // Re-apply filters
+        } catch (error) {
+          console.error("Failed to toggle status:", error);
+          // Revert on failure
+          client.is_active = !newStatus;
+          alert(`Failed to ${actionWord.toLowerCase()} client.`);
+        }
       };
 
       const deleteCallLogs = async () => {
@@ -680,7 +717,9 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
           enabled_tools: [],
           enable_scheduling: false,
           enable_contact_memory: false,
+          is_active: true,
         };
+        activeClientTab.value = "basic";
         selectedTemplate.value = "";
       };
 
@@ -709,6 +748,19 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         return `${displayHour} ${period}`;
       };
 
+      const formatDuration = (seconds) => {
+        if (!seconds) return "0s";
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        if (m === 0) return `${s}s`;
+        return `${m}m ${s}s`;
+      };
+
+      const jumpToContact = (phone) => {
+        activeTab.value = "contacts";
+        contactSearchQuery.value = phone;
+      };
+
       const formatTimestamp = (timestampStr) => {
         if (!timestampStr) return "";
         try {
@@ -721,14 +773,6 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         } catch (e) {
           return "";
         }
-      };
-
-      const formatDuration = (seconds) => {
-        if (!seconds) return "0s";
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        if (m === 0) return `${s}s`;
-        return `${m}m ${s}s`;
       };
 
       const formatToolName = (toolKey) => {
@@ -829,12 +873,6 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         logFilterContact.value = contact.phone;
         logFilterClient.value = ""; // Clear client filter to ensure we see the logs
         activeTab.value = "logs";
-      };
-
-      const jumpToContact = (phone) => {
-        activeTab.value = "contacts";
-        contactSearchQuery.value = phone;
-        // The filteredContacts computed property will automatically apply the filter
       };
 
       const loadLogs = async () => {
@@ -1152,8 +1190,12 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
       onMounted(() => {
         nextTick(() => {
           const modalEl = document.getElementById("auditLogModal");
-          if (modalEl) {
-            auditModal.value = new bootstrap.Modal(modalEl);
+          if (modalEl && typeof bootstrap !== "undefined") {
+            try {
+              auditModal.value = new bootstrap.Modal(modalEl);
+            } catch (e) {
+              console.error("Failed to initialize audit modal:", e);
+            }
           }
         });
         // Load themes asynchronously without blocking app initialization
@@ -1174,9 +1216,14 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
           currentView.value = "login";
 
           nextTick(() => {
-            auditModal.value = new bootstrap.Modal(
-              document.getElementById("auditLogModal"),
-            );
+            const modalEl = document.getElementById("auditLogModal");
+            if (modalEl && typeof bootstrap !== "undefined") {
+              try {
+                auditModal.value = new bootstrap.Modal(modalEl);
+              } catch (e) {
+                console.error("Failed to initialize audit modal:", e);
+              }
+            }
           });
         }
       });
@@ -1223,6 +1270,7 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         templates,
         auditLogs,
         clientForm,
+        editingClient, // Added editingClient export
         editingContact,
         loadContacts,
         editContact,
@@ -1258,6 +1306,8 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         formatHour,
         formatTimestamp,
         formatToolName,
+        formatDuration, // Added formatDuration export
+        jumpToContact, // Added jumpToContact export
         activeTab,
         isLoading,
         contacts,
@@ -1286,8 +1336,6 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         getContactName,
         viewContactHistory,
         selectTranscript,
-        jumpToContact,
-        formatDuration,
         // Theme exports
         themes,
         currentTheme,
@@ -1305,6 +1353,8 @@ if (typeof Vue === "undefined" || typeof Vue.createApp === "undefined") {
         toggleAuthView,
         hasScheduling,
         hasMemory,
+        activeClientTab, // Added for Tab UI
+        toggleClientStatus, // Added for activate/deactivate
       };
     },
   }).mount("#app");

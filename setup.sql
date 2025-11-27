@@ -31,6 +31,7 @@ CREATE TABLE "public"."clients" (
     "owner_user_id" uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     "name" text,
     "cell" text UNIQUE,
+    "is_active" boolean DEFAULT true,
     "created_at" timestamp WITH TIME ZONE DEFAULT NOW(),
     -- Calendar Settings
     "calendar_id" text,

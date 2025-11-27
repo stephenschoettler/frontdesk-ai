@@ -224,6 +224,15 @@ async def voice_handler(request: Request):
         )
         client = {"id": os.environ.get("CLIENT_ID")}
 
+    if client:
+        # Check if client is active. Default to True for backward compatibility.
+        is_active = client.get("is_active", True)
+        if is_active is False:
+            logger.info(f"REJECTING CALL: Client {client.get('id')} is inactive.")
+            resp = VoiceResponse()
+            resp.say("I am sorry, but this service is currently unavailable.")
+            return Response(content=str(resp), media_type="application/xml")
+
     if not client:
         logger.error(f"REJECTING CALL: No client configuration found for {to_number}")
         resp = VoiceResponse()
@@ -467,6 +476,7 @@ class ClientCreate(BaseModel):
     name: str
     cell: Optional[str] = None
     calendar_id: Optional[str] = None
+    is_active: bool = True
     business_timezone: str = "America/Los_Angeles"
     business_start_hour: int = 9
     business_end_hour: int = 17
@@ -483,6 +493,7 @@ class ClientUpdate(BaseModel):
     name: Optional[str] = None
     cell: Optional[str] = None
     calendar_id: Optional[str] = None
+    is_active: Optional[bool] = None
     business_timezone: Optional[str] = None
     business_start_hour: Optional[int] = None
     business_end_hour: Optional[int] = None

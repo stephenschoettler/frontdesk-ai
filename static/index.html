@@ -4,18 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Front Desk Admin Panel</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
+    <link href="lib/css/bootstrap.min.css" rel="stylesheet" />
     <link
       href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="lib/js/vue.global.js"></script>
+    <script src="lib/js/axios.min.js"></script>
+    <script src="lib/js/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet" href="styles.css" />
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   </head>
   <body>
     <div
@@ -279,7 +276,7 @@
                   >
                     <h5 class="card-title mb-0">{{ client.name }}</h5>
                     <span
-                      :class="['status-indicator', client.cell ? 'status-active' : 'status-inactive']"
+                      :class="['status-indicator', client.is_active ? 'status-active' : 'status-inactive']"
                     ></span>
                   </div>
                   <div class="card-body">
@@ -337,6 +334,14 @@
                         title="Edit"
                       >
                         Edit
+                      </button>
+                      <button
+                        @click="toggleClientStatus(client)"
+                        class="btn btn-sm ms-2"
+                        :class="client.is_active ? 'btn-outline-success' : 'btn-outline-secondary'"
+                        :title="client.is_active ? 'Disable Client' : 'Enable Client'"
+                      >
+                        {{ client.is_active ? 'ENABLED' : 'DISABLED' }}
                       </button>
                     </div>
                     <div class="form-check m-0">
@@ -865,194 +870,235 @@
 
                 <!-- Normal Form View -->
                 <form v-else id="clientForm" @submit.prevent="saveClient">
-                  <div class="row">
-                    <div class="col-md-6">
-                      <div class="mb-3">
-                        <label class="form-label">Name *</label>
-                        <input
-                          v-model="clientForm.name"
-                          type="text"
-                          class="form-control"
-                          required
-                        />
-                      </div>
-                      <div class="mb-3">
-                        <label class="form-label">Cell Phone</label>
-                        <input
-                          v-model="clientForm.cell"
-                          type="text"
-                          class="form-control"
-                          placeholder="+15551234567"
-                        />
-                        <div class="form-text text-muted">
-                          Must match Twilio 'To' number.
-                        </div>
-                      </div>
-                      <div class="mb-3">
-                        <label class="form-label">Calendar ID</label>
-                        <input
-                          v-model="clientForm.calendar_id"
-                          type="text"
-                          class="form-control"
-                        />
-                      </div>
-                      <div class="mb-3">
-                        <label class="form-label">Business Timezone</label>
-                        <select
-                          v-model="clientForm.business_timezone"
-                          class="form-select"
-                        >
-                          <option value="America/Los_Angeles">
-                            America/Los_Angeles
-                          </option>
-                          <option value="America/New_York">
-                            America/New_York
-                          </option>
-                          <option value="America/Chicago">
-                            America/Chicago
-                          </option>
-                          <option value="America/Denver">America/Denver</option>
-                        </select>
-                      </div>
+                  <ul class="nav nav-tabs mb-3">
+                    <li class="nav-item">
+                      <a
+                        class="nav-link"
+                        :class="{ active: activeClientTab === 'basic' }"
+                        href="#"
+                        @click.prevent="activeClientTab = 'basic'"
+                        >Basic Info</a
+                      >
+                    </li>
+                    <li class="nav-item">
+                      <a
+                        class="nav-link"
+                        :class="{ active: activeClientTab === 'ai' }"
+                        href="#"
+                        @click.prevent="activeClientTab = 'ai'"
+                        >AI Config</a
+                      >
+                    </li>
+                    <li class="nav-item">
+                      <a
+                        class="nav-link"
+                        :class="{ active: activeClientTab === 'prompting' }"
+                        href="#"
+                        @click.prevent="activeClientTab = 'prompting'"
+                        >Prompting</a
+                      >
+                    </li>
+                    <li class="nav-item">
+                      <a
+                        class="nav-link"
+                        :class="{ active: activeClientTab === 'tools' }"
+                        href="#"
+                        @click.prevent="activeClientTab = 'tools'"
+                        >Tools</a
+                      >
+                    </li>
+                  </ul>
+
+                  <div class="tab-content">
+                    <div v-if="activeClientTab === 'basic'">
                       <div class="row">
                         <div class="col-md-6">
                           <div class="mb-3">
-                            <label class="form-label">Start Hour</label>
-                            <select
-                              v-model.number="clientForm.business_start_hour"
-                              class="form-select"
-                            >
-                              <option v-for="h in 24" :key="h-1" :value="h-1">
-                                {{ formatHour(h-1) }}
-                              </option>
-                            </select>
+                            <label class="form-label">Name *</label>
+                            <input
+                              v-model="clientForm.name"
+                              type="text"
+                              class="form-control"
+                              required
+                            />
+                          </div>
+                          <div class="mb-3">
+                            <label class="form-label">Cell Phone</label>
+                            <input
+                              v-model="clientForm.cell"
+                              type="text"
+                              class="form-control"
+                              placeholder="+15551234567"
+                            />
+                            <div class="form-text text-muted">
+                              Must match Twilio 'To' number.
+                            </div>
+                          </div>
+                          <div class="mb-3">
+                            <label class="form-label">Calendar ID</label>
+                            <input
+                              v-model="clientForm.calendar_id"
+                              type="text"
+                              class="form-control"
+                            />
                           </div>
                         </div>
                         <div class="col-md-6">
                           <div class="mb-3">
-                            <label class="form-label">End Hour</label>
+                            <label class="form-label">Business Timezone</label>
                             <select
-                              v-model.number="clientForm.business_end_hour"
+                              v-model="clientForm.business_timezone"
                               class="form-select"
                             >
-                              <option v-for="h in 24" :key="h-1" :value="h-1">
-                                {{ formatHour(h-1) }}
+                              <option value="America/Los_Angeles">
+                                America/Los_Angeles
+                              </option>
+                              <option value="America/New_York">
+                                America/New_York
+                              </option>
+                              <option value="America/Chicago">
+                                America/Chicago
+                              </option>
+                              <option value="America/Denver">
+                                America/Denver
                               </option>
                             </select>
+                          </div>
+                          <div class="row">
+                            <div class="col-md-6">
+                              <div class="mb-3">
+                                <label class="form-label">Start Hour</label>
+                                <select
+                                  v-model.number="clientForm.business_start_hour"
+                                  class="form-select"
+                                >
+                                  <option
+                                    v-for="h in 24"
+                                    :key="h-1"
+                                    :value="h-1"
+                                  >
+                                    {{ formatHour(h-1) }}
+                                  </option>
+                                </select>
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="mb-3">
+                                <label class="form-label">End Hour</label>
+                                <select
+                                  v-model.number="clientForm.business_end_hour"
+                                  class="form-select"
+                                >
+                                  <option
+                                    v-for="h in 24"
+                                    :key="h-1"
+                                    :value="h-1"
+                                  >
+                                    {{ formatHour(h-1) }}
+                                  </option>
+                                </select>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                    <div class="col-md-6">
-                      <div class="mb-3">
-                        <label class="form-label">LLM Model</label>
-                        <select
-                          v-model="clientForm.llm_model"
-                          class="form-select"
-                        >
-                          <option value="openai/gpt-4o-mini">
-                            openai/gpt-4o-mini
-                          </option>
-                          <option value="anthropic/claude-3-haiku">
-                            anthropic/claude-3-haiku
-                          </option>
-                          <option value="google/gemini-flash-1.5">
-                            google/gemini-flash-1.5
-                          </option>
-                          <option value="x-ai/grok-4-fast">
-                            x-ai/grok-4-fast
-                          </option>
-                        </select>
-                      </div>
 
-                      <div class="mb-3">
-                        <label class="form-label">STT Model</label>
-                        <select
-                          v-model="clientForm.stt_model"
-                          class="form-select"
-                        >
-                          <option value="nova-2-phonecall">
-                            Deepgram Nova 2 Phonecall
-                          </option>
-                          <option value="nova-2-conversationalai">
-                            Deepgram Nova 2 Conversational AI
-                          </option>
-                          <option value="nova-2-medical">
-                            Deepgram Nova 2 Medical
-                          </option>
-                          <option value="nova-2-automotive">
-                            Deepgram Nova 2 Automotive
-                          </option>
-                        </select>
-                      </div>
-
-                      <div class="mb-3">
-                        <label class="form-label">TTS Model</label>
-                        <select
-                          v-model="clientForm.tts_model"
-                          class="form-select"
-                        >
-                          <option value="eleven_flash_v2_5">
-                            ElevenLabs Flash v2.5
-                          </option>
-                          <option value="eleven_flash_v2">
-                            ElevenLabs Flash v2
-                          </option>
-                          <option value="eleven_turbo_v2_5">
-                            ElevenLabs Turbo v2.5
-                          </option>
-                          <option value="eleven_turbo_v2">
-                            ElevenLabs Turbo v2
-                          </option>
-                        </select>
-                      </div>
-
-                      <div
-                        class="mb-3 border p-2 rounded"
-                        style="background: var(--theme-bg-dark)"
-                      >
-                        <label class="form-label mb-2 text-warning"
-                          >Tools</label
-                        >
-                        <div class="form-check">
-                          <input
-                            class="form-check-input"
-                            type="checkbox"
-                            v-model="clientForm.enable_scheduling"
-                            id="bundle_scheduling"
-                          />
-                          <label
-                            class="form-check-label"
-                            for="bundle_scheduling"
-                            >Enable Scheduling</label
-                          >
-                          <small class="text-muted d-block ms-3">
-                            Check Availability, Book, Reschedule, Cancel
-                          </small>
+                    <div v-if="activeClientTab === 'ai'">
+                      <div class="row">
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label class="form-label">LLM Model</label>
+                            <select
+                              v-model="clientForm.llm_model"
+                              class="form-select"
+                            >
+                              <option value="openai/gpt-4o-mini">
+                                openai/gpt-4o-mini
+                              </option>
+                              <option value="anthropic/claude-3-haiku">
+                                anthropic/claude-3-haiku
+                              </option>
+                              <option value="google/gemini-flash-1.5">
+                                google/gemini-flash-1.5
+                              </option>
+                              <option value="x-ai/grok-4-fast">
+                                x-ai/grok-4-fast
+                              </option>
+                            </select>
+                          </div>
+                          <div class="mb-3">
+                            <label class="form-label">STT Model</label>
+                            <select
+                              v-model="clientForm.stt_model"
+                              class="form-select"
+                            >
+                              <option value="nova-2-phonecall">
+                                Deepgram Nova 2 Phonecall
+                              </option>
+                              <option value="nova-2-conversationalai">
+                                Deepgram Nova 2 Conversational AI
+                              </option>
+                              <option value="nova-2-medical">
+                                Deepgram Nova 2 Medical
+                              </option>
+                              <option value="nova-2-automotive">
+                                Deepgram Nova 2 Automotive
+                              </option>
+                            </select>
+                          </div>
                         </div>
-                        <div class="form-check">
-                          <input
-                            class="form-check-input"
-                            type="checkbox"
-                            v-model="clientForm.enable_contact_memory"
-                            id="bundle_contact"
-                          />
-                          <label class="form-check-label" for="bundle_contact"
-                            >Contact Memory</label
-                          >
-                          <small class="text-muted d-block ms-3">
-                            Save Contact Names
-                          </small>
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label class="form-label">TTS Model</label>
+                            <select
+                              v-model="clientForm.tts_model"
+                              class="form-select"
+                            >
+                              <option value="eleven_flash_v2_5">
+                                ElevenLabs Flash v2.5
+                              </option>
+                              <option value="eleven_flash_v2">
+                                ElevenLabs Flash v2
+                              </option>
+                              <option value="eleven_turbo_v2_5">
+                                ElevenLabs Turbo v2.5
+                              </option>
+                              <option value="eleven_turbo_v2">
+                                ElevenLabs Turbo v2
+                              </option>
+                            </select>
+                          </div>
+                          <div class="mb-3">
+                            <label class="form-label">TTS Voice ID</label>
+                            <input
+                              v-model="clientForm.tts_voice_id"
+                              type="text"
+                              class="form-control"
+                            />
+                          </div>
                         </div>
                       </div>
+                    </div>
 
+                    <div v-if="activeClientTab === 'prompting'">
                       <div class="mb-3">
-                        <label class="form-label">TTS Voice ID</label>
-                        <input
-                          v-model="clientForm.tts_voice_id"
-                          type="text"
-                          class="form-control"
-                        />
+                        <label class="form-label">Use Template</label>
+                        <select
+                          v-model="selectedTemplate"
+                          @change="applyTemplate"
+                          class="form-select template-selector w-100"
+                          style="max-width: none"
+                        >
+                          <option value="">Select Template</option>
+                          <option
+                            v-for="(template, key) in templates"
+                            :key="key"
+                            :value="key"
+                          >
+                            {{ template.name }}
+                          </option>
+                        </select>
                       </div>
                       <div class="mb-3">
                         <label class="form-label">Initial Greeting</label>
@@ -1078,25 +1124,63 @@
                         <textarea
                           v-model="clientForm.system_prompt"
                           class="form-control"
-                          rows="4"
+                          rows="12"
                         ></textarea>
                       </div>
-                      <div class="mb-3">
-                        <label class="form-label">Use Template</label>
-                        <select
-                          v-model="selectedTemplate"
-                          @change="applyTemplate"
-                          class="form-select template-selector"
+                    </div>
+
+                    <div v-if="activeClientTab === 'tools'">
+                      <div
+                        class="p-4 border rounded"
+                        style="
+                          background: var(--theme-bg-dark);
+                          border-color: var(--theme-bg-mid) !important;
+                        "
+                      >
+                        <label
+                          class="form-label mb-4 text-warning"
+                          style="letter-spacing: 2px"
+                          >>> ACTIVE CAPABILITIES</label
                         >
-                          <option value="">Select Template</option>
-                          <option
-                            v-for="(template, key) in templates"
-                            :key="key"
-                            :value="key"
+
+                        <div class="form-check mb-3">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            v-model="clientForm.enable_scheduling"
+                            id="bundle_scheduling"
+                          />
+                          <label
+                            class="form-check-label fw-bold"
+                            for="bundle_scheduling"
+                            >Enable Scheduling</label
                           >
-                            {{ template.name }}
-                          </option>
-                        </select>
+                          <div class="text-muted small ms-4 mt-1">
+                            Allows the agent to check availability, book,
+                            reschedule, and cancel appointments via Google
+                            Calendar.
+                          </div>
+                        </div>
+
+                        <hr class="border-secondary opacity-25 my-3" />
+
+                        <div class="form-check">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            v-model="clientForm.enable_contact_memory"
+                            id="bundle_contact"
+                          />
+                          <label
+                            class="form-check-label fw-bold"
+                            for="bundle_contact"
+                            >Contact Memory</label
+                          >
+                          <div class="text-muted small ms-4 mt-1">
+                            Allows the agent to learn and save the caller's name
+                            for future personalized greetings.
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1277,44 +1361,45 @@
       >
         +
       </button>
-    </div>
-    <div id="auditLogModal" class="modal fade" tabindex="-1">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">SYSTEM ACTIVITY LOG</h5>
-            <button
-              type="button"
-              class="btn-close"
-              @click="closeAuditLog"
-            ></button>
-          </div>
-          <div class="modal-body p-0">
-            <div class="terminal-console">
-              <div v-if="auditLogs.length === 0" class="text-muted">
-                System silent. No activity recorded.
-              </div>
-              <div v-for="log in auditLogs" :key="log.id" class="log-entry">
-                <span class="log-timestamp"
-                  >[{{ formatTimestamp(log.timestamp) }}]</span
-                >
-                <span
-                  :class="log.type === 'create' ? 'text-success' : log.type === 'update' ? 'text-warning' : 'text-danger'"
-                >
-                  [{{ log.type.toUpperCase() }}]
-                </span>
-                <span class="text-fg"> {{ log.action }}</span>
+
+      <div id="auditLogModal" class="modal fade" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">SYSTEM ACTIVITY LOG</h5>
+              <button
+                type="button"
+                class="btn-close"
+                @click="closeAuditLog"
+              ></button>
+            </div>
+            <div class="modal-body p-0">
+              <div class="terminal-console">
+                <div v-if="auditLogs.length === 0" class="text-muted">
+                  System silent. No activity recorded.
+                </div>
+                <div v-for="log in auditLogs" :key="log.id" class="log-entry">
+                  <span class="log-timestamp"
+                    >[{{ formatTimestamp(log.timestamp) }}]</span
+                  >
+                  <span
+                    :class="log.type === 'create' ? 'text-success' : log.type === 'update' ? 'text-warning' : 'text-danger'"
+                  >
+                    [{{ log.type.toUpperCase() }}]
+                  </span>
+                  <span class="text-fg"> {{ log.action }}</span>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-outline-secondary"
-              @click="closeAuditLog"
-            >
-              CLOSE
-            </button>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                @click="closeAuditLog"
+              >
+                CLOSE
+              </button>
+            </div>
           </div>
         </div>
       </div>

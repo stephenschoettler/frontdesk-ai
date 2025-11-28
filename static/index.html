@@ -627,18 +627,6 @@
                     </option>
                   </select>
                 </div>
-                <div class="col-md-3">
-                  <select v-model="logFilterContact" class="form-select">
-                    <option value="">All Contacts</option>
-                    <option
-                      v-for="contact in contacts"
-                      :key="contact.phone"
-                      :value="contact.phone"
-                    >
-                      {{ contact.name }}
-                    </option>
-                  </select>
-                </div>
               </div>
               <div class="row">
                 <div class="col-md-6">
@@ -1340,7 +1328,10 @@
                       >
                       <button
                         class="btn btn-sm btn-outline-danger"
-                        onclick="localStorage.removeItem('auditLogs'); location.reload();"
+                        onclick="
+                          localStorage.removeItem('auditLogs');
+                          location.reload();
+                        "
                       >
                         PURGE LOGS
                       </button>

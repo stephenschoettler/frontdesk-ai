@@ -548,17 +548,20 @@ option {
   height: 12px;
   border-radius: 50%;
   display: inline-block;
-  margin-right: 5px;
-  animation: pulse 2s infinite;
+}
+.client-card .card-footer .form-check-input {
+  margin-left: 0 !important; /* Overrides Bootstrap's -1.5em ghost margin */
+  margin-top: 0;
 }
 
 .status-active {
-  background-color: var(--theme-green);
-  box-shadow: 0 0 5px var(--theme-green);
+  background-color: #00ff00;
+  box-shadow: 0 0 5px #00ff00;
 }
 
 .status-inactive {
-  background-color: var(--theme-comment);
+  background-color: #ff0000;
+  box-shadow: 0 0 5px #ff0000;
 }
 
 @keyframes pulse {

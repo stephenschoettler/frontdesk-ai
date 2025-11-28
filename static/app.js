@@ -176,10 +176,15 @@ if (
             (clientName && log.client_name === clientName);
           const contactMatch =
             !logFilterContact.value || log.phone === logFilterContact.value;
+
+          const contact = contacts.value.find((c) => c.phone === log.phone);
+          const contactName = contact ? contact.name : "";
+
           const searchMatch =
             !search ||
             (log.phone && log.phone.toLowerCase().includes(search)) ||
-            (log.status && log.status.toLowerCase().includes(search));
+            (log.status && log.status.toLowerCase().includes(search)) ||
+            (contactName && contactName.toLowerCase().includes(search));
           return clientMatch && searchMatch && contactMatch;
         });
       });

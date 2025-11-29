@@ -291,45 +291,57 @@
                     </div>
                   </div>
                   <div class="card-body">
-                    <div class="spec-group mb-3">
-                      <div class="spec-row" title="Contact Number">
-                        <i class="bi bi-telephone spec-icon"></i>
-                        <span class="spec-value tech-font"
-                          >{{ client.cell || 'NO NUMBER' }}</span
-                        >
-                      </div>
-
-                      <div class="spec-row" title="Business Hours">
-                        <i class="bi bi-clock spec-icon"></i>
-                        <span class="spec-value">
-                          {{ formatHour(client.business_start_hour) }} - {{
-                          formatHour(client.business_end_hour) }}
-                          <span class="spec-sub"
-                            >{{
-                            client.business_timezone.split('/')[1].replace('_',
-                            ' ') }}</span
-                          >
-                        </span>
-                      </div>
-
+                    <div class="d-flex mb-3">
                       <div
-                        v-if="hasScheduling(client)"
-                        class="spec-row"
-                        title="Calendar ID"
+                        style="
+                          flex: 0 0 60%;
+                          padding-right: 12px;
+                          border-right: 1px solid var(--theme-bg-mid);
+                        "
                       >
-                        <i class="bi bi-calendar-check spec-icon"></i>
-                        <span class="spec-value text-muted">
-                          {{ client.calendar_id ? truncateId(client.calendar_id)
-                          : '⚠️ MISSING ID' }}
-                        </span>
-                      </div>
-                    </div>
+                        <div class="spec-row" title="Contact Number">
+                          <i class="bi bi-telephone spec-icon"></i>
+                          <span class="spec-value tech-font"
+                            >{{ client.cell || 'NO NUMBER' }}</span
+                          >
+                        </div>
 
-                    <div
-                      class="spec-group pt-2 border-top border-secondary border-opacity-25"
-                    >
+                        <div class="spec-row" title="Business Hours">
+                          <i class="bi bi-clock spec-icon"></i>
+                          <span class="spec-value">
+                            {{ formatHour(client.business_start_hour) }} - {{
+                            formatHour(client.business_end_hour) }}
+                            <span class="spec-sub"
+                              >{{
+                              client.business_timezone.split('/')[1].replace('_',
+                              ' ') }}</span
+                            >
+                          </span>
+                        </div>
+
+                        <div
+                          v-if="hasScheduling(client)"
+                          class="spec-row"
+                          title="Calendar ID"
+                        >
+                          <i class="bi bi-calendar-check spec-icon"></i>
+                          <span class="spec-value text-muted">
+                            {{ client.calendar_id ?
+                            truncateId(client.calendar_id) : '⚠️ MISSING ID' }}
+                          </span>
+                        </div>
+
+                        <div class="spec-row" title="Created Date">
+                          <i class="bi bi-calendar-plus spec-icon"></i>
+                          <span class="spec-value text-muted small">
+                            {{ formatDate(client.created_at) }}
+                          </span>
+                        </div>
+                      </div>
+
                       <div
-                        class="d-flex justify-content-between align-items-center mt-2"
+                        style="flex: 0 0 40%; padding-left: 12px"
+                        class="d-flex flex-column justify-content-center gap-2"
                       >
                         <div
                           class="d-flex align-items-center gap-2"
@@ -354,7 +366,9 @@
                       </div>
                     </div>
 
-                    <div class="d-flex gap-2 mt-3 pt-2">
+                    <div
+                      class="d-flex gap-2 pt-2 border-top border-secondary border-opacity-25"
+                    >
                       <span
                         class="badge"
                         :style="hasScheduling(client) ? 'background-color: rgba(158, 206, 106, 0.1); color: var(--theme-green); border: 1px solid var(--theme-green);' : 'background-color: transparent; color: var(--theme-comment); border: 1px dashed var(--theme-comment); opacity: 0.5;'"
@@ -375,7 +389,7 @@
                   >
                     <button
                       @click="editClient(client)"
-                      class="btn btn-sm btn-outline-primary"
+                      class="btn btn-sm btn-edit"
                       title="Edit"
                     >
                       EDIT

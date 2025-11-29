@@ -592,12 +592,23 @@ option {
   color: var(--theme-comment) !important;
 }
 
-.client-card .card-footer .btn-outline-primary {
-  padding: 0.3rem 0.6rem;
+/* --- Edit Button (Fixed Hover) --- */
+.btn-edit {
+  color: var(--theme-blue);
+  border: 1px solid var(--theme-blue);
+  background: transparent;
+  padding: 0.25rem 1.5rem;
+  letter-spacing: 1px;
+  font-weight: 700;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.client-card .card-footer .btn-outline-primary:hover {
-  box-shadow: 0 0 15px var(--theme-blue);
+.btn-edit:hover {
+  background: rgba(125, 207, 255, 0.1) !important; /* Just a tint, not solid */
+  color: var(--theme-blue) !important; /* Keep text blue */
+  box-shadow: 0 0 20px var(--theme-blue), inset 0 0 10px rgba(125, 207, 255, 0.1);
+  text-shadow: 0 0 8px var(--theme-blue);
+  transform: translateY(-1px);
 }
 
 .client-card .card-footer .form-check-input {
@@ -629,9 +640,7 @@ option {
 /* Hover: Intensify the glow, do NOT fill solid */
 .client-card .btn-outline-success:hover {
   background: rgba(158, 206, 106, 0.1) !important; /* 10% Tint only */
-  box-shadow:
-    0 0 20px var(--theme-green),
-    inset 0 0 10px rgba(158, 206, 106, 0.2);
+  box-shadow: 0 0 20px var(--theme-green), inset 0 0 10px rgba(158, 206, 106, 0.2);
   text-shadow: 0 0 8px var(--theme-green);
   transform: translateY(-1px);
 }
@@ -663,16 +672,10 @@ option {
   text-shadow: 0 0 5px currentColor;
 }
 
-@keyframes blink {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
-  100% {
-    opacity: 1;
-  }
+ @keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
 }
 
 @keyframes pulse {

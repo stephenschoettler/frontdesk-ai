@@ -49,6 +49,48 @@ if (
       const savingContact = ref(false);
       const selectedTemplate = ref("");
       const templates = ref({});
+
+      const voicePresets = [
+        { name: 'Rachel (American, Calm, Pro)', id: '21m00Tcm4TlvDq8ikWAM' },
+        { name: 'Drew (American, News, Bold)', id: '29vD33N1CtxCmqQRPOHJ' },
+        { name: 'Clyde (Deep, Technical)', id: '2EiwWnXFnvU5JabPnv8n' },
+        { name: 'Mimi (Australian, Childish)', id: 'zrHiDhphv9ZnVXBq79M6' },
+        { name: 'Fin (Irish, Energetic)', id: 'D38z5RcWu1voky8WS1ja' },
+        { name: 'Antoni (American, Well-rounded)', id: 'ErXwobaYiN019PkySvjV' },
+        { name: 'Thomas (American, Calm)', id: 'GBv7mTt5Xyp17vW9q545' },
+        { name: 'Charlie (Australian, Casual)', id: 'IKne3meq5aSn9XLyUdCD' },
+        { name: 'Emily (American, Calm)', id: 'LcfcDJNUP1GQjkzn1xUU' },
+        { name: 'Elli (American, Emotional)', id: 'MF3mGyEYCl7XYWbV9V6O' },
+        { name: 'Callum (American, Hoarse)', id: 'N2lVS1w4Ejp13nTc3DX7' },
+        { name: 'Patrick (American, Shouty)', id: 'ODq5zmih8GrVes37Dizd' },
+        { name: 'Harry (American, Anxiety)', id: 'SOYHLrjzK2X1ezoPC6cr' },
+        { name: 'Liam (American, Neutral)', id: 'TX3LPaxmHKxFdv7VOQHJ' },
+        { name: 'Dorothy (British, Pleasant)', id: 'ThT5KcBeYPX3keUQqHPh' },
+        { name: 'Josh (American, Deep)', id: 'TxGEqnHWrfWFTfGW9XjX' },
+        { name: 'Arnold (American, Nasal)', id: 'VR6AewLTigWg4xSOukaG' },
+        { name: 'Charlotte (British, Seductive)', id: 'XB0fDUnXU5powFXDhCwa' },
+        { name: 'Matilda (American, Warm)', id: 'XrExE9yKIg1WjnnlVkGX' },
+        { name: 'James (Australian, Calm)', id: 'ZQe5CZNOzWyzPSCn5a3c' },
+        { name: 'Joseph (British, News)', id: 'Zlb1dXrM653N07WRdFW3' },
+        { name: 'Jeremy (American, Excited)', id: 'bVMeCyTHy58xNoL34h3p' },
+        { name: 'Michael (American, Old)', id: 'flq6f7yk4E4fJM5XTYuZ' },
+        { name: 'Ethan (American, Whisper)', id: 'g5CIjZEefAph4nQFvHAz' },
+        { name: 'Gigi (American, Childish)', id: 'jBpfuIE2acCO8z3wKNLl' },
+        { name: 'Freya (American, Overhyped)', id: 'jsCqWAovK2LkecY7zXl4' },
+        { name: 'Santa Claus (Deep, Jolly)', id: 'knrPHWnBmmDHMoiMeP3l' },
+        { name: 'Grace (American, Southern)', id: 'oWAxZDx7w5VEj9dCyTzz' },
+        { name: 'Daniel (British, News)', id: 'onwK4e9ZLuTAKqWW03F9' },
+        { name: 'Serena (American, Pleasant)', id: 'pMsXgVXv3BLzUgSXRplE' },
+        { name: 'Adam (American, Deep)', id: 'pNInz6obpgDQGcFmaJgB' },
+        { name: 'Nicole (American, Whisper)', id: 'piTKgcLEGmPE4e6mEKli' },
+        { name: 'Bill (American, Trustworthy)', id: 'pqHfZKP75CvOlQylNhV4' },
+        { name: 'Jessie (American, Raspy)', id: 't0jbNlBVZ17f02VDIeMI' },
+        { name: 'Sam (American, Raspy)', id: 'yoZ06aMxZJJ28mfd3POQ' },
+        { name: 'Glinda (American, Witch)', id: 'z9fAnlkpzviPz146aGWa' },
+        { name: 'Giovanni (Italian, Foreign)', id: 'zcAOhNBS3c14rBihAFp1' },
+        { name: 'Domi (American, Strong)', id: 'zRrTh6t1l6l36r8e9a2W' }
+      ];
+
       const importFile = ref(null);
       const activeClientTab = ref("basic"); // Added for tabbed UI
 
@@ -1346,6 +1388,7 @@ if (
         currentTheme,
         applyTheme,
         templates,
+        voicePresets,
         // Auth exports
         authToken,
         currentUser,

@@ -275,9 +275,16 @@
                     class="card-header d-flex justify-content-between align-items-center"
                   >
                     <h5 class="card-title mb-0">{{ client.name }}</h5>
-                    <span
-                      :class="['status-indicator', client.is_active ? 'status-active' : 'status-inactive']"
-                    ></span>
+
+                    <div class="form-check m-0">
+                      <input
+                        type="checkbox"
+                        v-model="selectedClients"
+                        :value="client.id"
+                        class="form-check-input"
+                        title="Select for bulk action"
+                      />
+                    </div>
                   </div>
                   <div class="card-body">
                     <p class="card-text">
@@ -327,32 +334,23 @@
                   <div
                     class="card-footer d-flex justify-content-between align-items-center"
                   >
-                    <div>
-                      <button
-                        @click="editClient(client)"
-                        class="btn btn-sm btn-outline-primary"
-                        title="Edit"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        @click="toggleClientStatus(client)"
-                        class="btn btn-sm ms-2"
-                        :class="client.is_active ? 'btn-outline-success' : 'btn-outline-secondary'"
-                        :title="client.is_active ? 'Disable Client' : 'Enable Client'"
-                      >
-                        {{ client.is_active ? 'ENABLED' : 'DISABLED' }}
-                      </button>
-                    </div>
-                    <div class="form-check m-0">
-                      <input
-                        type="checkbox"
-                        v-model="selectedClients"
-                        :value="client.id"
-                        class="form-check-input"
-                        title="Select for bulk action"
-                      />
-                    </div>
+                    <button
+                      @click="editClient(client)"
+                      class="btn btn-sm btn-outline-primary"
+                      title="Edit"
+                    >
+                      EDIT
+                    </button>
+
+                    <button
+                      @click.stop="toggleClientStatus(client)"
+                      class="btn btn-sm status-toggle-btn"
+                      :class="client.is_active ? 'btn-outline-success' : 'btn-outline-danger'"
+                      :title="client.is_active ? 'Disable Client' : 'Enable Client'"
+                    >
+                      <span class="status-icon">{{ client.is_active ? '●' : '○' }}</span>
+                      {{ client.is_active ? 'ONLINE' : 'OFFLINE' }}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1059,11 +1057,33 @@
                           </div>
                           <div class="mb-3">
                             <label class="form-label">TTS Voice ID</label>
-                            <input
-                              v-model="clientForm.tts_voice_id"
-                              type="text"
-                              class="form-control"
-                            />
+
+                            <div class="input-group">
+                              <select
+                                class="form-select"
+                                style="max-width: 160px; border-right: none;"
+                                @change="clientForm.tts_voice_id = $event.target.value"
+                              >
+                                <option value="" disabled selected>Quick Fill...</option>
+                                <option
+                                  v-for="voice in voicePresets"
+                                  :key="voice.id"
+                                  :value="voice.id"
+                                >
+                                  {{ voice.name }}
+                                </option>
+                              </select>
+
+                              <input
+                                v-model="clientForm.tts_voice_id"
+                                type="text"
+                                class="form-control"
+                                placeholder="Paste ID here or select preset..."
+                              />
+                            </div>
+                            <div class="form-text text-muted">
+                              Select a preset to auto-fill, or paste a custom Clone ID from ElevenLabs.
+                            </div>
                           </div>
                         </div>
                       </div>

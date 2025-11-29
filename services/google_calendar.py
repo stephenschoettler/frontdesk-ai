@@ -290,6 +290,7 @@ async def cancel_appointment(calendar_id: str, event_id: str) -> bool:
         return False
 
     try:
+
         def _run_delete():
             service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
             return True
@@ -317,15 +318,19 @@ async def get_upcoming_appointments(calendar_id: str, phone_number: str) -> str:
 
     def _run_search():
         # 'q' searches summary, description, and attendees
-        events_result = service.events().list(
-            calendarId=calendar_id,
-            timeMin=now,
-            maxResults=3,
-            singleEvents=True,
-            orderBy='startTime',
-            q=phone_number
-        ).execute()
-        return events_result.get('items', [])
+        events_result = (
+            service.events()
+            .list(
+                calendarId=calendar_id,
+                timeMin=now,
+                maxResults=3,
+                singleEvents=True,
+                orderBy="startTime",
+                q=phone_number,
+            )
+            .execute()
+        )
+        return events_result.get("items", [])
 
     loop = asyncio.get_running_loop()
     events = await loop.run_in_executor(None, _run_search)
@@ -335,10 +340,12 @@ async def get_upcoming_appointments(calendar_id: str, phone_number: str) -> str:
 
     context_lines = []
     for event in events:
-        start = event['start'].get('dateTime', event['start'].get('date'))
+        start = event["start"].get("dateTime", event["start"].get("date"))
         # Simple formatting for the AI to read
         # e.g. "Dental Cleaning on 2023-11-28T14:00:00 (ID: 12345)"
-        context_lines.append(f"- {event.get('summary', 'Appointment')} at {start} (ID: {event['id']})")
+        context_lines.append(
+            f"- {event.get('summary', 'Appointment')} at {start} (ID: {event['id']})"
+        )
 
     return "\n".join(context_lines)
 
@@ -358,14 +365,18 @@ async def list_my_appointments(calendar_id: str, phone_number: str) -> list[dict
     now_utc = datetime.utcnow().isoformat() + "Z"
 
     def _run_list():
-        events_result = service.events().list(
-            calendarId=calendar_id,
-            timeMin=now_utc,
-            maxResults=10,
-            singleEvents=True,
-            orderBy="startTime",
-            q=phone_number
-        ).execute()
+        events_result = (
+            service.events()
+            .list(
+                calendarId=calendar_id,
+                timeMin=now_utc,
+                maxResults=10,
+                singleEvents=True,
+                orderBy="startTime",
+                q=phone_number,
+            )
+            .execute()
+        )
         return events_result.get("items", [])
 
     loop = asyncio.get_running_loop()
@@ -376,12 +387,18 @@ async def list_my_appointments(calendar_id: str, phone_number: str) -> list[dict
         start_iso = event["start"].get("dateTime", event["start"].get("date"))
         dt_utc = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
         dt_local = dt_utc.astimezone(tz)
-        human_time = dt_local.strftime("%-I %p %B %d") if dt_local.minute == 0 else dt_local.strftime("%-I:%M %p %B %d")
-        appointments.append({
-            "booking_id": event["id"],
-            "summary": event.get("summary", "Appointment"),
-            "start_time": human_time,
-            "iso_start": dt_local.isoformat()
-        })
+        human_time = (
+            dt_local.strftime("%-I %p %B %d")
+            if dt_local.minute == 0
+            else dt_local.strftime("%-I:%M %p %B %d")
+        )
+        appointments.append(
+            {
+                "booking_id": event["id"],
+                "summary": event.get("summary", "Appointment"),
+                "start_time": human_time,
+                "iso_start": dt_local.isoformat(),
+            }
+        )
     logger.info(f"Listed {len(appointments)} appointments for {phone_number}")
     return appointments

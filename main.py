@@ -421,14 +421,21 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
 
             # Fetch initial_greeting from DB
             client_config = await get_client_config(client_id)
-            initial_greeting = client_config.get("initial_greeting") if client_config else None
+            initial_greeting = (
+                client_config.get("initial_greeting") if client_config else None
+            )
             if initial_greeting:
-                greeting_timestamp = base_time - datetime.timedelta(seconds=len(context.messages) + 1)
-                transcript_with_timestamps.insert(0, {
-                    "role": "assistant",
-                    "content": initial_greeting,
-                    "timestamp": greeting_timestamp.isoformat()
-                })
+                greeting_timestamp = base_time - datetime.timedelta(
+                    seconds=len(context.messages) + 1
+                )
+                transcript_with_timestamps.insert(
+                    0,
+                    {
+                        "role": "assistant",
+                        "content": initial_greeting,
+                        "timestamp": greeting_timestamp.isoformat(),
+                    },
+                )
 
             for i, message in enumerate(context.messages):
                 # Skip system messages for transcript

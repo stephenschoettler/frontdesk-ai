@@ -273,25 +273,25 @@ async def handle_reschedule_appointment(params: FunctionCallParams, **kwargs) ->
 
         # --- FIX: ROBUST PARAMETER HANDLING (Catching 'new_start_time') ---
         new_time_str = (
-            args.get("new_time")
-            or args.get("start_time")
-            or args.get("new_start_time")
+            args.get("new_time") or args.get("start_time") or args.get("new_start_time")
         )
 
         if not new_time_str:
             # Log what we actually got to help debug if it fails again
             logger.error(f"Missing time argument. Received keys: {list(args.keys())}")
-            raise ValueError("Could not determine new start time. Required: new_time, start_time, or new_start_time.")
+            raise ValueError(
+                "Could not determine new start time. Required: new_time, start_time, or new_start_time."
+            )
 
         new_start = datetime.fromisoformat(new_time_str)
 
         # Check for end time (also checking new_end_time just in case)
         new_end_str = args.get("new_end_time") or args.get("end_time")
         if new_end_str:
-              new_end = datetime.fromisoformat(new_end_str)
+            new_end = datetime.fromisoformat(new_end_str)
         else:
-              # Default to 1 hour if not specified
-              new_end = new_start + timedelta(hours=1)
+            # Default to 1 hour if not specified
+            new_end = new_start + timedelta(hours=1)
 
         event = await reschedule_appointment(
             calendar_id=calendar_id,

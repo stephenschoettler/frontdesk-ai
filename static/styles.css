@@ -505,7 +505,10 @@ option {
 }
 
 .client-card .card-header .card-title {
-  color: var(--theme-blue) !important;
+  color: var(--theme-fg) !important; /* Was --theme-blue */
+  font-weight: 700;
+  text-shadow: none; /* Remove glow for cleaner look */
+  opacity: 0.95;
   font-family: "JetBrains Mono";
   letter-spacing: 1px;
 }
@@ -516,19 +519,69 @@ option {
   letter-spacing: 1px;
 }
 
-.client-card .card-text strong {
+/* --- Spec List (Icon Based) --- */
+
+.spec-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+}
+
+.spec-icon {
+  color: var(--theme-comment);
+  font-size: 0.9rem;
+  width: 16px; /* Fixed width for alignment */
+  text-align: center;
+  transition: color 0.2s;
+}
+
+.spec-row:hover .spec-icon {
+  color: var(--theme-fg);
+}
+
+.spec-value {
+  color: var(--theme-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spec-sub {
+  color: var(--theme-comment);
+  font-size: 0.75em;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  font-size: 0.75rem;
-  opacity: 0.9;
+  margin-left: 6px;
+  letter-spacing: 0.5px;
 }
 
-.data-tech-highlight {
-  color: var(--theme-green) !important;
+/* Color overrides for specific icons */
+.text-blue { color: var(--theme-blue) !important; }
+.text-purple { color: var(--theme-purple) !important; }
+
+/* Refined Badges */
+.model-badge {
+  background: rgba(125, 207, 255, 0.05);
+  color: var(--theme-blue);
+  border: 1px solid var(--theme-blue);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
-.card-text strong {
-  color: var(--theme-fg) !important;
+.voice-badge {
+  background: rgba(187, 154, 247, 0.05);
+  color: var(--theme-purple);
+  border: 1px solid var(--theme-purple);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .client-card .text-muted {
@@ -572,7 +625,9 @@ option {
 /* Hover: Intensify the glow, do NOT fill solid */
 .client-card .btn-outline-success:hover {
   background: rgba(158, 206, 106, 0.1) !important; /* 10% Tint only */
-  box-shadow: 0 0 20px var(--theme-green), inset 0 0 10px rgba(158, 206, 106, 0.2);
+  box-shadow:
+    0 0 20px var(--theme-green),
+    inset 0 0 10px rgba(158, 206, 106, 0.2);
   text-shadow: 0 0 8px var(--theme-green);
   transform: translateY(-1px);
 }
@@ -604,10 +659,16 @@ option {
   text-shadow: 0 0 5px currentColor;
 }
 
- @keyframes blink {
-  0% { opacity: 1; }
-  50% { opacity: 0.4; }
-  100% { opacity: 1; }
+@keyframes blink {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 @keyframes pulse {

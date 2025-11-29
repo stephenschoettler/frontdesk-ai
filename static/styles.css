@@ -606,7 +606,9 @@ option {
 .btn-edit:hover {
   background: rgba(125, 207, 255, 0.1) !important; /* Just a tint, not solid */
   color: var(--theme-blue) !important; /* Keep text blue */
-  box-shadow: 0 0 20px var(--theme-blue), inset 0 0 10px rgba(125, 207, 255, 0.1);
+  box-shadow:
+    0 0 20px var(--theme-blue),
+    inset 0 0 10px rgba(125, 207, 255, 0.1);
   text-shadow: 0 0 8px var(--theme-blue);
   transform: translateY(-1px);
 }
@@ -640,7 +642,9 @@ option {
 /* Hover: Intensify the glow, do NOT fill solid */
 .client-card .btn-outline-success:hover {
   background: rgba(158, 206, 106, 0.1) !important; /* 10% Tint only */
-  box-shadow: 0 0 20px var(--theme-green), inset 0 0 10px rgba(158, 206, 106, 0.2);
+  box-shadow:
+    0 0 20px var(--theme-green),
+    inset 0 0 10px rgba(158, 206, 106, 0.2);
   text-shadow: 0 0 8px var(--theme-green);
   transform: translateY(-1px);
 }
@@ -672,10 +676,16 @@ option {
   text-shadow: 0 0 5px currentColor;
 }
 
- @keyframes blink {
-  0% { opacity: 1; }
-  50% { opacity: 0.4; }
-  100% { opacity: 1; }
+@keyframes blink {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 @keyframes pulse {

@@ -557,8 +557,12 @@ option {
 }
 
 /* Color overrides for specific icons */
-.text-blue { color: var(--theme-blue) !important; }
-.text-purple { color: var(--theme-purple) !important; }
+.text-blue {
+  color: var(--theme-blue) !important;
+}
+.text-purple {
+  color: var(--theme-purple) !important;
+}
 
 /* Refined Badges */
 .model-badge {

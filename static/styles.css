@@ -505,17 +505,20 @@ option {
 }
 
 .client-card .card-header .card-title {
-  color: var(--theme-fg) !important; /* Was --theme-blue */
+  color: var(--theme-blue) !important; /* Back to Blue */
   font-weight: 700;
-  text-shadow: none; /* Remove glow for cleaner look */
-  opacity: 0.95;
+  opacity: 1; /* Full opacity for readability */
   font-family: "JetBrains Mono";
   letter-spacing: 1px;
+  text-transform: none !important; /* Force proper casing */
+  
+  /* Optional: A very tight, subtle glow to match the 'Screen' aesthetic without being fuzzy */
+  text-shadow: 0 0 10px rgba(125, 207, 255, 0.3); 
 }
 
 .modal-title,
 .card-title {
-  text-transform: uppercase !important;
+  /* Removed text-transform: uppercase to allow proper casing */
   letter-spacing: 1px;
 }
 
@@ -526,23 +529,27 @@ option {
   align-items: center;
   gap: 12px;
   margin-bottom: 6px;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
 }
 
 .spec-icon {
-  color: var(--theme-comment);
-  font-size: 0.9rem;
-  width: 16px; /* Fixed width for alignment */
+  color: var(--theme-comment) !important; /* Force icons to stay dim */
+  font-size: 1.1rem;
+  width: 16px; 
   text-align: center;
   transition: color 0.2s;
+  opacity: 0.7; /* Extra layer of subtlety */
 }
 
+/* On hover, light the icon up too */
 .spec-row:hover .spec-icon {
-  color: var(--theme-fg);
+  color: var(--theme-blue) !important;
+  opacity: 1;
 }
 
 .spec-value {
-  color: var(--theme-fg);
+  color: var(--theme-fg) !important; /* Was inheriting muted/comment color */
+  font-weight: 500; /* Makes thin fonts 10% more legible on dark backgrounds */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -566,12 +573,14 @@ option {
 
 /* Refined Badges */
 .model-badge {
-  background: rgba(125, 207, 255, 0.05);
-  color: var(--theme-blue);
-  border: 1px solid var(--theme-blue);
+  /* Was Blue, now Purple to match Voice */
+  background: rgba(187, 154, 247, 0.05);
+  color: var(--theme-purple);
+  border: 1px solid var(--theme-purple);
+
   padding: 2px 6px;
   border-radius: 3px;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.5px;
 }
@@ -582,10 +591,43 @@ option {
   border: 1px solid var(--theme-purple);
   padding: 2px 6px;
   border-radius: 3px;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+}
+
+/* --- Tool Badges (Orange) --- */
+.tool-badge {
+  background: rgba(224, 175, 104, 0.05); /* Lighter background */
+  color: var(--theme-orange);
+  border: 1px solid var(--theme-orange);
+  
+  /* Pill Shape */
+  border-radius: 50px; 
+  padding: 3px 10px;
+  
+  /* Typography */
+  font-size: 0.65rem; /* Smaller, punchier text */
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  
+  /* Remove the glow to make them feel "flat" and informational, not clickable */
+  box-shadow: none; 
+  margin-top: 4px; /* Slight breathing room from the content above */
+}
+
+/* Optional: Dimmed state for disabled tools */
+.tool-badge.disabled {
+  background: transparent;
+  color: var(--theme-comment);
+  border: 1px dashed var(--theme-comment);
+  opacity: 0.5;
 }
 
 .client-card .text-muted {
@@ -593,24 +635,73 @@ option {
 }
 
 /* --- Edit Button (Fixed Hover) --- */
+
+
+
 .btn-edit {
-  color: var(--theme-blue);
-  border: 1px solid var(--theme-blue);
-  background: transparent;
-  padding: 0.25rem 1.5rem;
-  letter-spacing: 1px;
+
+  /* Layout matches status-toggle-btn */
+
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
   font-weight: 700;
+
+  letter-spacing: 1px;
+
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  border-radius: 4px;
+
+  padding: 0.25rem 1.5rem;
+
+
+
+  /* Blue Color Scheme (Resting) */
+
+  background: transparent !important;
+
+  border: 1px solid var(--theme-blue) !important;
+
+  color: var(--theme-blue) !important;
+
+  
+
+  /* Subtle resting glow (Same physics as Online button) */
+
+  box-shadow: 0 0 5px rgba(125, 207, 255, 0.1); 
+
 }
 
+
+
 .btn-edit:hover {
-  background: rgba(125, 207, 255, 0.1) !important; /* Just a tint, not solid */
-  color: var(--theme-blue) !important; /* Keep text blue */
+
+  /* Exact Physics of the Online Button */
+
+  background: rgba(125, 207, 255, 0.1) !important; /* 10% Tint only */
+
+  
+
+  /* The "Ghost" Neon Glow */
+
   box-shadow:
+
     0 0 20px var(--theme-blue),
-    inset 0 0 10px rgba(125, 207, 255, 0.1);
+
+    inset 0 0 10px rgba(125, 207, 255, 0.2);
+
+    
+
   text-shadow: 0 0 8px var(--theme-blue);
+
   transform: translateY(-1px);
+
+  color: var(--theme-blue) !important;
+
 }
 
 .client-card .card-footer .form-check-input {

@@ -186,7 +186,7 @@
               <button
                 v-if="selectedClients.length > 0"
                 @click="bulkDuplicateClients"
-                class="btn btn-sm btn-outline-info me-2"
+                class="btn btn-sm btn-outline-info me-4"
               >
                 DUPLICATE ({{ selectedClients.length }})
               </button>
@@ -278,7 +278,7 @@
                   <div
                     class="card-header d-flex justify-content-between align-items-center"
                   >
-                    <h5 class="card-title mb-0">{{ client.name }}</h5>
+                    <h5 class="card-title mb-0">{{ formatName(client.name) }}</h5>
 
                     <div class="form-check m-0">
                       <input
@@ -347,10 +347,17 @@
                           class="d-flex align-items-center gap-2"
                           title="LLM Model"
                         >
-                          <i class="bi bi-cpu spec-icon text-blue"></i>
+                          <i class="bi bi-cpu spec-icon text-purple"></i>
                           <span class="model-badge">
                             {{ client.llm_model.split('/')[1] ||
                             client.llm_model }}
+                          </span>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2" title="STT Model (Ears)">
+                          <i class="bi bi-mic spec-icon text-purple"></i>
+                          <span class="model-badge">
+                            {{ client.stt_model.replace('nova-2-', '') }}
                           </span>
                         </div>
 
@@ -369,19 +376,19 @@
                     <div
                       class="d-flex gap-2 pt-2 border-top border-secondary border-opacity-25"
                     >
-                      <span
-                        class="badge"
-                        :style="hasScheduling(client) ? 'background-color: rgba(158, 206, 106, 0.1); color: var(--theme-green); border: 1px solid var(--theme-green);' : 'background-color: transparent; color: var(--theme-comment); border: 1px dashed var(--theme-comment); opacity: 0.5;'"
-                      >
-                        SCHEDULING
-                      </span>
+<span 
+  class="tool-badge" 
+  :class="{ 'disabled': !hasScheduling(client) }"
+>
+  <i class="bi bi-calendar-range" style="font-size: 0.85rem;"></i> SCHEDULING
+</span>
 
-                      <span
-                        class="badge"
-                        :style="hasMemory(client) ? 'background-color: rgba(224, 175, 104, 0.1); color: var(--theme-orange); border: 1px solid var(--theme-orange);' : 'background-color: transparent; color: var(--theme-comment); border: 1px dashed var(--theme-comment); opacity: 0.5;'"
-                      >
-                        MEMORY
-                      </span>
+<span 
+  class="tool-badge" 
+  :class="{ 'disabled': !hasMemory(client) }"
+>
+  <i class="bi bi-hdd-network" style="font-size: 0.85rem;"></i> MEMORY
+</span>
                     </div>
                   </div>
                   <div
@@ -871,7 +878,7 @@
                   <button
                     type="submit"
                     form="clientForm"
-                    class="btn btn-sm btn-outline-primary me-3"
+                    class="btn btn-sm btn-edit me-3"
                     :disabled="saving"
                   >
                     {{ saving ? 'SAVING...' : 'SAVE' }}

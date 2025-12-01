@@ -1304,7 +1304,17 @@ if (
         return id.substring(0, 12) + "...";
       };
 
+      const formatName = (name) => {
+        if (!name) return "";
+        return name
+          .toLowerCase()
+          .replace(/(?:^|\s|-)\S/g, (c) => c.toUpperCase())
+          .replace(/\bMc[a-z]/g, (m) => m.substr(0, 2) + m.substr(2).toUpperCase())
+          .replace(/\bO'[a-z]/g, (m) => m.substr(0, 2) + m.substr(2).toUpperCase());
+      };
+
       return {
+        formatName,
         clients,
         filteredClients: paginatedClients,
         selectedClients,

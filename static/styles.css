@@ -156,36 +156,37 @@ body {
   letter-spacing: 1px;
 }
 
+/* --- Primary Action Button (Holographic/Stealth) --- */
 .btn-primary {
-  background: var(--theme-blue);
-  color: var(--theme-bg);
-  border: none;
-  font-weight: bold;
+  background: transparent !important;       /* Kill the solid blue */
+  border: 1px solid var(--theme-blue) !important; /* Wireframe border */
+  color: var(--theme-blue) !important;      /* Neon text */
   text-transform: uppercase;
   letter-spacing: 2px;
-}
-
-.btn-primary:hover {
-  background: var(--theme-blue);
-  box-shadow: 0 0 20px var(--theme-blue);
-  transform: translateY(-1px);
-  color: var(--theme-bg-dark);
-}
-
-.d-flex > .card .btn-primary {
-  background: transparent !important;
-  border: 2px solid var(--theme-blue) !important;
-  color: var(--theme-blue) !important;
   font-weight: 700;
-  letter-spacing: 2px;
+  box-shadow: 0 0 5px rgba(125, 207, 255, 0.1); /* Subtle resting glow */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 2px; /* Sharper corners */
 }
 
-.d-flex > .card .btn-primary:hover {
-  background: var(--theme-blue) !important;
-  color: var(--theme-bg-dark) !important;
-  box-shadow: 0 0 25px var(--theme-blue);
-  transform: none;
+/* Hover State: Power Up */
+.btn-primary:hover {
+  background: rgba(125, 207, 255, 0.1) !important; /* 10% Tint */
+  box-shadow: 
+    0 0 20px var(--theme-blue),           /* Outer glow */
+    inset 0 0 10px rgba(125, 207, 255, 0.1); /* Inner glow */
+  text-shadow: 0 0 8px var(--theme-blue);    /* Text bloom */
+  color: var(--theme-fg) !important;         /* Brighten text */
+  transform: translateY(-1px);
 }
+
+/* Active/Click State */
+.btn-primary:active {
+  background: rgba(125, 207, 255, 0.2) !important;
+  transform: translateY(0);
+}
+
+
 
 .btn-success {
   background: var(--theme-green);

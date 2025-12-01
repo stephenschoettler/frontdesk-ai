@@ -275,6 +275,16 @@ if (
         try {
           const response = await axios.post("/api/auth/login", authForm.value);
           setAuthToken(response.data.access_token);
+
+          // --- THE RED CARPET ---
+          // Check if the logged-in user is the admin
+          if (currentUser.value === "admin@frontdesk.com") {
+            console.log("Admin identified. Redirecting to Monitor.");
+            window.location.href = "/static/monitor.html";
+            return;
+          }
+          // ----------------------
+
           await loadClients();
         } catch (error) {
           console.error("Login failed:", error);

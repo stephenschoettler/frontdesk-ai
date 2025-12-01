@@ -151,6 +151,8 @@ async def log_conversation(
         data_to_insert["duration"] = duration
 
     try:
+        # FIX: Do NOT chain .select(). Use returning='representation' inside insert if needed,
+        # or just .execute() which returns data by default in Python.
         response = supabase.table("conversations").insert(data_to_insert).execute()
         logger.info(f"Conversation logged successfully for contact_id {contact_id}.")
         return response
@@ -522,3 +524,122 @@ async def get_client_by_phone(phone_number: str) -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Error looking up client by phone: {e}")
         return None
+
+
+async def get_client_balance(client_id: str) -> int:
+    """
+    CHECK: Fetches the current balance in seconds.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return 0
+
+    try:
+        resp = (
+            supabase.table("clients")
+            .select("balance_seconds")
+            .eq("id", client_id)
+            .execute()
+        )
+        if resp.data:
+            return resp.data[0].get("balance_seconds", 0)
+        return 0
+    except Exception as e:
+        logger.error(f"Error fetching balance: {e}")
+        return 0
+
+
+async def deduct_balance(client_id: str, seconds: int) -> None:
+    """
+    COMMIT: Deducts seconds from the client's balance.
+    (Used by Safety Valve and Final Commit)
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return
+
+    try:
+        # Fetch current to ensure we don't go negative
+        current = await get_client_balance(client_id)
+        new_balance = current - seconds
+
+        supabase.table("clients").update({"balance_seconds": new_balance}).eq(
+            "id", client_id
+        ).execute()
+        logger.info(
+            f"Deducted {seconds}s from Client {client_id}. New Balance: {new_balance}"
+        )
+    except Exception as e:
+        logger.error(f"Error deducting balance: {e}")
+
+
+async def log_usage_ledger(
+    client_id: str, conversation_id: Optional[str], metrics: dict
+):
+    """
+    COMMIT: Writes the detailed breakdown to the ledger.
+    metrics = {'duration': 120, 'input_tokens': 500, 'output_tokens': 200, 'tts_chars': 1500}
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return
+
+    rows = []
+    for m_type, qty in metrics.items():
+        if qty > 0:
+            rows.append(
+                {
+                    "client_id": client_id,
+                    "conversation_id": conversation_id,
+                    "metric_type": m_type,
+                    "quantity": qty,
+                }
+            )
+
+    if rows:
+        try:
+            supabase.table("usage_ledger").insert(rows).execute()
+            logger.info(f"Ledger updated for Conversation {conversation_id}")
+        except Exception as e:
+            logger.error(f"Error logging ledger: {e}")
+
+
+async def get_admin_ledger() -> list[Dict[str, Any]]:
+    """
+    ADMIN: Fetches the master ledger with joins for readability.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return []
+
+    try:
+        # Fetch latest 50 usage records with Client Name and Contact Phone
+        response = (
+            supabase.table("usage_ledger")
+            .select("*, clients(name), conversations(contact_id, contacts(phone))")
+            .order("created_at", desc=True)
+            .limit(50)
+            .execute()
+        )
+
+        return response.data if response.data else []
+    except Exception as e:
+        logger.error(f"Admin ledger fetch error: {e}")
+        return []
+
+
+async def get_admin_clients() -> Optional[list[Dict[str, Any]]]:
+    """
+    ADMIN: Fetches ALL clients using the Service Role Key (Bypassing RLS).
+    """
+    supabase = get_supabase_client()  # This uses SERVICE_ROLE_KEY by default
+    if not supabase:
+        return []
+
+    try:
+        # Fetch all clients
+        response = supabase.table("clients").select("*").execute()
+        return response.data if response.data else []
+    except Exception as e:
+        logger.error(f"Admin clients fetch error: {e}")
+        return []

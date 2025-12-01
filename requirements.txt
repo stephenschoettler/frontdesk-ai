@@ -11,3 +11,4 @@ supabase==2.23.0
 twilio
 uvicorn
 pydantic[email]
+tiktoken

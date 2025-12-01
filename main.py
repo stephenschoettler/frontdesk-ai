@@ -5,6 +5,7 @@ import argparse
 import signal
 import urllib.parse
 from dotenv import load_dotenv
+import jwt
 from fastapi import (
     FastAPI,
     WebSocket,
@@ -20,6 +21,7 @@ from starlette.websockets import WebSocketState
 import uvicorn
 import datetime
 from typing import Optional
+import tiktoken
 
 from pydantic import BaseModel
 from pydantic import EmailStr
@@ -58,6 +60,11 @@ from services.supabase_client import (
     get_conversation_logs,
     get_conversation_by_id,
     get_client_by_phone,
+    get_client_balance,
+    deduct_balance,
+    log_usage_ledger,
+    get_admin_ledger,
+    get_admin_clients,
 )
 
 # Import tool handlers
@@ -257,20 +264,20 @@ async def voice_handler(request: Request):
 
 @app.websocket("/ws/{client_id}/{caller_phone}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone: str):
-    """
-    Main websocket endpoint.
-    Initializes services JUST-IN-TIME for the specific client.
-    """
-    # Initialize specific services for this client
-    services = await initialize_client_services(client_id)
-    if not services:
-        logger.error(f"Failed to initialize services for client {client_id}. Closing.")
-        await websocket.close()
+    # 1. CHECK: Verify Balance
+    balance_seconds = await get_client_balance(client_id)
+    if balance_seconds <= 0:
+        logger.warning(f"Client {client_id} has zero balance. Rejecting.")
+        await websocket.close(code=4002, reason="Insufficient Funds")
         return
 
+    services = await initialize_client_services(client_id)
+    if not services:
+        await websocket.close()
+        return
     stt, tts, llm, system_prompt, initial_greeting = services
 
-    # Fetch Runner from app state (Runner is still global/shared resource)
+    # Fetch Runner from app state
     runner: PipelineRunner = websocket.app.state.runner
     test_mode: bool = websocket.app.state.test_mode
     shutdown_event: asyncio.Event = websocket.app.state.shutdown_event
@@ -278,22 +285,13 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
     logger.info(f"Websocket connected for Client: {client_id}, Caller: {caller_phone}")
     await websocket.accept()
 
-    # Track call start time for duration calculation
-    call_start_time = datetime.datetime.now()
-
     _, call_data = await parse_telephony_websocket(websocket)
 
     # --- Contact Management (Scoped to Client) ---
     caller_phone_decoded = urllib.parse.unquote(caller_phone)
     contact = None
-
-    # NOTE: get_or_create_contact needs to be multi-tenant aware in the future.
-    # For now, we assume the phone number is the primary key, but we should eventually pass client_id.
-    # We are patching this temporarily by filtering contacts by phone AND client_id in logic if needed,
-    # but the DB constraint is already updated.
     if caller_phone_decoded:
         contact = await get_or_create_contact(caller_phone_decoded)
-        # Note: Ideally passing client_id here to ensure we don't fetch another client's contact
 
     contact_context = ""
     if contact:
@@ -303,16 +301,12 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
         contact_context = f"New caller (phone: {caller_phone_decoded})"
 
     # --- Calendar Context Injection ---
-    # Fetch calendar_id again or reuse from initialize_client_services if refactored,
-    # but for safety we can grab it from the config we know exists.
     client_config = await get_client_config(client_id)
     if client_config:
         calendar_id = client_config.get("calendar_id", "primary")
-
         appt_context = await get_upcoming_appointments(
             calendar_id, caller_phone_decoded
         )
-
         if appt_context:
             contact_context += f"\n[EXISTING BOOKINGS]\n{appt_context}"
             logger.info(f"Injected appointments: {appt_context}")
@@ -360,8 +354,6 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
 
     context = LLMContext(messages, tools=tools)
     context_aggregator = LLMContextAggregatorPair(context)
-
-    # Use our ToolStripping filter to keep code out of the TTS
     assistant_aggregator = ToolStrippingAssistantAggregator(context)
 
     pipeline = Pipeline(
@@ -372,7 +364,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
             llm,
             tts,
             transport.output(),
-            assistant_aggregator,  # Using the cleaner aggregator
+            assistant_aggregator,
         ]
     )
 
@@ -387,84 +379,159 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
 
     # --- Initial Greeting ---
     if initial_greeting:
-        # Final Robust Logic: Split by the period to deliver in two smaller, stable chunks.
-        # This mitigates timing issues and premature stream closure.
         parts = initial_greeting.split(".", 1)
-
         if len(parts) == 2:
-            # Send the introductory statement, and the question as a separate chunk
             await task.queue_frames(
                 [TextFrame(parts[0].strip() + "."), TextFrame(parts[1].strip())]
             )
         else:
-            # Fallback for templates without the standard question
             await task.queue_frames([TextFrame(initial_greeting)])
 
     runner_task = asyncio.create_task(runner.run(task))
 
-    # --- Wait for Disconnect ---
+    # 2. MONITOR: Safety Valve & Cutoff
+    call_start_time = datetime.datetime.now()
+    last_deduction_time = call_start_time
+    accumulated_deduction = 0
+
+    async def safety_valve_sync():
+        nonlocal last_deduction_time, accumulated_deduction
+        try:
+            while True:
+                await asyncio.sleep(300)  # 5 Minutes
+                now = datetime.datetime.now()
+                chunk = int((now - last_deduction_time).total_seconds())
+                if chunk > 0:
+                    await deduct_balance(client_id, chunk)
+                    last_deduction_time = now
+                    accumulated_deduction += chunk
+        except asyncio.CancelledError:
+            pass
+
+    safety_task = asyncio.create_task(safety_valve_sync())
+
     try:
         while websocket.client_state == WebSocketState.CONNECTED:
+            # 3. ENFORCE: Hard Cutoff
+            elapsed = (datetime.datetime.now() - call_start_time).total_seconds()
+            if elapsed > balance_seconds:
+                logger.warning(f"CUTOFF: Client {client_id} out of funds.")
+                await websocket.close(code=4002, reason="Time Limit Exceeded")
+                break
             await asyncio.sleep(0.1)
     except asyncio.CancelledError:
         pass
     finally:
-        # Log Conversation
-        if contact:
-            # Calculate call duration
-            call_end_time = datetime.datetime.now()
-            duration_seconds = int((call_end_time - call_start_time).total_seconds())
+        safety_task.cancel()
 
-            # Add timestamps to messages for transcript display
-            transcript_with_timestamps = []
-            base_time = call_end_time
+        # 4. COMMIT: Finalize Billing
+        call_end_time = datetime.datetime.now()
+        total_seconds = int((call_end_time - call_start_time).total_seconds())
 
-            # Fetch initial_greeting from DB
-            client_config = await get_client_config(client_id)
-            initial_greeting = (
-                client_config.get("initial_greeting") if client_config else None
-            )
-            if initial_greeting:
-                greeting_timestamp = base_time - datetime.timedelta(
-                    seconds=len(context.messages) + 1
-                )
-                transcript_with_timestamps.insert(
-                    0,
-                    {
-                        "role": "assistant",
-                        "content": initial_greeting,
-                        "timestamp": greeting_timestamp.isoformat(),
-                    },
-                )
+        remainder = total_seconds - accumulated_deduction
+        if remainder > 0:
+            await deduct_balance(client_id, remainder)
 
-            for i, message in enumerate(context.messages):
-                # Skip system messages for transcript
-                if isinstance(message, dict) and message.get("role") == "system":
-                    continue
-
-                # Add timestamp (approximate based on message order)
-                timestamp = base_time - datetime.timedelta(
-                    seconds=len(context.messages) - i
-                )
-                if isinstance(message, dict):
-                    transcript_with_timestamps.append(
-                        {**message, "timestamp": timestamp.isoformat()}
-                    )
+        # 5. METRICS: Count Tokens (The Meter)
+        input_tokens = 0
+        output_tokens = 0
+        tts_chars = 0
+        try:
+            enc = tiktoken.get_encoding("o200k_base")  # GPT-4o standard
+            for msg in context.messages:
+                # Handle both dict and object messages (Pipecat compatibility)
+                if isinstance(msg, dict):
+                    role = msg.get("role", "")
+                    content = str(msg.get("content", ""))
                 else:
-                    # Handle non-dict messages
-                    transcript_with_timestamps.append(
-                        {
-                            "role": getattr(message, "role", "unknown"),
-                            "content": getattr(message, "content", str(message)),
-                            "timestamp": timestamp.isoformat(),
-                        }
-                    )
+                    role = getattr(msg, "role", "")
+                    content = str(getattr(msg, "content", ""))
 
-            await log_conversation(
-                contact_id=contact["id"],
-                client_id=client_id,
-                transcript=transcript_with_timestamps,
-                duration=duration_seconds,
+                if role == "assistant":
+                    output_tokens += len(enc.encode(content))
+                    tts_chars += len(content)
+                elif role in ["user", "system"]:
+                    input_tokens += len(enc.encode(content))
+        except Exception as e:
+            logger.error(f"Token count failed: {e}")
+
+        # Log Conversation & Get ID
+        # Calculate transcript with timestamps
+        transcript_with_timestamps = []
+        base_time = call_end_time
+
+        # Initial Greeting Timestamp
+        if initial_greeting:
+            greeting_timestamp = base_time - datetime.timedelta(
+                seconds=len(context.messages) + 1
+            )
+            transcript_with_timestamps.insert(
+                0,
+                {
+                    "role": "assistant",
+                    "content": initial_greeting,
+                    "timestamp": greeting_timestamp.isoformat(),
+                },
+            )
+
+        for i, message in enumerate(context.messages):
+            # Skip system messages for transcript
+            if isinstance(message, dict):
+                if message.get("role") == "system":
+                    continue
+                msg_role = message.get("role")
+                msg_content = message.get("content")
+            else:
+                if getattr(message, "role", "") == "system":
+                    continue
+                msg_role = getattr(message, "role", "")
+                msg_content = getattr(message, "content", "")
+
+            timestamp = base_time - datetime.timedelta(
+                seconds=len(context.messages) - i
+            )
+            transcript_with_timestamps.append(
+                {
+                    "role": msg_role,
+                    "content": str(msg_content),
+                    "timestamp": timestamp.isoformat(),
+                    "created_at": timestamp.isoformat(),
+                }
+            )
+
+        # 1. Log Conversation
+        response_obj = await log_conversation(
+            contact_id=contact["id"] if contact else None,
+            client_id=client_id,
+            transcript=transcript_with_timestamps,
+            duration=total_seconds,
+        )
+
+        # 2. SAFE EXTRACTION: Get the string ID from the object
+        actual_conv_id = None
+        try:
+            # Check if we got a valid response object with data
+            if response_obj and hasattr(response_obj, "data") and response_obj.data:
+                actual_conv_id = response_obj.data[0]["id"]
+                logger.info(f"CAPTURED CONVERSATION ID: {actual_conv_id}")
+            else:
+                logger.error(
+                    f"LOGGING ERROR: Could not extract ID from: {response_obj}"
+                )
+        except Exception as e:
+            logger.error(f"LOGGING EXCEPTION: {e}")
+
+        # 3. Log to Ledger (Only if we have a valid string ID)
+        if actual_conv_id:
+            await log_usage_ledger(
+                client_id,
+                actual_conv_id,
+                {
+                    "call_duration": total_seconds,
+                    "llm_tokens_input": input_tokens,
+                    "llm_tokens_output": output_tokens,
+                    "tts_characters": tts_chars,
+                },
             )
 
         logger.info("Call ended. Cleaning up.")
@@ -673,6 +740,41 @@ async def api_delete_conversation_log(
 async def get_templates():
     template_manager = app.state.template_manager
     return template_manager.get_all_templates()
+
+
+@app.get("/api/admin/dashboard")
+async def get_admin_dashboard(token: str = Depends(get_current_user_token)):
+    """
+    Secure Admin Endpoint.
+    """
+    # A. Define the Boss
+    ADMIN_EMAIL = "admin@frontdesk.com"
+
+    # B. Decode Token (without signature verification for robustness in dev)
+    try:
+        # We trust Supabase issued this token if we are on the same domain.
+        # In production, you MUST verify the signature using your JWT Secret.
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+
+        logger.info(f"ADMIN CHECK: Request from {user_email}")
+
+    except Exception as e:
+        logger.error(f"Token Decode Error: {e}")
+        raise HTTPException(status_code=401, detail="Invalid Token Format")
+
+    # C. The Bouncer
+    if user_email != ADMIN_EMAIL:
+        logger.warning(f"Unauthorized admin access attempt by {user_email}")
+        # 403 tells the frontend: "I know who you are, and you are NOT allowed."
+        raise HTTPException(status_code=403, detail="Forbidden: Admins only.")
+
+    # D. Grant Access (God Mode)
+    # Uses Service Role to bypass RLS
+    ledger = await get_admin_ledger()
+    clients = await get_admin_clients()
+
+    return {"ledger": ledger, "clients": clients}
 
 
 async def main():

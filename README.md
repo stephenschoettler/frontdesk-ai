@@ -25,6 +25,10 @@ This project is designed to be a foundation for a fully-featured AI agent that c
 | :---: | :---: |
 | <img src="screenshots/contacts.png" width="400" /> | <img src="screenshots/call_logs.png" width="400" /> |
 
+| Settings |
+| :---: |
+| <img src="screenshots/settings.png" width="400" /> |
+
 ## Core Tech Stack
 
 - **Orchestration:** [Pipecat](https://pipecat.ai/)

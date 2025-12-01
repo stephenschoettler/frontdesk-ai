@@ -320,6 +320,84 @@ body {
   border-radius: 4px;
 }
 
+/* --- Global Ghost Success Button (Fixes Upload/Inject & Save) --- */
+.btn-outline-success {
+  background: transparent !important;
+  border: 1px solid var(--theme-green) !important;
+  color: var(--theme-green) !important;
+  transition: all 0.2s ease;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+/* Hover State (Glowing Neon) */
+.btn-outline-success:hover:not(:disabled),
+.btn-outline-success:focus:not(:disabled),
+.btn-outline-success:active:not(:disabled) {
+  background: rgba(158, 206, 106, 0.1) !important; /* 10% Tint */
+  color: var(--theme-green) !important;
+  box-shadow: 0 0 15px var(--theme-green) !important; /* Green Glow */
+  text-shadow: 0 0 8px var(--theme-green);
+  transform: translateY(-1px);
+  border-color: var(--theme-green) !important;
+  outline: none !important;
+}
+
+/* Disabled State (Dimmed but visible) */
+.btn-outline-success:disabled {
+  opacity: 0.3 !important;
+  background: transparent !important;
+  border-color: var(--theme-green) !important;
+  color: var(--theme-green) !important;
+  cursor: not-allowed;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* --- Global Ghost Info Button (Fixes Download Button) --- */
+.btn-outline-info {
+  background: transparent !important;
+  border: 1px solid var(--theme-purple) !important;
+  color: var(--theme-purple) !important;
+  transition: all 0.2s ease;
+  font-weight: 700; /* Match the others */
+  letter-spacing: 1px;
+}
+
+.btn-outline-info:hover,
+.btn-outline-info:focus,
+.btn-outline-info:active {
+  background: rgba(187, 154, 247, 0.1) !important; /* 10% Tint only */
+  color: var(--theme-purple) !important;
+  box-shadow: 0 0 15px var(--theme-purple) !important; /* Neon Glow */
+  text-shadow: 0 0 8px var(--theme-purple);
+  transform: translateY(-1px);
+  border-color: var(--theme-purple) !important;
+  outline: none !important;
+}
+
+/* --- Global Ghost Danger Button (Fixes Reset/Purge) --- */
+.btn-outline-danger {
+  background: transparent !important;
+  border: 1px solid var(--theme-red) !important;
+  color: var(--theme-red) !important;
+  transition: all 0.2s ease;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.btn-outline-danger:hover,
+.btn-outline-danger:focus,
+.btn-outline-danger:active {
+  background: rgba(247, 118, 142, 0.1) !important; /* 10% Tint */
+  color: var(--theme-red) !important;
+  box-shadow: 0 0 15px var(--theme-red) !important; /* Red Neon Glow */
+  text-shadow: 0 0 8px var(--theme-red);
+  transform: translateY(-1px);
+  border-color: var(--theme-red) !important;
+  outline: none !important;
+}
+
 .form-control,
 .form-select {
   background: var(--theme-bg-dark) !important;
@@ -511,9 +589,9 @@ option {
   font-family: "JetBrains Mono";
   letter-spacing: 1px;
   text-transform: none !important; /* Force proper casing */
-  
+
   /* Optional: A very tight, subtle glow to match the 'Screen' aesthetic without being fuzzy */
-  text-shadow: 0 0 10px rgba(125, 207, 255, 0.3); 
+  text-shadow: 0 0 10px rgba(125, 207, 255, 0.3);
 }
 
 .modal-title,
@@ -535,7 +613,7 @@ option {
 .spec-icon {
   color: var(--theme-comment) !important; /* Force icons to stay dim */
   font-size: 1.1rem;
-  width: 16px; 
+  width: 16px;
   text-align: center;
   transition: color 0.2s;
   opacity: 0.7; /* Extra layer of subtlety */
@@ -602,23 +680,23 @@ option {
   background: rgba(224, 175, 104, 0.05); /* Lighter background */
   color: var(--theme-orange);
   border: 1px solid var(--theme-orange);
-  
+
   /* Pill Shape */
-  border-radius: 50px; 
+  border-radius: 50px;
   padding: 3px 10px;
-  
+
   /* Typography */
   font-size: 0.65rem; /* Smaller, punchier text */
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  
+
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  
+
   /* Remove the glow to make them feel "flat" and informational, not clickable */
-  box-shadow: none; 
+  box-shadow: none;
   margin-top: 4px; /* Slight breathing room from the content above */
 }
 
@@ -636,10 +714,7 @@ option {
 
 /* --- Edit Button (Fixed Hover) --- */
 
-
-
 .btn-edit {
-
   /* Layout matches status-toggle-btn */
 
   display: inline-flex;
@@ -658,8 +733,6 @@ option {
 
   padding: 0.25rem 1.5rem;
 
-
-
   /* Blue Color Scheme (Resting) */
 
   background: transparent !important;
@@ -668,40 +741,27 @@ option {
 
   color: var(--theme-blue) !important;
 
-  
-
   /* Subtle resting glow (Same physics as Online button) */
 
-  box-shadow: 0 0 5px rgba(125, 207, 255, 0.1); 
-
+  box-shadow: 0 0 5px rgba(125, 207, 255, 0.1);
 }
 
-
-
 .btn-edit:hover {
-
   /* Exact Physics of the Online Button */
 
   background: rgba(125, 207, 255, 0.1) !important; /* 10% Tint only */
 
-  
-
   /* The "Ghost" Neon Glow */
 
   box-shadow:
-
     0 0 20px var(--theme-blue),
-
     inset 0 0 10px rgba(125, 207, 255, 0.2);
-
-    
 
   text-shadow: 0 0 8px var(--theme-blue);
 
   transform: translateY(-1px);
 
   color: var(--theme-blue) !important;
-
 }
 
 .client-card .card-footer .form-check-input {
@@ -989,8 +1049,12 @@ h6 {
   border-top: none !important;
   border-bottom: 1px solid var(--theme-bg-mid) !important;
   text-transform: uppercase;
-  color: var(--theme-blue) !important;
+
+  /* WAS: var(--theme-blue) -> NOW: Grey/Muted */
+  color: var(--theme-comment) !important;
+
   letter-spacing: 2px;
+  font-size: 0.8rem; /* Optional: Make headers slightly smaller */
 }
 
 .table-dark tbody tr {
@@ -1157,11 +1221,13 @@ tr.selected {
   color: var(--theme-fg);
 }
 
+/* Update: Make transcript labels neutral, letting the border do the work */
 .message strong {
-  color: var(--theme-blue) !important;
-  display: block;
-  margin-bottom: 0.25rem;
-  font-size: 0.9rem;
+  color: var(--theme-comment) !important; /* Was Blue/Purple, now Grey */
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
 }
 
 .message p {
@@ -1169,8 +1235,17 @@ tr.selected {
   color: var(--theme-fg);
 }
 
-/* Expanded Transcript View */
+/* Expanded Transcript View (Full Screen Overlay) */
 .expanded-transcript {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999; /* Sit on top of the navbar and everything else */
+  background: var(--theme-bg); /* Opaque background to hide the app behind it */
+  padding: 1.5rem; /* Breathing room from the screen edge */
+  box-sizing: border-box;
   animation: fadeIn 0.3s ease;
 }
 
@@ -1393,19 +1468,22 @@ tr.selected {
 
 /* Inline table input styling */
 .table-inline-input {
-  background: transparent !important;
-  border: none;
-  border-bottom: 1px solid var(--theme-blue); /* Underline only */
+  background: rgba(0, 0, 0, 0.3) !important; /* Darker background */
+  border: 1px solid var(--theme-blue) !important;
+  border-radius: 4px;
   color: var(--theme-fg) !important;
   font-family: "JetBrains Mono", monospace;
-  padding: 0;
-  height: auto;
+  padding: 4px 8px;
+  height: 28px; /* Compact height */
   width: 100%;
+  max-width: 250px; /* Restrict width */
   outline: none;
-  box-shadow: none !important;
+  transition: all 0.2s ease;
 }
+
 .table-inline-input:focus {
-  border-bottom: 2px solid var(--theme-green);
+  border-color: var(--theme-green) !important;
+  box-shadow: 0 0 10px rgba(158, 206, 106, 0.2) !important;
 }
 
 /* Delete button styling for contacts table */
@@ -1440,6 +1518,48 @@ input[type="file"] {
   padding: 0.3rem !important;
   height: auto !important;
   cursor: pointer !important;
+}
+
+/* --- Table Color Overrides --- */
+/* Ensure utility classes win over the global table text color */
+.table-dark td.text-success {
+  color: var(--theme-green) !important;
+}
+
+.table-dark td.text-muted {
+  color: var(--theme-comment) !important;
+}
+
+.table-dark td.text-blue {
+  color: var(--theme-blue) !important;
+}
+
+.table-dark td.text-purple {
+  color: var(--theme-purple) !important;
+}
+
+/* --- Utility Override: Force Border Removal --- */
+/* This allows us to have "Icon Only" buttons by adding class="border-0" */
+.btn.border-0 {
+  border: none !important;
+}
+
+/* Optional: When hovering a borderless icon, just glow the text/icon, don't show the box */
+.btn.border-0:hover {
+  box-shadow: none !important;
+  background: transparent !important;
+  transform: scale(1.2); /* Slight zoom for feedback */
+}
+
+/* Specific Glows for the borderless icons */
+.btn-outline-primary.border-0:hover {
+  text-shadow: 0 0 10px var(--theme-blue);
+}
+.btn-outline-info.border-0:hover {
+  text-shadow: 0 0 10px var(--theme-purple);
+}
+.btn-outline-danger.border-0:hover {
+  text-shadow: 0 0 10px var(--theme-red);
 }
 /* Target the internal button */
 input[type="file"]::file-selector-button {

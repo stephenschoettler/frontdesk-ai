@@ -202,7 +202,7 @@
               <button
                 v-if="contacts.length > 0"
                 @click="toggleSelectAllContacts"
-                class="btn btn-sm btn-outline-secondary me-2"
+                class="btn btn-sm btn-outline-secondary me-4"
               >
                 {{ allContactsSelected ? 'DESELECT ALL' : 'SELECT ALL' }} ({{
                 selectedContacts.length }})
@@ -220,7 +220,7 @@
               <button
                 v-if="filteredCallLogs.length > 0"
                 @click="toggleSelectAllCallLogs"
-                class="btn btn-sm btn-outline-secondary me-2"
+                class="btn btn-sm btn-outline-secondary me-4"
               >
                 {{ selectAllCallLogs ? 'DESELECT ALL' : 'SELECT ALL' }} ({{
                 selectedCallLogs.length }})
@@ -278,7 +278,9 @@
                   <div
                     class="card-header d-flex justify-content-between align-items-center"
                   >
-                    <h5 class="card-title mb-0">{{ formatName(client.name) }}</h5>
+                    <h5 class="card-title mb-0">
+                      {{ formatName(client.name) }}
+                    </h5>
 
                     <div class="form-check m-0">
                       <input
@@ -354,7 +356,10 @@
                           </span>
                         </div>
 
-                        <div class="d-flex align-items-center gap-2" title="STT Model (Ears)">
+                        <div
+                          class="d-flex align-items-center gap-2"
+                          title="STT Model (Ears)"
+                        >
                           <i class="bi bi-mic spec-icon text-purple"></i>
                           <span class="model-badge">
                             {{ client.stt_model.replace('nova-2-', '') }}
@@ -376,19 +381,27 @@
                     <div
                       class="d-flex gap-2 pt-2 border-top border-secondary border-opacity-25"
                     >
-<span 
-  class="tool-badge" 
-  :class="{ 'disabled': !hasScheduling(client) }"
->
-  <i class="bi bi-calendar-range" style="font-size: 0.85rem;"></i> SCHEDULING
-</span>
+                      <span
+                        class="tool-badge"
+                        :class="{ 'disabled': !hasScheduling(client) }"
+                      >
+                        <i
+                          class="bi bi-calendar-range"
+                          style="font-size: 0.85rem"
+                        ></i>
+                        SCHEDULING
+                      </span>
 
-<span 
-  class="tool-badge" 
-  :class="{ 'disabled': !hasMemory(client) }"
->
-  <i class="bi bi-hdd-network" style="font-size: 0.85rem;"></i> MEMORY
-</span>
+                      <span
+                        class="tool-badge"
+                        :class="{ 'disabled': !hasMemory(client) }"
+                      >
+                        <i
+                          class="bi bi-hdd-network"
+                          style="font-size: 0.85rem"
+                        ></i>
+                        MEMORY
+                      </span>
                     </div>
                   </div>
                   <div
@@ -474,7 +487,7 @@
               class="d-flex justify-content-center align-items-center p-5 text-center"
             >
               <div
-                class="h5 text-blue"
+                class="h5 text-success"
                 style="letter-spacing: 2px; animation: pulse 1s infinite"
               >
                 &gt;&gt; ACCESSING DATABASE...
@@ -484,7 +497,7 @@
               <table class="table table-dark">
                 <thead>
                   <tr>
-                    <th></th>
+                    <th class="text-center" style="width: 60px"></th>
                     <th>Phone Number</th>
                     <th>Name</th>
                     <th>Client</th>
@@ -494,7 +507,7 @@
                 </thead>
                 <tbody>
                   <tr v-for="contact in filteredContacts" :key="contact.phone">
-                    <td>
+                    <td class="text-center">
                       <input
                         type="checkbox"
                         v-model="selectedContacts"
@@ -502,50 +515,94 @@
                         class="form-check-input"
                       />
                     </td>
-                    <td>{{ contact.phone }}</td>
-                    <td>
-                      <span v-if="editingContactPhone !== contact.phone"
+
+                    <td class="text-fg fw-bold" style="letter-spacing: 1px">
+                      {{ contact.phone }}
+                    </td>
+
+                    <td class="text-blue">
+                      <span
+                        v-if="editingContactPhone !== contact.phone"
+                        class="fw-bold"
                         >{{ contact.name }}</span
                       >
                       <input
                         v-else
                         v-model="tempContactName"
-                        class="table-inline-input"
+                        class="table-inline-input text-blue"
                         @keyup.enter="saveInlineEdit(contact)"
                         @keyup.esc="cancelInlineEdit()"
+                        autofocus
                       />
                     </td>
-                    <td>{{ contact.client_name }}</td>
-                    <td>{{ formatDate(contact.last_contact) }}</td>
+
+                    <td
+                      class="text-purple text-uppercase"
+                      style="font-size: 0.85rem; letter-spacing: 0.5px"
+                    >
+                      {{ contact.client_name }}
+                    </td>
+
+                    <td class="text-muted small">
+                      {{ formatDate(contact.last_contact) }}
+                    </td>
+
                     <td>
-                      <button
+                      <div
                         v-if="editingContactPhone !== contact.phone"
-                        @click="startInlineEdit(contact)"
-                        class="btn btn-sm btn-outline-primary me-2"
+                        class="d-flex gap-2"
                       >
-                        EDIT NAME
-                      </button>
-                      <button
-                        v-if="editingContactPhone === contact.phone"
-                        @click="saveInlineEdit(contact)"
-                        class="btn btn-sm text-success me-2"
-                      >
-                        SAVE
-                      </button>
-                      <button
-                        v-if="editingContactPhone === contact.phone"
-                        @click="cancelInlineEdit"
-                        class="btn btn-sm text-danger me-2"
-                      >
-                        X
-                      </button>
-                      <button
-                        v-if="editingContactPhone !== contact.phone"
-                        @click="viewContactHistory(contact)"
-                        class="btn btn-sm btn-outline-info"
-                      >
-                        View History
-                      </button>
+                        <button
+                          @click="startInlineEdit(contact)"
+                          class="btn btn-sm btn-outline-primary border-0 p-1"
+                          title="Edit Name"
+                        >
+                          <i
+                            class="bi bi-pencil-square"
+                            style="font-size: 1rem"
+                          ></i>
+                        </button>
+
+                        <button
+                          @click="viewContactHistory(contact)"
+                          class="btn btn-sm btn-outline-info border-0 p-1"
+                          title="View History"
+                        >
+                          <i
+                            class="bi bi-clock-history"
+                            style="font-size: 1rem"
+                          ></i>
+                        </button>
+
+                        <button
+                          @click="deleteContact(contact.phone)"
+                          class="btn btn-sm btn-outline-danger border-0 p-1"
+                          title="Delete Contact"
+                        >
+                          <i class="bi bi-trash" style="font-size: 1rem"></i>
+                        </button>
+                      </div>
+
+                      <div v-else class="d-flex gap-2">
+                        <button
+                          @click="saveInlineEdit(contact)"
+                          class="btn btn-sm btn-outline-success py-0 px-2 d-flex align-items-center"
+                          title="Save Changes"
+                        >
+                          <i
+                            class="bi bi-check-lg"
+                            style="font-size: 1.1rem"
+                          ></i>
+                        </button>
+
+                        <button
+                          @click="cancelInlineEdit"
+                          class="btn btn-sm btn-outline-secondary py-0 px-2 d-flex align-items-center"
+                          title="Cancel"
+                        >
+                          <i class="bi bi-x" style="font-size: 1.1rem"></i>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -559,21 +616,43 @@
               v-if="transcriptExpanded && selectedTranscript"
               class="expanded-transcript"
             >
-              <div class="d-flex align-items-center mb-3">
-                <button
-                  @click="toggleTranscriptExpansion"
-                  class="btn btn-outline-secondary me-3"
+              <div class="card h-100">
+                <div
+                  class="card-header d-flex justify-content-between align-items-center bg-transparent border-bottom border-secondary border-opacity-25"
                 >
-                  ← Back to Logs
-                </button>
-                <h5 class="mb-0 text-uppercase">
-                  Call Transcript - {{ selectedTranscript.client_name }} ({{
-                  selectedTranscript.phone }})
-                </h5>
-              </div>
-              <div class="card">
-                <div class="card-body">
-                  <div class="conversation-transcript expanded">
+                  <div class="d-flex align-items-center gap-3">
+                    <h5
+                      class="mb-0 text-muted text-uppercase"
+                      style="letter-spacing: 2px"
+                    >
+                      <i class="bi bi-chat-text me-2"></i> Transcript
+                    </h5>
+                    <span
+                      class="text-purple"
+                      style="font-size: 0.9rem; letter-spacing: 1px"
+                    >
+                      {{ selectedTranscript.client_name }}
+                      <span class="text-muted">/</span> {{
+                      selectedTranscript.phone }}
+                    </span>
+                  </div>
+                  <button
+                    @click="toggleTranscriptExpansion"
+                    class="btn btn-sm btn-outline-primary border-0 p-1"
+                    title="Exit Full Screen"
+                  >
+                    <i
+                      class="bi bi-fullscreen-exit"
+                      style="font-size: 1.2rem"
+                    ></i>
+                  </button>
+                </div>
+
+                <div class="card-body p-0" style="overflow-y: hidden">
+                  <div
+                    class="conversation-transcript expanded h-100 p-3"
+                    style="overflow-y: auto"
+                  >
                     <template
                       v-for="(message, index) in selectedTranscript.transcript"
                       :key="index"
@@ -695,7 +774,7 @@
                     class="d-flex justify-content-center align-items-center p-5 text-center"
                   >
                     <div
-                      class="h5 text-blue"
+                      class="h5 text-success"
                       style="letter-spacing: 2px; animation: pulse 1s infinite"
                     >
                       &gt;&gt; ACCESSING DATABASE...
@@ -705,7 +784,7 @@
                     <table class="table table-dark">
                       <thead>
                         <tr>
-                          <th></th>
+                          <th class="text-center" style="width: 60px"></th>
                           <th>Date/Time</th>
                           <th>Client</th>
                           <th>Contact</th>
@@ -721,7 +800,7 @@
                           :class="{ 'selected': selectedTranscript?.id === log.id }"
                           style="cursor: pointer"
                         >
-                          <td @click.stop>
+                          <td class="text-center" @click.stop>
                             <input
                               type="checkbox"
                               v-model="selectedCallLogs"
@@ -730,21 +809,49 @@
                               title="Select this log"
                             />
                           </td>
-                          <td>{{ formatDate(log.timestamp) }}</td>
-                          <td>{{ log.client_name }}</td>
+
+                          <td
+                            class="text-fg"
+                            style="font-size: 0.9rem; letter-spacing: 0.5px"
+                          >
+                            {{ formatDate(log.timestamp) }}
+                          </td>
+
+                          <td
+                            class="text-muted text-uppercase"
+                            style="
+                              font-size: 0.8rem;
+                              letter-spacing: 0.5px;
+                              font-weight: 600;
+                            "
+                          >
+                            {{ log.client_name }}
+                          </td>
 
                           <td @click.stop>
                             <a
                               href="#"
                               @click.prevent="jumpToContact(log.phone)"
-                              class="text-decoration-none text-blue hover-underline"
+                              class="text-decoration-none text-blue hover-underline fw-bold"
                               title="Jump to Contact History"
                             >
                               {{ getContactName(log.phone) }}
                             </a>
                           </td>
-                          <td>{{ formatDuration(log.duration) }}</td>
-                          <td>{{ log.status }}</td>
+
+                          <td
+                            class="text-muted small"
+                            style="font-family: &quot;JetBrains Mono&quot;"
+                          >
+                            {{ formatDuration(log.duration) }}
+                          </td>
+
+                          <td
+                            class="text-success small fw-bold text-uppercase"
+                            style="letter-spacing: 1px"
+                          >
+                            {{ log.status }}
+                          </td>
                         </tr>
                       </tbody>
                     </table>
@@ -753,14 +860,24 @@
                 <div class="col-md-6" v-if="selectedTranscript">
                   <div class="card">
                     <div
-                      class="card-header d-flex justify-content-between align-items-center"
+                      class="card-header d-flex justify-content-between align-items-center bg-transparent border-bottom border-secondary border-opacity-25"
                     >
-                      <h6 class="mb-0 text-uppercase">Call Transcript</h6>
+                      <h6
+                        class="mb-0 text-muted text-uppercase"
+                        style="letter-spacing: 2px"
+                      >
+                        <i class="bi bi-chat-text me-2"></i> Transcript
+                      </h6>
+
                       <button
                         @click="toggleTranscriptExpansion"
-                        class="btn btn-sm btn-outline-primary"
+                        class="btn btn-sm btn-outline-primary border-0 p-1"
+                        title="Expand View"
                       >
-                        Expand
+                        <i
+                          class="bi bi-arrows-fullscreen"
+                          style="font-size: 1rem"
+                        ></i>
                       </button>
                     </div>
                     <div class="card-body">
@@ -874,18 +991,20 @@
                 <h5 class="modal-title">
                   {{ showEditModal ? 'Edit Client' : 'Create New Client' }}
                 </h5>
-                <div class="ms-auto">
+
+                <div class="ms-auto d-flex align-items-center gap-3">
                   <button
                     type="submit"
                     form="clientForm"
-                    class="btn btn-sm btn-edit me-3"
+                    class="btn btn-sm btn-edit"
                     :disabled="saving"
                   >
                     {{ saving ? 'SAVING...' : 'SAVE' }}
                   </button>
+
                   <button
                     type="button"
-                    class="btn-close"
+                    class="btn-close m-0"
                     @click="closeModal"
                   ></button>
                 </div>
@@ -1274,11 +1393,14 @@
             <div class="modal-content">
               <div class="modal-header">
                 <h5 class="modal-title">Settings</h5>
-                <button
-                  type="button"
-                  class="btn-close"
-                  @click="closeSettingsModal"
-                ></button>
+
+                <div class="ms-auto d-flex align-items-center">
+                  <button
+                    type="button"
+                    class="btn-close m-0"
+                    @click="closeSettingsModal"
+                  ></button>
+                </div>
               </div>
               <div class="modal-body">
                 <div class="mb-4">
@@ -1336,9 +1458,9 @@
                       </div>
                       <button
                         @click="exportClients"
-                        class="btn btn-sm btn-outline-info"
+                        class="btn btn-sm btn-outline-info d-flex align-items-center gap-2"
                       >
-                        DOWNLOAD .JSON
+                        <i class="bi bi-download"></i> DOWNLOAD
                       </button>
                     </div>
 
@@ -1358,10 +1480,10 @@
                         />
                         <button
                           @click="executeImport"
-                          class="btn btn-sm btn-outline-success"
+                          class="btn btn-sm btn-outline-success d-flex align-items-center gap-2"
                           :disabled="!importFile"
                         >
-                          INJECT
+                          <i class="bi bi-upload"></i> UPLOAD
                         </button>
                       </div>
                       <div class="mt-2 text-muted" style="font-size: 0.65rem">
@@ -1382,43 +1504,27 @@
                       background: var(--theme-bg-dark);
                     "
                   >
-                    <div class="d-flex justify-content-between mb-2">
-                      <span class="text-muted">OPENAI API</span>
-                      <span class="text-success">[ONLINE]</span>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                      <span class="text-muted">TWILIO GATEWAY</span>
-                      <span class="text-success">[ONLINE]</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  class="mt-4 pt-3 border-top"
-                  style="border-color: var(--theme-bg-mid) !important"
-                >
-                  <label class="form-label text-red mb-2">>> DANGER ZONE</label>
-                  <div
-                    class="p-3 border rounded"
-                    style="
-                      border-color: var(--theme-red) !important;
-                      background: var(--theme-bg-dark);
-                    "
-                  >
                     <div
                       class="d-flex justify-content-between align-items-center"
                     >
-                      <span class="text-muted small"
-                        >Clear all local system logs?</span
-                      >
+                      <div>
+                        <span
+                          class="text-danger d-block"
+                          style="font-size: 0.85rem; letter-spacing: 1px"
+                          >CLEAR SESSION</span
+                        >
+                        <small class="text-muted" style="font-size: 0.7rem"
+                          >Logout and clear local tokens.</small
+                        >
+                      </div>
                       <button
-                        class="btn btn-sm btn-outline-danger"
+                        class="btn btn-sm btn-outline-danger d-flex align-items-center gap-2"
                         onclick="
-                          localStorage.removeItem('auditLogs');
+                          localStorage.clear();
                           location.reload();
                         "
                       >
-                        PURGE LOGS
+                        <i class="bi bi-radioactive"></i> RESET
                       </button>
                     </div>
                   </div>

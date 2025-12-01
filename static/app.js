@@ -1309,8 +1309,14 @@ if (
         return name
           .toLowerCase()
           .replace(/(?:^|\s|-)\S/g, (c) => c.toUpperCase())
-          .replace(/\bMc[a-z]/g, (m) => m.substr(0, 2) + m.substr(2).toUpperCase())
-          .replace(/\bO'[a-z]/g, (m) => m.substr(0, 2) + m.substr(2).toUpperCase());
+          .replace(
+            /\bMc[a-z]/g,
+            (m) => m.substr(0, 2) + m.substr(2).toUpperCase(),
+          )
+          .replace(
+            /\bO'[a-z]/g,
+            (m) => m.substr(0, 2) + m.substr(2).toUpperCase(),
+          );
       };
 
       return {

@@ -6,6 +6,7 @@ import signal
 import urllib.parse
 from dotenv import load_dotenv
 import jwt
+
 from fastapi import (
     FastAPI,
     WebSocket,
@@ -121,19 +122,16 @@ async def get_current_user_token(authorization: str = Header(...)) -> str:
     return credentials
 
 
-# Helper: Initialize Services for a Specific Client
-# Helper: Initialize Services for a Specific Client
-async def initialize_client_services(client_id: str):
+async def initialize_client_services(client_id: str, caller_phone: Optional[str] = None):
     """
-    Fetches config for a specific client and initializes their AI services.
-    Returns (stt, tts, llm, system_prompt, initial_greeting) or None on failure.
+    Fetches config and initializes AI services.
+    Uses a wrapper function to inject client_id and caller_phone safely.
     """
     client_config = await get_client_config(client_id)
     if not client_config:
         logger.error(f"Failed to load config for client_id: {client_id}")
         return None
 
-    # Extract Config
     system_prompt = client_config.get("system_prompt", "You are an AI receptionist.")
     llm_model = client_config.get("llm_model", "openai/gpt-4o-mini")
     stt_model = client_config.get("stt_model", "nova-2-phonecall")
@@ -141,23 +139,17 @@ async def initialize_client_services(client_id: str):
     tts_voice_id = client_config.get("tts_voice_id", "21m00Tcm4TlvDq8ikWAM")
     initial_greeting = client_config.get("initial_greeting")
 
-    # Default to all tools if column is missing/empty (Backward Compatibility)
     enabled_tools = client_config.get("enabled_tools") or [
-        "get_available_slots",
-        "book_appointment",
-        "save_contact_name",
-        "reschedule_appointment",
-        "cancel_appointment",
+        "get_available_slots", "book_appointment", "save_contact_name",
+        "reschedule_appointment", "cancel_appointment"
     ]
 
-    # STT (Deepgram)
     stt = DeepgramSTTService(
         api_key=os.environ["DEEPGRAM_API_KEY"],
         model=stt_model,
         vad_events=True,
     )
 
-    # TTS (ElevenLabs - Client Specific Voice)
     tts = ElevenLabsTTSService(
         api_key=os.environ["ELEVENLABS_API_KEY"],
         voice_id=tts_voice_id,
@@ -165,12 +157,9 @@ async def initialize_client_services(client_id: str):
         optimize_streaming_latency=4,
     )
 
-    # LLM (OpenRouter - Client Specific Model)
     class DebugLLM(OpenAILLMService):
         async def run_llm(self, *args, **kwargs):
-            response = await super().run_llm(*args, **kwargs)  # type: ignore
-            # logger.info(f"RAW LLM RESPONSE: {response}")
-            return response
+            return await super().run_llm(*args, **kwargs)
 
     llm = DebugLLM(
         api_key=os.environ["OPENROUTER_API_KEY"],
@@ -181,8 +170,7 @@ async def initialize_client_services(client_id: str):
         stream=True,
     )
 
-    # --- Dynamic Tool Registration ---
-    # Map database strings to actual python functions
+    # --- Robust Tool Registration ---
     tool_map = {
         "get_available_slots": handle_get_available_slots,
         "book_appointment": handle_book_appointment,
@@ -194,15 +182,32 @@ async def initialize_client_services(client_id: str):
 
     logger.info(f"Enabling tools for client {client_id}: {enabled_tools}")
 
+    # Helper to create a true function wrapper with metadata
+    def create_tool_wrapper(func, c_id, c_phone):
+        async def wrapper(params, **kwargs):
+            # Inject context variables into the call
+            return await func(params, client_id=c_id, caller_phone=c_phone, **kwargs)
+        
+        # Copy metadata so Pipecat can introspect it
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__ = func.__doc__
+        return wrapper
+
     for tool_name in enabled_tools:
         tool_func = tool_map.get(tool_name)
         if tool_func:
-            llm.register_direct_function(tool_func)
+            # Create a SAFE wrapper with the client_id bound to it
+            safe_tool = create_tool_wrapper(tool_func, client_id, caller_phone)
+            
+            # Register the wrapper
+            llm.register_direct_function(safe_tool)
         else:
             logger.warning(f"Unknown tool requested in config: {tool_name}")
 
-    # Inject CLIENT_ID for tools
+    # Fallback env vars (Deprecating usage, but keeping for safety)
     os.environ["CLIENT_ID"] = client_id
+    if caller_phone:
+        os.environ["CALLER_PHONE"] = caller_phone
 
     return stt, tts, llm, system_prompt, initial_greeting
 
@@ -271,7 +276,9 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
         await websocket.close(code=4002, reason="Insufficient Funds")
         return
 
-    services = await initialize_client_services(client_id)
+    caller_phone_decoded = urllib.parse.unquote(caller_phone)
+
+    services = await initialize_client_services(client_id, caller_phone_decoded)
     if not services:
         await websocket.close()
         return
@@ -288,10 +295,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
     _, call_data = await parse_telephony_websocket(websocket)
 
     # --- Contact Management (Scoped to Client) ---
-    caller_phone_decoded = urllib.parse.unquote(caller_phone)
     contact = None
     if caller_phone_decoded:
-        contact = await get_or_create_contact(caller_phone_decoded)
+        # FIX: Pass client_id to the function
+        contact = await get_or_create_contact(caller_phone_decoded, client_id)
 
     contact_context = ""
     if contact:
@@ -476,28 +483,38 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
 
         for i, message in enumerate(context.messages):
             # Skip system messages for transcript
+            msg_tool_calls = None  # 1. Initialize variable
+
             if isinstance(message, dict):
                 if message.get("role") == "system":
                     continue
                 msg_role = message.get("role")
                 msg_content = message.get("content")
+                msg_tool_calls = message.get("tool_calls") # 2. Extract from dict
             else:
                 if getattr(message, "role", "") == "system":
                     continue
                 msg_role = getattr(message, "role", "")
                 msg_content = getattr(message, "content", "")
+                msg_tool_calls = getattr(message, "tool_calls", None) # 3. Extract from object
 
             timestamp = base_time - datetime.timedelta(
                 seconds=len(context.messages) - i
             )
-            transcript_with_timestamps.append(
-                {
-                    "role": msg_role,
-                    "content": str(msg_content),
-                    "timestamp": timestamp.isoformat(),
-                    "created_at": timestamp.isoformat(),
-                }
-            )
+            
+            # 4. Construct entry with optional tool_calls
+            entry = {
+                "role": msg_role,
+                "content": str(msg_content),
+                "timestamp": timestamp.isoformat(),
+                "created_at": timestamp.isoformat(),
+            }
+            
+            # 5. Attach tool_calls if they exist (This triggers the ⚡ icon in UI)
+            if msg_tool_calls:
+                entry["tool_calls"] = msg_tool_calls
+
+            transcript_with_timestamps.append(entry)
 
         # 1. Log Conversation
         response_obj = await log_conversation(
@@ -703,9 +720,10 @@ async def api_get_all_contacts():
 async def api_update_contact_name(phone: str, request: Request):
     data = await request.json()
     name = data.get("name", "")
-    if not name:
-        raise HTTPException(400, "Name is required")
-    success = await update_contact_name(phone, name)
+    client_id = data.get("client_id", "")
+    if not name or not client_id:
+        raise HTTPException(400, "Name and client_id are required")
+    success = await update_contact_name(phone, name, client_id)
     if not success:
         raise HTTPException(500, "Failed to update contact name")
     return {"message": "Contact name updated successfully"}

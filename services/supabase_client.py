@@ -57,30 +57,36 @@ def get_authenticated_client(jwt_token: str) -> Optional[Client]:
         return None
 
 
-async def get_or_create_contact(phone_number: str) -> Optional[Dict[str, Any]]:
+async def get_or_create_contact(phone_number: str, client_id: str) -> Optional[Dict[str, Any]]:
     """
-    Tries to find a contact by phone number. If not found, creates a new one.
-    Returns the contact's data.
+    Finds a contact by phone AND client_id. Creates one if missing.
     """
     supabase = get_supabase_client()
     if not supabase:
         return None
 
     try:
-        # 1. Try to find the contact
+        # 1. Search scoped to Client
         response = (
-            supabase.table("contacts").select("*").eq("phone", phone_number).execute()
+            supabase.table("contacts")
+            .select("*")
+            .eq("phone", phone_number)
+            .eq("client_id", client_id)
+            .execute()
         )
 
         if response.data:
-            logger.info(f"Found existing contact for {phone_number}")
+            logger.info(f"Found existing contact for {phone_number} (Client {client_id})")
             return response.data[0]
         else:
-            # 2. If not found, create it
-            logger.info(f"No contact found for {phone_number}. Creating new contact.")
+            # 2. Create scoped to Client
+            logger.info(f"Creating new contact for {phone_number} (Client {client_id})")
             insert_response = (
                 supabase.table("contacts")
-                .insert({"phone": phone_number}, returning="representation")
+                .insert({
+                    "phone": phone_number,
+                    "client_id": client_id
+                }, returning="representation")
                 .execute()
             )
 
@@ -88,14 +94,11 @@ async def get_or_create_contact(phone_number: str) -> Optional[Dict[str, Any]]:
                 return insert_response.data[0]
             else:
                 error_message = getattr(insert_response, "error", "Unknown error")
-                logger.error(f"Failed to create new contact: {error_message}")
+                logger.error(f"Failed to create contact: {error_message}")
                 return None
 
-    except APIError as e:
-        logger.error(f"Supabase API error in get_or_create_contact: {e}")
-        return None
     except Exception as e:
-        logger.error(f"Unexpected error in get_or_create_contact: {e}")
+        logger.error(f"Error in get_or_create_contact: {e}")
         return None
 
 
@@ -151,8 +154,6 @@ async def log_conversation(
         data_to_insert["duration"] = duration
 
     try:
-        # FIX: Do NOT chain .select(). Use returning='representation' inside insert if needed,
-        # or just .execute() which returns data by default in Python.
         response = supabase.table("conversations").insert(data_to_insert).execute()
         logger.info(f"Conversation logged successfully for contact_id {contact_id}.")
         return response
@@ -162,26 +163,32 @@ async def log_conversation(
         logger.error(f"Unexpected error logging conversation: {e}")
 
 
-async def update_contact_name(phone_number: str, name: str) -> bool:
+async def update_contact_name(phone_number: str, name: str, client_id: str) -> bool:
     """
-    Updates the name of a contact identified by their phone number.
+    Updates the name of a contact identified by phone AND client_id.
     """
     supabase = get_supabase_client()
     if not supabase:
         return False
 
     try:
+        # We must match the UNIQUE constraint (phone, client_id) for upsert to work reliably
+        # NOTE: Removed the space in 'phone,client_id' to satisfy PostgREST syntax
         resp = (
             supabase.table("contacts")
             .upsert(
-                {"phone": phone_number, "name": name},
-                on_conflict="phone",
+                {
+                    "phone": phone_number,
+                    "client_id": client_id,
+                    "name": name
+                },
+                on_conflict="phone,client_id",
                 returning="representation",
             )
             .execute()
         )
         if resp.data:
-            logger.info(f"DB upsert success → {phone_number}: {name}")
+            logger.info(f"Updated name for {phone_number} (Client {client_id}) -> {name}")
             return True
         else:
             logger.error(f"Upsert error: {getattr(resp, 'error', 'unknown')}")
@@ -307,20 +314,36 @@ async def delete_client(client_id: str, jwt_token: str) -> bool:
 
 async def get_all_contacts() -> Optional[list[Dict[str, Any]]]:
     """
-    Retrieves all contacts along with their last contact timestamp.
+    Retrieves all contacts along with their last contact timestamp AND client name.
     """
     supabase = get_supabase_client()
     if not supabase:
         return None
 
     try:
-        # Fetch all contacts
-        contacts_response = supabase.table("contacts").select("*").execute()
+        # Fetch all contacts JOINED with clients to get the name
+        contacts_response = supabase.table("contacts").select("*, clients(name)").execute()
         if not contacts_response.data:
             logger.info("No contacts found.")
             return []
 
-        contacts = contacts_response.data
+        # Flatten the response for the UI
+        contacts = []
+        for row in contacts_response.data:
+            # Extract client name from the joined object
+            client_data = row.get("clients")
+            client_name = client_data.get("name") if client_data else "Unknown Client"
+            
+            # Create a clean record
+            contact = row.copy()
+            contact["client_name"] = client_name
+            
+            # Remove nested object if present to keep it clean
+            if "clients" in contact:
+                del contact["clients"]
+                
+            contacts.append(contact)
+
         contact_ids = [contact["id"] for contact in contacts]
 
         conversations_response = (

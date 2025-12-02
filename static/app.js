@@ -846,7 +846,8 @@ if (
 
       const getContactName = (phone) => {
         const contact = contacts.value.find((c) => c.phone === phone);
-        return contact ? contact.name : "UNKNOWN";
+        // FIX: Return Name if exists, otherwise return the raw Phone Number
+        return (contact && contact.name) ? contact.name : phone;
       };
 
       const loadContacts = async () => {

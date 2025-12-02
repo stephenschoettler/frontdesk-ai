@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 import pytz
+from typing import Optional
 
 # Import our actual calendar functions
 from services.google_calendar import (
@@ -20,17 +21,17 @@ from pipecat.services.llm_service import FunctionCallParams
 logger = logging.getLogger(__name__)
 
 
-async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> None:
+async def handle_get_available_slots(params: FunctionCallParams, client_id: Optional[str] = None, **kwargs) -> None:
     """
     Check for available 1-hour appointment slots on a specific day.
     Returns human-readable times in the business timezone.
     """
-    client_id = os.environ.get("CLIENT_ID")
-    if not client_id:
+    target_client_id = client_id or os.environ.get("CLIENT_ID")
+    if not target_client_id:
         await params.result_callback([{"error": "Client ID is not configured."}])
         return
 
-    client_config = await get_client_config(client_id)
+    client_config = await get_client_config(target_client_id)
     if not client_config:
         await params.result_callback(
             [{"error": "Failed to fetch client configuration."}]
@@ -107,18 +108,18 @@ async def handle_get_available_slots(params: FunctionCallParams, **kwargs) -> No
         await params.result_callback([{"error": str(e)}])
 
 
-async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
+async def handle_book_appointment(params: FunctionCallParams, client_id: Optional[str] = None, **kwargs) -> None:
     """
     Book an appointment. Handles 'lazy' arguments from AI (missing end_time, etc).
     """
-    client_id = os.environ.get("CLIENT_ID")
-    if not client_id:
+    target_client_id = client_id or os.environ.get("CLIENT_ID")
+    if not target_client_id:
         await params.result_callback(
             {"status": "error", "message": "Client ID missing."}
         )
         return
 
-    client_config = await get_client_config(client_id)
+    client_config = await get_client_config(target_client_id)
     if not client_config:
         await params.result_callback({"status": "error", "message": "Config missing."})
         return
@@ -219,23 +220,28 @@ async def handle_book_appointment(params: FunctionCallParams, **kwargs) -> None:
         await params.result_callback({"status": "error", "message": str(e)})
 
 
-async def handle_save_contact_name(params: FunctionCallParams, **kwargs) -> None:
+async def handle_save_contact_name(params: FunctionCallParams, client_id: Optional[str] = None, **kwargs) -> None:
     """
     Saves contact name. Robust against missing keys.
     """
     args = params.arguments.get("kwargs", params.arguments)
-    # Use phone from LLM args or fall back to the environment variable
     phone_number = args.get("phone_number") or os.environ.get("CALLER_PHONE")
     name = args.get("name") or args.get("contact_name")
 
-    if not phone_number or not name:
+    # 1. Prefer the injected client_id (Thread-safe)
+    # 2. Fallback to env var (Legacy/Testing)
+    target_client_id = client_id or os.environ.get("CLIENT_ID")
+
+    if not phone_number or not name or not target_client_id:
         await params.result_callback(
-            {"status": "error", "message": "Missing phone or name."}
+            {"status": "error", "message": "Missing phone, name, or client configuration."}
         )
         return
 
-    logger.info(f"TOOL CALL: save_contact_name(phone={phone_number}, name={name})")
-    success = await update_contact_name(phone_number=phone_number, name=name)
+    logger.info(f"TOOL CALL: save_contact_name(phone={phone_number}, name={name}, client={target_client_id})")
+
+    # FIX: Pass client_id to update function
+    success = await update_contact_name(phone_number=phone_number, name=name, client_id=target_client_id)
 
     if success:
         await params.result_callback(
@@ -245,18 +251,18 @@ async def handle_save_contact_name(params: FunctionCallParams, **kwargs) -> None
         await params.result_callback({"status": "error", "message": "Database error."})
 
 
-async def handle_reschedule_appointment(params: FunctionCallParams, **kwargs) -> None:
+async def handle_reschedule_appointment(params: FunctionCallParams, client_id: Optional[str] = None, **kwargs) -> None:
     """
     Reschedule an existing appointment to a new time.
     """
-    client_id = os.environ.get("CLIENT_ID")
-    if not client_id:
+    target_client_id = client_id or os.environ.get("CLIENT_ID")
+    if not target_client_id:
         await params.result_callback(
             {"status": "error", "message": "Client ID missing."}
         )
         return
 
-    client_config = await get_client_config(client_id)
+    client_config = await get_client_config(target_client_id)
     if not client_config:
         await params.result_callback({"status": "error", "message": "Config missing."})
         return
@@ -319,18 +325,18 @@ async def handle_reschedule_appointment(params: FunctionCallParams, **kwargs) ->
         await params.result_callback({"status": "error", "message": str(e)})
 
 
-async def handle_cancel_appointment(params: FunctionCallParams, **kwargs) -> None:
+async def handle_cancel_appointment(params: FunctionCallParams, client_id: Optional[str] = None, **kwargs) -> None:
     """
     Cancel an existing appointment.
     """
-    client_id = os.environ.get("CLIENT_ID")
-    if not client_id:
+    target_client_id = client_id or os.environ.get("CLIENT_ID")
+    if not target_client_id:
         await params.result_callback(
             {"status": "error", "message": "Client ID missing."}
         )
         return
 
-    client_config = await get_client_config(client_id)
+    client_config = await get_client_config(target_client_id)
     if not client_config:
         await params.result_callback({"status": "error", "message": "Config missing."})
         return
@@ -364,15 +370,15 @@ async def handle_cancel_appointment(params: FunctionCallParams, **kwargs) -> Non
         await params.result_callback({"status": "error", "message": str(e)})
 
 
-async def handle_list_my_appointments(params: FunctionCallParams, **kwargs) -> None:
+async def handle_list_my_appointments(params: FunctionCallParams, client_id: Optional[str] = None, **kwargs) -> None:
     """
     List the caller's upcoming appointments with booking_ids.
     """
-    client_id = os.environ.get("CLIENT_ID")
-    if not client_id:
+    target_client_id = client_id or os.environ.get("CLIENT_ID")
+    if not target_client_id:
         await params.result_callback([{"error": "No CLIENT_ID."}])
         return
-    client_config = await get_client_config(client_id)
+    client_config = await get_client_config(target_client_id)
     if not client_config:
         await params.result_callback([{"error": "No client config."}])
         return

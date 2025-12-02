@@ -481,6 +481,19 @@
                   placeholder="Search contacts..."
                 />
               </div>
+
+              <div class="col-md-3">
+                <select v-model="contactFilterClient" class="form-select">
+                  <option value="">All Clients</option>
+                  <option
+                    v-for="client in clients"
+                    :key="client.id"
+                    :value="client.id"
+                  >
+                    {{ client.name }}
+                  </option>
+                </select>
+              </div>
             </div>
             <div
               v-if="isLoading"

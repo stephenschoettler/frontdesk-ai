@@ -113,6 +113,7 @@ if (
       const isLoading = ref(false);
 
       const contactSearchQuery = ref("");
+      const contactFilterClient = ref(""); // <--- ADD THIS
       const logSearchQuery = ref("");
       const logFilterClient = ref("");
       const logFilterContact = ref("");
@@ -182,10 +183,18 @@ if (
         if (!contacts.value) return [];
         return contacts.value.filter((contact) => {
           const search = contactSearchQuery.value.toLowerCase();
-          return (
+
+          // 1. Filter by Client (Exact Match on ID)
+          const clientMatch =
+            !contactFilterClient.value ||
+            contact.client_id === contactFilterClient.value;
+
+          // 2. Filter by Search (Name or Phone)
+          const searchMatch =
             (contact.name && contact.name.toLowerCase().includes(search)) ||
-            contact.phone.toLowerCase().includes(search)
-          );
+            contact.phone.toLowerCase().includes(search);
+
+          return clientMatch && searchMatch;
         });
       });
 
@@ -847,7 +856,7 @@ if (
       const getContactName = (phone) => {
         const contact = contacts.value.find((c) => c.phone === phone);
         // FIX: Return Name if exists, otherwise return the raw Phone Number
-        return (contact && contact.name) ? contact.name : phone;
+        return contact && contact.name ? contact.name : phone;
       };
 
       const loadContacts = async () => {
@@ -1402,6 +1411,7 @@ if (
         selectedTranscript,
         transcriptExpanded,
         contactSearchQuery,
+        contactFilterClient, // <--- EXPORT THIS
         logSearchQuery,
         logFilterClient,
         logFilterContact,

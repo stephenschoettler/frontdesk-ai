@@ -158,9 +158,9 @@ body {
 
 /* --- Primary Action Button (Holographic/Stealth) --- */
 .btn-primary {
-  background: transparent !important;       /* Kill the solid blue */
+  background: transparent !important; /* Kill the solid blue */
   border: 1px solid var(--theme-blue) !important; /* Wireframe border */
-  color: var(--theme-blue) !important;      /* Neon text */
+  color: var(--theme-blue) !important; /* Neon text */
   text-transform: uppercase;
   letter-spacing: 2px;
   font-weight: 700;
@@ -172,11 +172,11 @@ body {
 /* Hover State: Power Up */
 .btn-primary:hover {
   background: rgba(125, 207, 255, 0.1) !important; /* 10% Tint */
-  box-shadow: 
-    0 0 20px var(--theme-blue),           /* Outer glow */
-    inset 0 0 10px rgba(125, 207, 255, 0.1); /* Inner glow */
-  text-shadow: 0 0 8px var(--theme-blue);    /* Text bloom */
-  color: var(--theme-fg) !important;         /* Brighten text */
+  box-shadow:
+    0 0 20px var(--theme-blue),
+    /* Outer glow */ inset 0 0 10px rgba(125, 207, 255, 0.1); /* Inner glow */
+  text-shadow: 0 0 8px var(--theme-blue); /* Text bloom */
+  color: var(--theme-fg) !important; /* Brighten text */
   transform: translateY(-1px);
 }
 
@@ -185,8 +185,6 @@ body {
   background: rgba(125, 207, 255, 0.2) !important;
   transform: translateY(0);
 }
-
-
 
 .btn-success {
   background: var(--theme-green);
@@ -1521,6 +1519,57 @@ input[type="file"] {
   cursor: pointer !important;
 }
 
+/* --- Fuel Gauge Styling (Matches Edit/Status Buttons) --- */
+.fuel-gauge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-family: "JetBrains Mono", monospace;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 50px; /* rounded-pill equivalent */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 5px rgba(125, 207, 255, 0.1); /* Subtle resting glow like buttons */
+  min-width: 70px; /* Consistent sizing */
+  white-space: nowrap;
+}
+
+.fuel-normal {
+  background: transparent !important;
+  border: 1px solid var(--theme-blue) !important;
+  color: var(--theme-blue) !important;
+}
+
+.fuel-normal:hover {
+  background: rgba(125, 207, 255, 0.1) !important;
+  box-shadow:
+    0 0 20px var(--theme-blue),
+    inset 0 0 10px rgba(125, 207, 255, 0.2);
+  text-shadow: 0 0 8px var(--theme-blue);
+  transform: translateY(-1px);
+}
+
+.fuel-low {
+  background: transparent !important;
+  border: 1px solid var(--theme-red) !important;
+  color: var(--theme-red) !important;
+  opacity: 0.9;
+}
+
+.fuel-low:hover {
+  background: rgba(247, 118, 142, 0.1) !important;
+  box-shadow:
+    0 0 20px var(--theme-red),
+    inset 0 0 10px rgba(247, 118, 142, 0.2);
+  text-shadow: 0 0 8px var(--theme-red);
+  transform: translateY(-1px);
+  opacity: 1;
+}
+
 /* --- Table Color Overrides --- */
 /* Ensure utility classes win over the global table text color */
 .table-dark td.text-success {
@@ -1583,4 +1632,60 @@ input[type="file"]::file-selector-button {
 input[type="file"]::file-selector-button:hover {
   background: rgba(125, 207, 255, 0.15) !important;
   box-shadow: 0 0 10px var(--theme-blue);
+}
+
+/* --- Fuel Gauge (Time Used) - Matches Edit/Status Buttons, Rounded --- */
+.fuel-gauge {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-size: 0.8rem;
+  font-family: "JetBrains Mono", monospace !important;
+  padding: 0.35rem 0.75rem;
+  border-radius: 50px !important; /* Keep rounded-pill */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  min-width: 65px;
+  box-sizing: border-box;
+}
+
+.fuel-normal {
+  background: transparent !important;
+  border: 1px solid var(--theme-blue) !important;
+  color: var(--theme-blue) !important;
+  box-shadow: 0 0 5px rgba(125, 207, 255, 0.15); /* Subtle resting glow */
+}
+
+.fuel-normal:hover {
+  background: rgba(125, 207, 255, 0.12) !important;
+  box-shadow:
+    0 0 20px var(--theme-blue),
+    inset 0 0 8px rgba(125, 207, 255, 0.2);
+  text-shadow: 0 0 6px var(--theme-blue);
+  transform: translateY(-1px);
+}
+
+.fuel-low {
+  background: transparent !important;
+  border: 1px solid var(--theme-red) !important;
+  color: var(--theme-red) !important;
+  opacity: 0.9;
+  box-shadow: 0 0 5px rgba(247, 118, 142, 0.15);
+}
+
+.fuel-low:hover {
+  background: rgba(247, 118, 142, 0.12) !important;
+  opacity: 1;
+  box-shadow:
+    0 0 20px var(--theme-red),
+    inset 0 0 8px rgba(247, 118, 142, 0.2);
+  text-shadow: 0 0 6px var(--theme-red);
+  transform: translateY(-1px);
+}
+
+.fuel-gauge i {
+  font-size: 0.85em;
 }

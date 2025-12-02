@@ -1,249 +1,143 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>FrontDesk Monitor</title>
-    <link href="./lib/css/bootstrap.min.css" rel="stylesheet" />
+<head>
+    <meta charset="UTF-8">
+    <title>FrontDesk Admin</title>
+    <link href="./lib/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
-      body {
-        background-color: #1a1b26;
-        color: #a9b1d6;
-        font-family: "Segoe UI", sans-serif;
-      }
-      .card {
-        background-color: #24283b;
-        border: 1px solid #414868;
-      }
-      .table {
-        color: #a9b1d6;
-      }
-      .table-dark {
-        --bs-table-bg: #24283b;
-        --bs-table-border-color: #414868;
-      }
-      .metric-badge {
-        font-size: 0.8em;
-        padding: 4px 8px;
-        border-radius: 4px;
-        background: #414868;
-        color: #7aa2f7;
-      }
-      .metric-value {
-        font-family: monospace;
-        color: #bb9af7;
-      }
-      /* Status Bar for Debugging */
-      .status-bar {
-        padding: 10px;
-        font-family: monospace;
-        font-size: 12px;
-        border-bottom: 1px solid #444;
-        background: #111;
-        color: #666;
-      }
+        body { background-color: #1a1b26; color: #a9b1d6; font-family: 'Segoe UI', sans-serif; }
+        .card { background-color: #24283b; border: 1px solid #414868; }
+        .table { color: #a9b1d6; }
+        .table-dark { --bs-table-bg: #24283b; --bs-table-border-color: #414868; }
+        .user-row:hover { background-color: #2f3549; cursor: pointer; }
+        .debug-box { background: #000; color: #0f0; font-family: monospace; padding: 10px; margin-bottom: 20px; max-height: 200px; overflow-y: scroll; border: 1px solid #0f0; }
     </style>
-  </head>
-  <body>
-    <div id="debug-status" class="status-bar">Initializing...</div>
+</head>
+<body>
 
-    <div id="app" class="container mt-4">
-      <div v-if="!hasToken" class="alert alert-warning text-center p-5">
-        <h3 class="text-warning">
-          <i class="bi bi-lock"></i> Authentication Required
-        </h3>
-        <p class="lead">No access token found in your browser storage.</p>
-        <hr />
-        <p class="small text-muted">
-          You are currently viewing: <strong>{{ currentOrigin }}</strong><br />
-          You must log in on <strong>this exact domain/IP</strong> to access the
-          monitor.
-        </p>
-        <a href="/static/index.html" class="btn btn-primary btn-lg mt-3"
-          >Go to Login</a
-        >
-      </div>
-
-      <div v-else>
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <h2>🛠️ System Monitor</h2>
-          <div>
-            <span class="badge bg-secondary me-2">{{ connectionStatus }}</span>
-            <button class="btn btn-outline-info btn-sm" @click="fetchData">
-              Refresh
-            </button>
-            <button class="btn btn-outline-danger btn-sm ms-2" @click="logout">
-              Logout
-            </button>
-          </div>
+<div id="app" class="container-fluid p-4">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-shield-lock"></i> Admin Console</h2>
+        <div>
+            <button class="btn btn-sm btn-outline-warning me-2" @click="showDebug = !showDebug">Toggle X-Ray</button>
+            <button v-if="selectedUser" class="btn btn-outline-secondary me-2" @click="selectedUser = null">Back</button>
+            <button class="btn btn-outline-info btn-sm" @click="fetchData">Refresh</button>
         </div>
-
-        <div class="card mb-4">
-          <div class="card-header fw-bold text-info">
-            Client Wallets (Balance)
-          </div>
-          <div class="card-body p-0">
-            <table class="table table-dark table-hover mb-0">
-              <thead>
-                <tr>
-                  <th>Client</th>
-                  <th>Status</th>
-                  <th>Balance (Sec)</th>
-                  <th>Remaining (Min)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="c in clients" :key="c.id">
-                  <td>{{ c.name }}</td>
-                  <td>
-                    <span v-if="c.is_active" class="badge bg-success"
-                      >Active</span
-                    >
-                    <span v-else class="badge bg-danger">Inactive</span>
-                  </td>
-                  <td class="font-monospace text-warning">
-                    {{ c.balance_seconds }}s
-                  </td>
-                  <td class="font-monospace">
-                    {{ (c.balance_seconds / 60).toFixed(1) }}m
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header fw-bold text-warning">
-            Live Usage Ledger (Recent Items)
-          </div>
-          <div class="card-body p-0">
-            <table class="table table-dark table-sm mb-0">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Client</th>
-                  <th>Metric Type</th>
-                  <th>Quantity</th>
-                  <th>Caller</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in ledger" :key="row.id">
-                  <td class="text-muted small">
-                    {{ formatTime(row.created_at) }}
-                  </td>
-                  <td>{{ row.clients?.name || 'Unknown' }}</td>
-                  <td>
-                    <span class="metric-badge">{{ row.metric_type }}</span>
-                  </td>
-                  <td class="metric-value">{{ row.quantity }}</td>
-                  <td class="small text-muted">
-                    {{ row.conversations?.contacts?.phone || 'Unknown' }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div v-if="errorMsg" class="alert alert-danger mt-3">
-          <strong>API Error:</strong> {{ errorMsg }}
-        </div>
-      </div>
     </div>
 
-    <script src="./lib/js/vue.global.js"></script>
-    <script src="./lib/js/axios.min.js"></script>
-    <script>
-      const { createApp, ref, onMounted } = Vue;
+    <div v-if="showDebug" class="debug-box">
+        <strong>USERS LOADED: {{ users.length }}</strong><br>
+        <div v-for="u in users.slice(0,3)">ID: {{ u.id }} | Email: {{ u.email }}</div>
+        <hr>
+        <strong>CLIENTS LOADED: {{ clients.length }}</strong><br>
+        <div v-for="c in clients.slice(0,3)">ID: {{ c.id }} | Owner: {{ c.owner_user_id }} | Name: {{ c.name }}</div>
+    </div>
 
-      createApp({
+    <div v-if="!selectedUser">
+        <div class="card">
+            <div class="card-header fw-bold text-info">User Directory ({{ users.length }})</div>
+            <div class="card-body p-0">
+                <table class="table table-dark table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Clients</th>
+                            <th>ID (First 8)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="u in users" :key="u.id" class="user-row" @click="selectUser(u)">
+                            <td>
+                                <i class="bi bi-person-circle me-2"></i>
+                                {{ u.email }}
+                                <span v-if="u.email === 'admin@frontdesk.com'" class="badge bg-danger ms-2">ADMIN</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ getClientCount(u.id) }} Clients</span>
+                            </td>
+                            <td class="font-monospace text-muted">{{ u.id.substring(0,8) }}...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div v-else>
+        <h4 class="text-white mb-3">Managing: <span class="text-info">{{ selectedUser.email }}</span></h4>
+        <p class="text-muted small">User ID: {{ selectedUser.id }}</p>
+        
+        <div class="card mb-4">
+            <div class="card-header fw-bold text-success">Clients</div>
+            <div class="card-body p-0">
+                <div v-if="getUserClients(selectedUser.id).length === 0" class="p-3 text-muted text-center">
+                    No clients found for this user ID.
+                </div>
+                <table v-else class="table table-dark table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Client Name</th>
+                            <th>Balance</th>
+                            <th>Owner ID Match?</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="c in getUserClients(selectedUser.id)" :key="c.id">
+                            <td>{{ c.name }}</td>
+                            <td class="font-monospace">{{ c.balance_seconds }}s</td>
+                            <td class="small text-muted">{{ c.owner_user_id === selectedUser.id ? 'YES' : 'NO' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="./lib/js/vue.global.js"></script>
+<script src="./lib/js/axios.min.js"></script>
+<script>
+    const { createApp, ref, onMounted } = Vue;
+
+    createApp({
         setup() {
-          const clients = ref([]);
-          const ledger = ref([]);
-          const hasToken = ref(false);
-          const errorMsg = ref("");
-          const connectionStatus = ref("Idle");
-          const currentOrigin = window.location.origin;
+            const users = ref([]);
+            const clients = ref([]);
+            const ledger = ref([]);
+            const selectedUser = ref(null);
+            const showDebug = ref(true); // Default to ON so you see it immediately
+            const token = localStorage.getItem('authToken');
 
-          // Retrieve token safely
-          const token = localStorage.getItem("authToken");
+            const fetchData = async () => {
+                if(!token) return window.location.href = '/static/index.html';
+                try {
+                    const res = await axios.get('/api/admin/dashboard', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    console.log("RAW API DATA:", res.data);
+                    users.value = res.data.users || [];
+                    clients.value = res.data.clients || [];
+                    ledger.value = res.data.ledger || [];
+                } catch (e) {
+                    console.error(e);
+                    if(e.response && e.response.status === 403) alert("Access Denied");
+                }
+            };
 
-          const formatTime = (iso) => {
-            if (!iso) return "";
-            return new Date(iso).toLocaleString();
-          };
+            const getClientCount = (uid) => clients.value.filter(c => c.owner_user_id === uid).length;
+            const getUserClients = (uid) => clients.value.filter(c => c.owner_user_id === uid);
+            const selectUser = (u) => selectedUser.value = u;
 
-          const updateDebug = (msg) => {
-            document.getElementById("debug-status").innerText =
-              `STATUS: ${msg}`;
-          };
+            onMounted(() => fetchData());
 
-          const logout = () => {
-            localStorage.removeItem("authToken");
-            window.location.href = "/static/index.html";
-          };
-
-          const fetchData = async () => {
-            if (!token) return;
-
-            connectionStatus.value = "Fetching...";
-            updateDebug("Contacting Server...");
-            errorMsg.value = "";
-
-            try {
-              const res = await axios.get("/api/admin/dashboard", {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              // Success
-              clients.value = res.data.clients;
-              ledger.value = res.data.ledger;
-              connectionStatus.value = "Online";
-              updateDebug("Data loaded.");
-            } catch (e) {
-              console.error("Monitor fetch failed", e);
-              connectionStatus.value = "Error";
-
-              if (e.response && e.response.status === 403) {
-                // THE KICK: User is logged in but NOT admin
-                alert(
-                  "⛔ ACCESS DENIED: You are not authorized to view this panel.",
-                );
-                window.location.href = "/static/index.html";
-              } else if (e.response && e.response.status === 401) {
-                // User is not logged in (or token invalid)
-                updateDebug("Session Expired.");
-                hasToken.value = false;
-              } else {
-                errorMsg.value = e.message;
-              }
-            }
-          };
-
-          onMounted(() => {
-            if (!token) {
-              hasToken.value = false;
-              updateDebug("NO TOKEN FOUND. Please Login.");
-            } else {
-              hasToken.value = true;
-              updateDebug("Token Found. Starting Fetch...");
-              fetchData();
-            }
-          });
-
-          return {
-            clients,
-            ledger,
-            fetchData,
-            formatTime,
-            hasToken,
-            errorMsg,
-            connectionStatus,
-            currentOrigin,
-            logout,
-          };
-        },
-      }).mount("#app");
-    </script>
-  </body>
+            return { 
+                users, clients, selectedUser, showDebug,
+                fetchData, selectUser, getClientCount, getUserClients
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
 </html>

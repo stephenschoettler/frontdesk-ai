@@ -66,6 +66,7 @@ from services.supabase_client import (
     log_usage_ledger,
     get_admin_ledger,
     get_admin_clients,
+    get_admin_users,
 )
 
 # Import tool handlers
@@ -791,8 +792,9 @@ async def get_admin_dashboard(token: str = Depends(get_current_user_token)):
     # Uses Service Role to bypass RLS
     ledger = await get_admin_ledger()
     clients = await get_admin_clients()
+    users = await get_admin_users()
 
-    return {"ledger": ledger, "clients": clients}
+    return {"ledger": ledger, "clients": clients, "users": users}
 
 
 async def main():

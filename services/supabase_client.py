@@ -666,3 +666,35 @@ async def get_admin_clients() -> Optional[list[Dict[str, Any]]]:
     except Exception as e:
         logger.error(f"Admin clients fetch error: {e}")
         return []
+
+
+async def get_admin_users() -> list[Dict[str, Any]]:
+    """
+    ADMIN: Fetches ALL registered users using the Service Role Key's access to the Auth system.
+    """
+    supabase = get_supabase_client()  # Uses SERVICE_ROLE_KEY by default
+    if not supabase:
+        return []
+
+    try:
+        # Fetch all users using the admin client
+        admin_response = supabase.auth.admin.list_users()
+
+        # Flatten the user data for the frontend display
+        users = [
+            {
+                "id": user.id,
+                "email": user.email,
+                "created_at": user.created_at,
+                "last_sign_in_at": user.last_sign_in_at,
+                "email_confirmed_at": user.email_confirmed_at,
+                "role": user.role,
+            }
+            for user in admin_response
+        ]
+
+        return users
+
+    except Exception as e:
+        logger.error(f"Admin users fetch error (using auth.admin.list_users): {e}")
+        return []

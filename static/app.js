@@ -179,20 +179,43 @@ if (
         return filteredClients.value.slice(start, end);
       });
 
+      // --- HELPER: Normalize Phone Numbers for Comparison ---
+      const normalizePhone = (phone) => {
+        if (!phone) return "";
+        // Strip all non-digit characters
+        return phone.replace(/\D/g, "");
+      };
+
+      const matchPhones = (p1, p2) => {
+        if (!p1 || !p2) return false;
+        const n1 = normalizePhone(p1);
+        const n2 = normalizePhone(p2);
+        // Robust match: exact match OR one contains the other (handles +1 vs no +1)
+        return (
+          n1 === n2 ||
+          (n1.length > 6 &&
+            n2.length > 6 &&
+            (n1.includes(n2) || n2.includes(n1)))
+        );
+      };
+
       const filteredContacts = computed(() => {
         if (!contacts.value) return [];
         return contacts.value.filter((contact) => {
           const search = contactSearchQuery.value.toLowerCase();
+          const cleanSearch = normalizePhone(search);
 
           // 1. Filter by Client (Exact Match on ID)
           const clientMatch =
             !contactFilterClient.value ||
             contact.client_id === contactFilterClient.value;
 
-          // 2. Filter by Search (Name or Phone)
+          // 2. Filter by Search (Name or Phone) - Robust Phone Match
           const searchMatch =
             (contact.name && contact.name.toLowerCase().includes(search)) ||
-            contact.phone.toLowerCase().includes(search);
+            contact.phone.toLowerCase().includes(search) ||
+            (cleanSearch &&
+              normalizePhone(contact.phone).includes(cleanSearch));
 
           return clientMatch && searchMatch;
         });
@@ -225,10 +248,16 @@ if (
           const clientMatch =
             !logFilterClient.value ||
             (clientName && log.client_name === clientName);
-          const contactMatch =
-            !logFilterContact.value || log.phone === logFilterContact.value;
 
-          const contact = contacts.value.find((c) => c.phone === log.phone);
+          // ROBUST CONTACT MATCHING
+          const contactMatch =
+            !logFilterContact.value ||
+            matchPhones(log.phone, logFilterContact.value);
+
+          // Find contact for name search (using robust match)
+          const contact = contacts.value.find((c) =>
+            matchPhones(c.phone, log.phone),
+          );
           const contactName = contact ? contact.name : "";
 
           const searchMatch =
@@ -236,6 +265,7 @@ if (
             (log.phone && log.phone.toLowerCase().includes(search)) ||
             (log.status && log.status.toLowerCase().includes(search)) ||
             (contactName && contactName.toLowerCase().includes(search));
+
           return clientMatch && searchMatch && contactMatch;
         });
       });
@@ -824,6 +854,8 @@ if (
 
       const jumpToContact = (phone) => {
         activeTab.value = "contacts";
+        // Clear client filter to ensure global search finds the contact
+        contactFilterClient.value = "";
         contactSearchQuery.value = phone;
       };
 
@@ -854,8 +886,8 @@ if (
       };
 
       const getContactName = (phone) => {
-        const contact = contacts.value.find((c) => c.phone === phone);
-        // FIX: Return Name if exists, otherwise return the raw Phone Number
+        // ROBUST: Check using matchPhones helper to link names even if format differs
+        const contact = contacts.value.find((c) => matchPhones(c.phone, phone));
         return contact && contact.name ? contact.name : phone;
       };
 
@@ -1158,6 +1190,7 @@ if (
             ansiColors.yellow || "#e0af68",
           );
           root.style.setProperty("--theme-red", ansiColors.red || "#f7768e");
+          root.style.setProperty("--theme-cyan", ansiColors.cyan || "#7dcfff");
           root.style.setProperty(
             "--theme-comment",
             ansiColors.bright_black || "#565f89",

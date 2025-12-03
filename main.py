@@ -63,6 +63,10 @@ from services.supabase_client import (
     get_client_by_phone,
     get_client_balance,
     deduct_balance,
+    adjust_client_balance,
+    admin_update_client,
+    get_client_ledger,
+    toggle_user_status,
     log_usage_ledger,
     get_admin_ledger,
     get_admin_clients,
@@ -608,6 +612,26 @@ class UserLogin(BaseModel):
     password: str
 
 
+class AdjustBalanceRequest(BaseModel):
+    client_id: str
+    amount_seconds: int
+    reason: str
+
+
+class AdminClientUpdate(BaseModel):
+    name: Optional[str] = None
+    cell: Optional[str] = None
+    system_prompt: Optional[str] = None
+    is_active: Optional[bool] = None
+    llm_model: Optional[str] = None
+    stt_model: Optional[str] = None
+    tts_model: Optional[str] = None
+    tts_voice_id: Optional[str] = None
+    enabled_tools: Optional[list[str]] = None
+
+
+
+
 @app.post("/api/auth/register")
 async def register_user(user: UserRegister):
     supabase = get_supabase_client()
@@ -795,6 +819,138 @@ async def get_admin_dashboard(token: str = Depends(get_current_user_token)):
     users = await get_admin_users()
 
     return {"ledger": ledger, "clients": clients, "users": users}
+
+
+@app.post("/api/admin/adjust-balance")
+async def admin_adjust_balance(
+    request: AdjustBalanceRequest, token: str = Depends(get_current_user_token)
+):
+    """
+    Secure Admin Endpoint to manually credit/debit client balance.
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    success = await adjust_client_balance(
+        request.client_id, request.amount_seconds, request.reason
+    )
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to adjust balance")
+        
+    return {"message": "Balance adjusted successfully"}
+
+
+@app.get("/api/admin/client/{client_id}/ledger")
+async def admin_get_client_ledger(
+    client_id: str, token: str = Depends(get_current_user_token)
+):
+    """
+    Secure Admin Endpoint to fetch client specific ledger.
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    ledger = await get_client_ledger(client_id)
+    return {"ledger": ledger}
+
+
+@app.post("/api/admin/user/{user_id}/toggle-status")
+async def admin_toggle_user_status(
+    user_id: str, token: str = Depends(get_current_user_token)
+):
+    """
+    Secure Admin Endpoint to toggle user active status.
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    new_status = await toggle_user_status(user_id)
+    
+    if new_status is None:
+        raise HTTPException(status_code=500, detail="Failed to toggle status")
+        
+    return {"is_active": new_status}
+
+
+@app.put("/api/admin/client/{client_id}")
+async def admin_update_client_endpoint(
+    client_id: str, client_data: AdminClientUpdate, token: str = Depends(get_current_user_token)
+):
+    """
+    Secure Admin Endpoint to update client configuration.
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Filter out None values
+    data = {k: v for k, v in client_data.dict().items() if v is not None}
+    
+    updated_client = await admin_update_client(client_id, data)
+    
+    if not updated_client:
+        raise HTTPException(status_code=500, detail="Failed to update client")
+        
+    return updated_client
+
+
+@app.get("/api/admin/conversation/{conversation_id}")
+async def admin_get_conversation(
+    conversation_id: str, token: str = Depends(get_current_user_token)
+):
+    """
+    Secure Admin Endpoint to fetch full conversation details.
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    conversation = await get_conversation_by_id(conversation_id)
+    if not conversation:
+         raise HTTPException(status_code=404, detail="Conversation not found")
+         
+    return conversation
+
+
 
 
 async def main():

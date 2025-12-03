@@ -10,6 +10,7 @@
   --theme-green: #9ece6a;
   --theme-orange: #e0af68;
   --theme-red: #f7768e;
+  --theme-cyan: #7dcfff;
   --theme-comment: #565f89;
   --theme-muted: #888;
   --theme-logo-white: #ffffff;
@@ -1568,6 +1569,22 @@ input[type="file"] {
   text-shadow: 0 0 8px var(--theme-red);
   transform: translateY(-1px);
   opacity: 1;
+}
+
+.fuel-cyan {
+  background: transparent !important;
+  border: 1px solid var(--theme-cyan) !important;
+  color: var(--theme-cyan) !important;
+  box-shadow: 0 0 5px rgba(125, 207, 255, 0.15);
+}
+
+.fuel-cyan:hover {
+  background: rgba(125, 207, 255, 0.12) !important;
+  box-shadow:
+    0 0 20px var(--theme-cyan),
+    inset 0 0 8px rgba(125, 207, 255, 0.2);
+  text-shadow: 0 0 6px var(--theme-cyan);
+  transform: translateY(-1px);
 }
 
 /* --- Table Color Overrides --- */

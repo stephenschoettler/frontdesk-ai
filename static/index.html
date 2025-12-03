@@ -417,7 +417,7 @@
 
                     <span
                       class="fuel-gauge rounded-pill"
-                      :class="(client.balance_seconds || 0) < 60 ? 'fuel-low' : 'fuel-normal'"
+                      :class="(client.balance_seconds || 0) < 60 ? 'fuel-low' : 'fuel-cyan'"
                     >
                       <i class="bi bi-hourglass-split me-1"></i>
                       {{ formatDuration(client.balance_seconds || 0) }}
@@ -839,7 +839,7 @@
                           </td>
 
                           <td
-                            class="text-muted text-uppercase"
+                            class="text-purple text-uppercase"
                             style="
                               font-size: 0.8rem;
                               letter-spacing: 0.5px;
@@ -856,7 +856,7 @@
                               class="text-decoration-none text-blue hover-underline fw-bold"
                               title="Jump to Contact History"
                             >
-                              {{ getContactName(log.phone) }}
+                              {{ formatName(getContactName(log.phone)) }}
                             </a>
                           </td>
 

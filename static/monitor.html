@@ -1,924 +1,1559 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>FrontDesk // Overwatch</title>
-    <link href="./lib/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <link href="./lib/css/bootstrap.min.css" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="styles.css" />
-    
-    <style>
-        /* Admin-specific overrides */
-        body { 
-            padding-bottom: 50px; 
-        }
-        .admin-header {
-            border-bottom: 1px solid var(--theme-bg-mid);
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-        }
-        .stat-card {
-            background: rgba(22, 22, 30, 0.6) !important;
-            border: 1px dashed var(--theme-bg-mid) !important;
-            transition: all 0.2s ease;
-        }
-        .stat-card:hover {
-            border-color: var(--theme-purple) !important;
-            box-shadow: 0 0 15px rgba(187, 154, 247, 0.1);
-        }
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--theme-fg);
-            text-shadow: 0 0 10px rgba(192, 202, 245, 0.3);
-        }
-        .stat-label {
-            color: var(--theme-comment);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-size: 0.75rem;
-        }
-        /* Make the user row clickable and obvious */
-        .user-row { cursor: pointer; transition: background 0.2s; }
-        .user-row:hover { background: rgba(125, 207, 255, 0.05) !important; }
-        .user-row.active-row { 
-            border-left: 3px solid var(--theme-purple);
-            background: rgba(187, 154, 247, 0.05) !important;
-        }
-        /* Dark Tabs */
-        .nav-tabs { border-bottom: 1px solid var(--theme-bg-mid); }
-        .nav-tabs .nav-link { color: var(--theme-comment); border: none; border-bottom: 2px solid transparent; }
-        .nav-tabs .nav-link:hover { color: var(--theme-fg); border-color: var(--theme-bg-mid); }
-        .nav-tabs .nav-link.active { 
-            color: var(--theme-purple) !important; 
-            background: transparent !important; 
-            border-bottom: 2px solid var(--theme-purple) !important;
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>
 
-<div id="app" class="container-fluid p-4">
-    
-    <div class="d-flex justify-content-between align-items-center admin-header">
+    <style>
+      /* Admin-specific overrides */
+      body {
+        padding-bottom: 50px;
+      }
+      .admin-header {
+        border-bottom: 1px solid var(--theme-bg-mid);
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+      }
+      .stat-card {
+        background: rgba(22, 22, 30, 0.6) !important;
+        border: 1px dashed var(--theme-bg-mid) !important;
+        transition: all 0.2s ease;
+      }
+      .stat-card:hover {
+        border-color: var(--theme-purple) !important;
+        box-shadow: 0 0 15px rgba(187, 154, 247, 0.1);
+      }
+      .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--theme-fg);
+        text-shadow: 0 0 10px rgba(192, 202, 245, 0.3);
+      }
+      .stat-label {
+        color: var(--theme-comment);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-size: 0.75rem;
+      }
+      /* Make the user row clickable and obvious */
+      .user-row {
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .user-row:hover {
+        background: rgba(125, 207, 255, 0.05) !important;
+      }
+      .user-row.active-row {
+        border-left: 3px solid var(--theme-purple);
+        background: rgba(187, 154, 247, 0.05) !important;
+      }
+      /* Dark Tabs */
+      .nav-tabs {
+        border-bottom: 1px solid var(--theme-bg-mid);
+      }
+      .nav-tabs .nav-link {
+        color: var(--theme-comment);
+        border: none;
+        border-bottom: 2px solid transparent;
+      }
+      .nav-tabs .nav-link:hover {
+        color: var(--theme-fg);
+        border-color: var(--theme-bg-mid);
+      }
+      .nav-tabs .nav-link.active {
+        color: var(--theme-purple) !important;
+        background: transparent !important;
+        border-bottom: 2px solid var(--theme-purple) !important;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" class="container-fluid p-4">
+      <div
+        class="d-flex justify-content-between align-items-center admin-header"
+      >
         <div class="d-flex align-items-center gap-3">
-            <h3 class="mb-0 text-purple" style="letter-spacing: 2px;">
-                <i class="bi bi-eye-fill me-2"></i>OVERWATCH
-            </h3>
-            <span class="badge bg-secondary text-muted" style="font-size: 0.7rem;">ADMIN CONSOLE</span>
+          <h3 class="mb-0 text-purple" style="letter-spacing: 2px">
+            <i class="bi bi-eye-fill me-2"></i>OVERWATCH
+          </h3>
+          <span class="badge bg-secondary text-muted" style="font-size: 0.7rem"
+            >ADMIN CONSOLE</span
+          >
         </div>
         <div>
-            <button class="btn btn-sm btn-outline-warning me-2" @click="showDebug = !showDebug">
-                <i class="bi bi-bug"></i> {{ showDebug ? 'HIDE X-RAY' : 'X-RAY' }}
-            </button>
-            <button class="btn btn-outline-info btn-sm" @click="fetchData">
-                <i class="bi bi-arrow-clockwise"></i> REFRESH DATA
-            </button>
-            <a href="/" class="btn btn-sm btn-outline-secondary ms-2">
-                EXIT <i class="bi bi-box-arrow-right"></i>
-            </a>
+          <button
+            class="btn btn-sm btn-outline-warning me-2"
+            @click="showDebug = !showDebug"
+          >
+            <i class="bi bi-bug"></i> {{ showDebug ? 'HIDE X-RAY' : 'X-RAY' }}
+          </button>
+          <button class="btn btn-outline-info btn-sm" @click="fetchData">
+            <i class="bi bi-arrow-clockwise"></i> REFRESH DATA
+          </button>
+          <a href="/" class="btn btn-sm btn-outline-secondary ms-2">
+            EXIT <i class="bi bi-box-arrow-right"></i>
+          </a>
         </div>
-    </div>
+      </div>
 
-    <div class="row mb-4">
+      <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card stat-card p-3">
-                <div class="stat-value text-blue">{{ users.length }}</div>
-                <div class="stat-label">Total Users</div>
-            </div>
+          <div class="card stat-card p-3">
+            <div class="stat-value text-blue">{{ users.length }}</div>
+            <div class="stat-label">Total Users</div>
+          </div>
         </div>
         <div class="col-md-3">
-            <div class="card stat-card p-3">
-                <div class="stat-value text-purple">{{ clients.length }}</div>
-                <div class="stat-label">Total Clients</div>
-            </div>
+          <div class="card stat-card p-3">
+            <div class="stat-value text-purple">{{ clients.length }}</div>
+            <div class="stat-label">Total Clients</div>
+          </div>
         </div>
         <div class="col-md-3">
-            <div class="card stat-card p-3">
-                <div class="stat-value text-success">{{ formatDuration(totalSystemBalance) }}</div>
-                <div class="stat-label">Global Balance Reserve</div>
+          <div class="card stat-card p-3">
+            <div class="stat-value text-success">
+              {{ formatDuration(totalSystemBalance) }}
             </div>
+            <div class="stat-label">Global Balance Reserve</div>
+          </div>
         </div>
         <div class="col-md-3">
-            <div class="card stat-card p-3">
-                <div class="stat-value text-warning">{{ orphanClients }}</div>
-                <div class="stat-label">Orphaned Clients (No Owner)</div>
-            </div>
+          <div class="card stat-card p-3">
+            <div class="stat-value text-warning">{{ orphanClients }}</div>
+            <div class="stat-label">Orphaned Clients (No Owner)</div>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <div v-if="showDebug" class="card mb-4 border-warning">
+      <div v-if="showDebug" class="card mb-4 border-warning">
         <div class="card-header text-warning bg-transparent border-warning">
-            <i class="bi bi-code-slash"></i> RAW DATA STREAM
+          <i class="bi bi-code-slash"></i> RAW DATA STREAM
         </div>
-        <div class="card-body bg-black p-3" style="font-family: monospace; max-height: 200px; overflow-y: auto; color: #0f0;">
-            <div>> FETCH_TIMESTAMP: {{ new Date().toISOString() }}</div>
-            <div>> USERS_LOADED: {{ users.length }}</div>
-            <div>> CLIENTS_LOADED: {{ clients.length }}</div>
-            <div v-for="u in users.slice(0,3)" :key="u.id" class="text-muted">> USER_PREVIEW: {{ u.email }} [{{ u.id }}]</div>
+        <div
+          class="card-body bg-black p-3"
+          style="
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+            color: #0f0;
+          "
+        >
+          <div>> FETCH_TIMESTAMP: {{ new Date().toISOString() }}</div>
+          <div>> USERS_LOADED: {{ users.length }}</div>
+          <div>> CLIENTS_LOADED: {{ clients.length }}</div>
+          <div v-for="u in users.slice(0,3)" :key="u.id" class="text-muted">
+            > USER_PREVIEW: {{ u.email }} [{{ u.id }}]
+          </div>
         </div>
-    </div>
+      </div>
 
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span class="text-blue">USER DIRECTORY</span>
-                    <input type="text" v-model="userSearch" class="form-control form-control-sm w-50" placeholder="Filter email..." style="background: transparent;">
-                </div>
-                <div class="card-body p-0 table-responsive" style="max-height: 600px;">
-                    <table class="table table-dark table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>User / Email</th>
-                                <th class="text-end">Clients</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="u in filteredUsers" :key="u.id" 
-                                class="user-row" 
-                                :class="{ 'active-row': selectedUser && selectedUser.id === u.id, 'opacity-50': !u.is_active }"
-                                @click="selectUser(u)">
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="me-2">
-                                            <i class="bi bi-person-circle text-muted" style="font-size: 1.2rem;"></i>
-                                        </div>
-                                        <div>
-                                            <div class="fw-bold text-fg" :class="{ 'text-decoration-line-through': !u.is_active }">{{ u.email }}</div>
-                                            <div class="small text-muted font-monospace">{{ u.id.substring(0,8) }}...</div>
-                                        </div>
-                                    </div>
-                                    <span v-if="u.email === 'admin@frontdesk.com'" class="badge border border-danger text-danger mt-1">SUPER ADMIN</span>
-                                    <span v-if="!u.is_active" class="badge bg-danger mt-1 ms-1">BANNED</span>
-                                </td>
-                                <td class="text-end align-middle">
-                                    <span class="badge bg-secondary text-blue">{{ getClientCount(u.id) }}</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+      <div v-if="activeCalls.length > 0" class="row mb-4">
+        <div class="col-12">
+          <div
+            class="card border-danger"
+            style="background: rgba(255, 0, 0, 0.05) !important"
+          >
+            <div
+              class="card-header border-danger text-danger d-flex justify-content-between align-items-center"
+            >
+              <span
+                ><i class="bi bi-broadcast me-2 pulse-icon"></i>LIVE
+                TRANSMISSIONS</span
+              >
+              <span class="badge bg-danger text-white"
+                >{{ activeCalls.length }} ACTIVE</span
+              >
             </div>
+            <div class="card-body d-flex gap-3 overflow-auto">
+              <div
+                v-for="call in activeCalls"
+                :key="call.call_id"
+                class="card p-3 border-danger flex-shrink-0"
+                style="
+                  width: 300px;
+                  background: #000 !important;
+                  box-shadow: 0 0 15px rgba(255, 0, 0, 0.2);
+                "
+              >
+                <div class="d-flex justify-content-between mb-2">
+                  <span class="text-danger fw-bold small">ON AIR</span>
+                  <span class="font-monospace small text-muted"
+                    >{{ formatDuration(calculateDuration(call.start_time))
+                    }}</span
+                  >
+                </div>
+                <h5 class="text-white mb-1">{{ call.client_name }}</h5>
+                <div class="text-muted small font-monospace">
+                  {{ call.caller_phone }}
+                </div>
+                <div
+                  class="mt-2 pt-2 border-top border-secondary border-opacity-25 text-end"
+                >
+                  <small class="text-secondary"
+                    >OWNER: {{ truncateId(call.owner_user_id) }}</small
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4">
+          <div class="card h-100">
+            <div
+              class="card-header d-flex justify-content-between align-items-center"
+            >
+              <span class="text-blue">USER DIRECTORY</span>
+              <input
+                type="text"
+                v-model="userSearch"
+                class="form-control form-control-sm w-50"
+                placeholder="Filter email..."
+                style="background: transparent"
+              />
+            </div>
+            <div
+              class="card-body p-0 table-responsive"
+              style="max-height: 600px"
+            >
+              <table class="table table-dark table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>User / Email</th>
+                    <th class="text-end">Clients</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="u in filteredUsers"
+                    :key="u.id"
+                    class="user-row"
+                    :class="{ 'active-row': selectedUser && selectedUser.id === u.id, 'opacity-50': !u.is_active }"
+                    @click="selectUser(u)"
+                  >
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <div class="me-2">
+                          <i
+                            class="bi bi-person-circle text-muted"
+                            style="font-size: 1.2rem"
+                          ></i>
+                        </div>
+                        <div>
+                          <div
+                            class="fw-bold text-fg"
+                            :class="{ 'text-decoration-line-through': !u.is_active }"
+                          >
+                            {{ u.email }}
+                          </div>
+                          <div class="small text-muted font-monospace">
+                            {{ u.id.substring(0,8) }}...
+                          </div>
+                        </div>
+                      </div>
+                      <span
+                        v-if="u.email === 'admin@frontdesk.com'"
+                        class="badge border border-danger text-danger mt-1"
+                        >SUPER ADMIN</span
+                      >
+                      <span
+                        v-if="!u.is_active"
+                        class="badge bg-danger mt-1 ms-1"
+                        >BANNED</span
+                      >
+                    </td>
+                    <td class="text-end align-middle">
+                      <span class="badge bg-secondary text-blue"
+                        >{{ getClientCount(u.id) }}</span
+                      >
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <div class="col-md-8">
-            <div v-if="!selectedUser" class="h-100 d-flex flex-column justify-content-center align-items-center text-muted border border-secondary border-opacity-25 rounded p-5" style="border-style: dashed !important;">
-                <i class="bi bi-terminal mb-3" style="font-size: 3rem; opacity: 0.3;"></i>
-                <h5 style="letter-spacing: 2px;">SELECT A USER TARGET</h5>
-                <p class="small">View clients, balances, and ledger history.</p>
+          <div
+            v-if="!selectedUser"
+            class="h-100 d-flex flex-column justify-content-center align-items-center text-muted border border-secondary border-opacity-25 rounded p-5"
+            style="border-style: dashed !important"
+          >
+            <i
+              class="bi bi-terminal mb-3"
+              style="font-size: 3rem; opacity: 0.3"
+            ></i>
+            <h5 style="letter-spacing: 2px">SELECT A USER TARGET</h5>
+            <p class="small">View clients, balances, and ledger history.</p>
+          </div>
+
+          <div v-else class="card border-purple shadow-lg h-100">
+            <div
+              class="card-header bg-transparent border-purple d-flex justify-content-between align-items-center"
+            >
+              <div>
+                <span class="text-muted small d-block">TARGET IDENTIFIER</span>
+                <h4 class="text-white mb-0">{{ selectedUser.email }}</h4>
+              </div>
+              <div class="text-end font-monospace text-muted small">
+                ID: {{ selectedUser.id }}
+              </div>
             </div>
 
-            <div v-else class="card border-purple shadow-lg h-100">
-                <div class="card-header bg-transparent border-purple d-flex justify-content-between align-items-center">
-                    <div>
-                        <span class="text-muted small d-block">TARGET IDENTIFIER</span>
-                        <h4 class="text-white mb-0">{{ selectedUser.email }}</h4>
+            <div class="card-body">
+              <div class="row mb-4 g-2">
+                <div class="col-md-6">
+                  <div
+                    class="p-3 border border-secondary border-opacity-25 rounded bg-dark"
+                  >
+                    <label class="text-warning small mb-1"
+                      >AGGREGATE BALANCE</label
+                    >
+                    <div class="h4 mb-0 font-monospace">
+                      {{ formatDuration(getUserTotalBalance(selectedUser.id)) }}
                     </div>
-                    <div class="text-end font-monospace text-muted small">
-                        ID: {{ selectedUser.id }}
-                    </div>
+                  </div>
                 </div>
-                
-                <div class="card-body">
-                    <div class="row mb-4 g-2">
-                        <div class="col-md-6">
-                            <div class="p-3 border border-secondary border-opacity-25 rounded bg-dark">
-                                <label class="text-warning small mb-1">AGGREGATE BALANCE</label>
-                                <div class="h4 mb-0 font-monospace">{{ formatDuration(getUserTotalBalance(selectedUser.id)) }}</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="p-3 border border-secondary border-opacity-25 rounded bg-dark">
-                                <label class="text-info small mb-1">CLIENT COUNT</label>
-                                <div class="h4 mb-0 font-monospace">{{ getClientCount(selectedUser.id) }} active</div>
-                            </div>
-                        </div>
+                <div class="col-md-6">
+                  <div
+                    class="p-3 border border-secondary border-opacity-25 rounded bg-dark"
+                  >
+                    <label class="text-info small mb-1">CLIENT COUNT</label>
+                    <div class="h4 mb-0 font-monospace">
+                      {{ getClientCount(selectedUser.id) }} active
                     </div>
+                  </div>
+                </div>
+              </div>
 
-                    <h6 class="text-blue border-bottom border-secondary border-opacity-25 pb-2 mb-3">
-                        <i class="bi bi-robot me-2"></i>DEPLOYED AGENTS
-                    </h6>
-                    
-                    <div v-if="getUserClients(selectedUser.id).length === 0" class="alert alert-secondary bg-transparent border-secondary text-muted">
-                        No clients provisioned for this user.
-                    </div>
+              <h6
+                class="text-blue border-bottom border-secondary border-opacity-25 pb-2 mb-3"
+              >
+                <i class="bi bi-robot me-2"></i>DEPLOYED AGENTS
+              </h6>
 
-                    <div v-else class="table-responsive">
-                        <table class="table table-dark align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Client Name</th>
-                                    <th>Phone</th>
-                                    <th>Status</th>
-                                    <th>Balance</th>
-                                    <th>Integrity</th>
-                                    <th class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="c in getUserClients(selectedUser.id)" :key="c.id">
-                                    <td>
-                                        <span class="fw-bold">{{ c.name }}</span><br>
-                                        <span class="small text-muted font-monospace">{{ c.id }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="font-monospace text-info">{{ c.cell || '---' }}</span>
-                                    </td>
-                                    <td>
-                                        <span v-if="!c.is_active" class="badge bg-danger text-white">OFFLINE</span>
-                                        <span v-else-if="(c.balance_seconds || 0) < 60" class="badge bg-warning text-dark">LOW FUEL</span>
-                                        <span v-else class="badge bg-success text-white">ONLINE</span>
-                                    </td>
-                                    <td class="font-monospace">
-                                        {{ formatDuration(c.balance_seconds || 0) }}
-                                    </td>
-                                    <td>
-                                        <i class="bi bi-check-circle-fill text-success" v-if="c.owner_user_id === selectedUser.id"></i>
-                                        <span class="badge bg-danger text-white" v-else>OWNER MISMATCH</span>
-                                    </td>
-                                    <td class="text-end">
-                                        <button class="btn btn-sm btn-outline-primary me-1" @click="openEditModal(c)">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-secondary" @click="openHistoryModal(c)">
-                                            <i class="bi bi-clock-history"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent border-top border-secondary border-opacity-25 text-end">
-                     <button class="btn btn-sm" 
-                        :class="selectedUser.is_active ? 'btn-outline-danger' : 'btn-outline-success'"
-                        @click="toggleUserStatus(selectedUser)">
-                        <i class="bi" :class="selectedUser.is_active ? 'bi-ban' : 'bi-check-circle'"></i>
-                        {{ selectedUser.is_active ? 'DISABLE USER' : 'ENABLE USER' }}
-                     </button>
-                     <button class="btn btn-sm btn-outline-info ms-2" @click="openLedgerModal">
-                        <i class="bi bi-credit-card"></i> ADJUST LEDGER
-                     </button>
-                </div>
+              <div
+                v-if="getUserClients(selectedUser.id).length === 0"
+                class="alert alert-secondary bg-transparent border-secondary text-muted"
+              >
+                No clients provisioned for this user.
+              </div>
+
+              <div v-else class="table-responsive">
+                <table class="table table-dark align-middle">
+                  <thead>
+                    <tr>
+                      <th>Client Name</th>
+                      <th>Phone</th>
+                      <th>Status</th>
+                      <th>Balance</th>
+                      <th>Integrity</th>
+                      <th class="text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="c in getUserClients(selectedUser.id)"
+                      :key="c.id"
+                    >
+                      <td>
+                        <span class="fw-bold">{{ c.name }}</span><br />
+                        <span class="small text-muted font-monospace"
+                          >{{ c.id }}</span
+                        >
+                      </td>
+                      <td>
+                        <span class="font-monospace text-info"
+                          >{{ c.cell || '---' }}</span
+                        >
+                      </td>
+                      <td>
+                        <span
+                          v-if="!c.is_active"
+                          class="badge bg-danger text-white"
+                          >OFFLINE</span
+                        >
+                        <span
+                          v-else-if="(c.balance_seconds || 0) < 60"
+                          class="badge bg-warning text-dark"
+                          >LOW FUEL</span
+                        >
+                        <span v-else class="badge bg-success text-white"
+                          >ONLINE</span
+                        >
+                      </td>
+                      <td class="font-monospace">
+                        {{ formatDuration(c.balance_seconds || 0) }}
+                      </td>
+                      <td>
+                        <i
+                          class="bi bi-check-circle-fill text-success"
+                          v-if="c.owner_user_id === selectedUser.id"
+                        ></i>
+                        <span class="badge bg-danger text-white" v-else
+                          >OWNER MISMATCH</span
+                        >
+                      </td>
+                      <td class="text-end">
+                        <button
+                          class="btn btn-sm btn-outline-primary me-1"
+                          @click="openEditModal(c)"
+                        >
+                          <i class="bi bi-pencil"></i>
+                        </button>
+                        <button
+                          class="btn btn-sm btn-outline-secondary"
+                          @click="openHistoryModal(c)"
+                        >
+                          <i class="bi bi-clock-history"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
+            <div
+              class="card-footer bg-transparent border-top border-secondary border-opacity-25 text-end"
+            >
+              <button
+                class="btn btn-sm"
+                :class="selectedUser.is_active ? 'btn-outline-danger' : 'btn-outline-success'"
+                @click="toggleUserStatus(selectedUser)"
+              >
+                <i
+                  class="bi"
+                  :class="selectedUser.is_active ? 'bi-ban' : 'bi-check-circle'"
+                ></i>
+                {{ selectedUser.is_active ? 'DISABLE USER' : 'ENABLE USER' }}
+              </button>
+              <button
+                class="btn btn-sm btn-outline-info ms-2"
+                @click="openLedgerModal"
+              >
+                <i class="bi bi-credit-card"></i> ADJUST LEDGER
+              </button>
+            </div>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <!-- ADJUST LEDGER MODAL -->
-    <div class="modal fade" id="ledgerModal" tabindex="-1" aria-hidden="true">
+      <!-- ADJUST LEDGER MODAL -->
+      <div class="modal fade" id="ledgerModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style="background: var(--theme-bg-dark); border: 1px solid var(--theme-purple); box-shadow: 0 0 20px rgba(187, 154, 247, 0.2);">
-                <div class="modal-header border-secondary border-opacity-25">
-                    <h5 class="modal-title text-purple" style="font-family: 'JetBrains Mono'; letter-spacing: 1px;">
-                        <i class="bi bi-bank me-2"></i>ADJUST LEDGER
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form @submit.prevent="submitLedger">
-                        <div class="mb-3">
-                            <label class="form-label text-muted small">TARGET CLIENT</label>
-                            <select v-model="ledgerForm.client_id" class="form-select bg-dark text-white border-secondary" style="font-family: 'JetBrains Mono';" required>
-                                <option v-for="c in availableClients" :key="c.id" :value="c.id">
-                                    {{ c.name }} ({{ formatDuration(c.balance_seconds) }})
-                                </option>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label text-muted small">ACTION</label>
-                            <div class="btn-group w-100" role="group">
-                                <input type="radio" class="btn-check" name="ledgerAction" id="actionCredit" value="credit" v-model="ledgerForm.action">
-                                <label class="btn btn-outline-success" for="actionCredit">CREDIT (+)</label>
-
-                                <input type="radio" class="btn-check" name="ledgerAction" id="actionDebit" value="debit" v-model="ledgerForm.action">
-                                <label class="btn btn-outline-danger" for="actionDebit">DEBIT (-)</label>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label text-muted small">AMOUNT (MINUTES)</label>
-                            <input type="number" v-model="ledgerForm.amount_minutes" class="form-control bg-dark text-white border-secondary" style="font-family: 'JetBrains Mono';" min="1" required>
-                            <div class="form-text text-end font-monospace text-muted">
-                                = {{ (ledgerForm.amount_minutes || 0) * 60 }} seconds
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label text-muted small">MEMO / REASON</label>
-                            <input type="text" v-model="ledgerForm.reason" class="form-control bg-dark text-white border-secondary" style="font-family: 'JetBrains Mono';" placeholder="e.g. Monthly Top-up" required>
-                        </div>
-
-                        <div class="text-end mt-4">
-                            <button type="button" class="btn btn-outline-secondary me-2" data-bs-dismiss="modal">CANCEL</button>
-                            <button type="submit" class="btn btn-outline-success" :disabled="isSubmitting">
-                                <span v-if="isSubmitting" class="spinner-border spinner-border-sm me-2"></span>
-                                CONFIRM TRANSACTION
-                            </button>
-                        </div>
-                    </form>
-                </div>
+          <div
+            class="modal-content"
+            style="
+              background: var(--theme-bg-dark);
+              border: 1px solid var(--theme-purple);
+              box-shadow: 0 0 20px rgba(187, 154, 247, 0.2);
+            "
+          >
+            <div class="modal-header border-secondary border-opacity-25">
+              <h5
+                class="modal-title text-purple"
+                style="
+                  font-family: &quot;JetBrains Mono&quot;;
+                  letter-spacing: 1px;
+                "
+              >
+                <i class="bi bi-bank me-2"></i>ADJUST LEDGER
+              </h5>
+              <button
+                type="button"
+                class="btn-close btn-close-white"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
             </div>
-        </div>
-    </div>
+            <div class="modal-body">
+              <form @submit.prevent="submitLedger">
+                <div class="mb-3">
+                  <label class="form-label text-muted small"
+                    >TARGET CLIENT</label
+                  >
+                  <select
+                    v-model="ledgerForm.client_id"
+                    class="form-select bg-dark text-white border-secondary"
+                    style="font-family: &quot;JetBrains Mono&quot;"
+                    required
+                  >
+                    <option
+                      v-for="c in availableClients"
+                      :key="c.id"
+                      :value="c.id"
+                    >
+                      {{ c.name }} ({{ formatDuration(c.balance_seconds) }})
+                    </option>
+                  </select>
+                </div>
 
-    <!-- EDIT CLIENT MODAL -->
-    <div class="modal fade" id="editClientModal" tabindex="-1" aria-hidden="true">
+                <div class="mb-3">
+                  <label class="form-label text-muted small">ACTION</label>
+                  <div class="btn-group w-100" role="group">
+                    <input
+                      type="radio"
+                      class="btn-check"
+                      name="ledgerAction"
+                      id="actionCredit"
+                      value="credit"
+                      v-model="ledgerForm.action"
+                    />
+                    <label class="btn btn-outline-success" for="actionCredit"
+                      >CREDIT (+)</label
+                    >
+
+                    <input
+                      type="radio"
+                      class="btn-check"
+                      name="ledgerAction"
+                      id="actionDebit"
+                      value="debit"
+                      v-model="ledgerForm.action"
+                    />
+                    <label class="btn btn-outline-danger" for="actionDebit"
+                      >DEBIT (-)</label
+                    >
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label text-muted small"
+                    >AMOUNT (MINUTES)</label
+                  >
+                  <input
+                    type="number"
+                    v-model="ledgerForm.amount_minutes"
+                    class="form-control bg-dark text-white border-secondary"
+                    style="font-family: &quot;JetBrains Mono&quot;"
+                    min="1"
+                    required
+                  />
+                  <div class="form-text text-end font-monospace text-muted">
+                    = {{ (ledgerForm.amount_minutes || 0) * 60 }} seconds
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label text-muted small"
+                    >MEMO / REASON</label
+                  >
+                  <input
+                    type="text"
+                    v-model="ledgerForm.reason"
+                    class="form-control bg-dark text-white border-secondary"
+                    style="font-family: &quot;JetBrains Mono&quot;"
+                    placeholder="e.g. Monthly Top-up"
+                    required
+                  />
+                </div>
+
+                <div class="text-end mt-4">
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary me-2"
+                    data-bs-dismiss="modal"
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    type="submit"
+                    class="btn btn-outline-success"
+                    :disabled="isSubmitting"
+                  >
+                    <span
+                      v-if="isSubmitting"
+                      class="spinner-border spinner-border-sm me-2"
+                    ></span>
+                    CONFIRM TRANSACTION
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EDIT CLIENT MODAL -->
+      <div
+        class="modal fade"
+        id="editClientModal"
+        tabindex="-1"
+        aria-hidden="true"
+      >
         <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content" style="background: var(--theme-bg-dark); border: 1px solid var(--theme-purple); box-shadow: 0 0 20px rgba(187, 154, 247, 0.2);">
-                <div class="modal-header border-secondary border-opacity-25">
-                    <h5 class="modal-title text-purple" style="font-family: 'JetBrains Mono'; letter-spacing: 1px;">
-                        <i class="bi bi-pencil-square me-2"></i>EDIT AGENT CONFIG
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form @submit.prevent="submitEditClient">
-                        
-                        <ul class="nav nav-tabs mb-3" id="editClientTabs" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="identity-tab" data-bs-toggle="tab" data-bs-target="#identity" type="button" role="tab">IDENTITY</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="brain-tab" data-bs-toggle="tab" data-bs-target="#brain" type="button" role="tab">BRAIN & VOICE</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="capabilities-tab" data-bs-toggle="tab" data-bs-target="#capabilities" type="button" role="tab">CAPABILITIES</button>
-                            </li>
-                        </ul>
-
-                        <div class="tab-content" id="editClientTabContent">
-                            <!-- TAB 1: IDENTITY -->
-                            <div class="tab-pane fade show active" id="identity" role="tabpanel">
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small">AGENT NAME</label>
-                                    <input type="text" v-model="editForm.name" class="form-control bg-dark text-white border-secondary" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small">PHONE NUMBER</label>
-                                    <input type="text" v-model="editForm.cell" class="form-control bg-dark text-white border-secondary">
-                                </div>
-                                <div class="form-check form-switch p-3 border border-secondary border-opacity-25 rounded bg-dark">
-                                    <input class="form-check-input" type="checkbox" id="clientActiveSwitch" v-model="editForm.is_active">
-                                    <label class="form-check-label text-white ms-2" for="clientActiveSwitch">Agent Active Status</label>
-                                </div>
-                            </div>
-
-                            <!-- TAB 2: BRAIN & VOICE -->
-                            <div class="tab-pane fade" id="brain" role="tabpanel">
-                                <div class="row g-3 mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label text-muted small">LLM MODEL</label>
-                                        <select v-model="editForm.llm_model" class="form-select bg-dark text-white border-secondary">
-                                            <option value="openai/gpt-4o-mini">GPT-4o Mini (Default)</option>
-                                            <option value="openai/gpt-4o">GPT-4o (Powerful)</option>
-                                            <option value="anthropic/claude-3-haiku">Claude 3 Haiku (Fast)</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label text-muted small">VOICE PRESET</label>
-                                        <select v-model="editForm.tts_voice_id" class="form-select bg-dark text-white border-secondary">
-                                            <option v-for="voice in voicePresets" :key="voice.id" :value="voice.id">
-                                                {{ voice.name }}
-                                            </option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small">SYSTEM PROMPT</label>
-                                    <textarea v-model="editForm.system_prompt" class="form-control border-secondary text-info" 
-                                        style="background: var(--theme-bg-dark); font-family: 'JetBrains Mono'; height: 300px; font-size: 0.9rem;"></textarea>
-                                </div>
-                            </div>
-
-                            <!-- TAB 3: CAPABILITIES -->
-                            <div class="tab-pane fade" id="capabilities" role="tabpanel">
-                                <div class="alert alert-secondary bg-transparent border-secondary text-muted mb-3">
-                                    <i class="bi bi-info-circle me-2"></i> Enable capabilities to give your agent access to external tools.
-                                </div>
-
-                                <div class="card bg-dark border-secondary mb-3">
-                                    <div class="card-body d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="text-white mb-0"><i class="bi bi-calendar-check me-2 text-purple"></i>Scheduling Bundle</h6>
-                                            <div class="text-muted small">Allows checking availability, booking, and managing appointments.</div>
-                                        </div>
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" v-model="editForm.enable_scheduling" style="width: 3em; height: 1.5em;">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="card bg-dark border-secondary">
-                                    <div class="card-body d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <h6 class="text-white mb-0"><i class="bi bi-person-vcard me-2 text-info"></i>Contact Memory</h6>
-                                            <div class="text-muted small">Allows saving and recalling caller names.</div>
-                                        </div>
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" v-model="editForm.enable_memory" style="width: 3em; height: 1.5em;">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="text-end mt-4 pt-3 border-top border-secondary border-opacity-25">
-                            <button type="button" class="btn btn-outline-secondary me-2" data-bs-dismiss="modal">CANCEL</button>
-                            <button type="submit" class="btn btn-primary" :disabled="isSubmitting">
-                                <span v-if="isSubmitting" class="spinner-border spinner-border-sm me-2"></span>
-                                SAVE CONFIGURATION
-                            </button>
-                        </div>
-                    </form>
-                </div>
+          <div
+            class="modal-content"
+            style="
+              background: var(--theme-bg-dark);
+              border: 1px solid var(--theme-purple);
+              box-shadow: 0 0 20px rgba(187, 154, 247, 0.2);
+            "
+          >
+            <div class="modal-header border-secondary border-opacity-25">
+              <h5
+                class="modal-title text-purple"
+                style="
+                  font-family: &quot;JetBrains Mono&quot;;
+                  letter-spacing: 1px;
+                "
+              >
+                <i class="bi bi-pencil-square me-2"></i>EDIT AGENT CONFIG
+              </h5>
+              <button
+                type="button"
+                class="btn-close btn-close-white"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
             </div>
-        </div>
-    </div>
+            <div class="modal-body">
+              <form @submit.prevent="submitEditClient">
+                <ul
+                  class="nav nav-tabs mb-3"
+                  id="editClientTabs"
+                  role="tablist"
+                >
+                  <li class="nav-item" role="presentation">
+                    <button
+                      class="nav-link active"
+                      id="identity-tab"
+                      data-bs-toggle="tab"
+                      data-bs-target="#identity"
+                      type="button"
+                      role="tab"
+                    >
+                      IDENTITY
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button
+                      class="nav-link"
+                      id="brain-tab"
+                      data-bs-toggle="tab"
+                      data-bs-target="#brain"
+                      type="button"
+                      role="tab"
+                    >
+                      BRAIN & VOICE
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button
+                      class="nav-link"
+                      id="capabilities-tab"
+                      data-bs-toggle="tab"
+                      data-bs-target="#capabilities"
+                      type="button"
+                      role="tab"
+                    >
+                      CAPABILITIES
+                    </button>
+                  </li>
+                </ul>
 
-    <!-- HISTORY MODAL -->
-    <div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+                <div class="tab-content" id="editClientTabContent">
+                  <!-- TAB 1: IDENTITY -->
+                  <div
+                    class="tab-pane fade show active"
+                    id="identity"
+                    role="tabpanel"
+                  >
+                    <div class="mb-3">
+                      <label class="form-label text-muted small"
+                        >AGENT NAME</label
+                      >
+                      <input
+                        type="text"
+                        v-model="editForm.name"
+                        class="form-control bg-dark text-white border-secondary"
+                        required
+                      />
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label text-muted small"
+                        >PHONE NUMBER</label
+                      >
+                      <input
+                        type="text"
+                        v-model="editForm.cell"
+                        class="form-control bg-dark text-white border-secondary"
+                      />
+                    </div>
+                    <div
+                      class="form-check form-switch p-3 border border-secondary border-opacity-25 rounded bg-dark"
+                    >
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        id="clientActiveSwitch"
+                        v-model="editForm.is_active"
+                      />
+                      <label
+                        class="form-check-label text-white ms-2"
+                        for="clientActiveSwitch"
+                        >Agent Active Status</label
+                      >
+                    </div>
+                  </div>
+
+                  <!-- TAB 2: BRAIN & VOICE -->
+                  <div class="tab-pane fade" id="brain" role="tabpanel">
+                    <div class="row g-3 mb-3">
+                      <div class="col-md-6">
+                        <label class="form-label text-muted small"
+                          >LLM MODEL</label
+                        >
+                        <select
+                          v-model="editForm.llm_model"
+                          class="form-select bg-dark text-white border-secondary"
+                        >
+                          <option value="openai/gpt-4o-mini">
+                            GPT-4o Mini (Default)
+                          </option>
+                          <option value="openai/gpt-4o">
+                            GPT-4o (Powerful)
+                          </option>
+                          <option value="anthropic/claude-3-haiku">
+                            Claude 3 Haiku (Fast)
+                          </option>
+                        </select>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label text-muted small"
+                          >VOICE PRESET</label
+                        >
+                        <select
+                          v-model="editForm.tts_voice_id"
+                          class="form-select bg-dark text-white border-secondary"
+                        >
+                          <option
+                            v-for="voice in voicePresets"
+                            :key="voice.id"
+                            :value="voice.id"
+                          >
+                            {{ voice.name }}
+                          </option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label text-muted small"
+                        >SYSTEM PROMPT</label
+                      >
+                      <textarea
+                        v-model="editForm.system_prompt"
+                        class="form-control border-secondary text-info"
+                        style="
+                          background: var(--theme-bg-dark);
+                          font-family: &quot;JetBrains Mono&quot;;
+                          height: 300px;
+                          font-size: 0.9rem;
+                        "
+                      ></textarea>
+                    </div>
+                  </div>
+
+                  <!-- TAB 3: CAPABILITIES -->
+                  <div class="tab-pane fade" id="capabilities" role="tabpanel">
+                    <div
+                      class="alert alert-secondary bg-transparent border-secondary text-muted mb-3"
+                    >
+                      <i class="bi bi-info-circle me-2"></i> Enable capabilities
+                      to give your agent access to external tools.
+                    </div>
+
+                    <div class="card bg-dark border-secondary mb-3">
+                      <div
+                        class="card-body d-flex justify-content-between align-items-center"
+                      >
+                        <div>
+                          <h6 class="text-white mb-0">
+                            <i class="bi bi-calendar-check me-2 text-purple"></i
+                            >Scheduling Bundle
+                          </h6>
+                          <div class="text-muted small">
+                            Allows checking availability, booking, and managing
+                            appointments.
+                          </div>
+                        </div>
+                        <div class="form-check form-switch">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            v-model="editForm.enable_scheduling"
+                            style="width: 3em; height: 1.5em"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="card bg-dark border-secondary">
+                      <div
+                        class="card-body d-flex justify-content-between align-items-center"
+                      >
+                        <div>
+                          <h6 class="text-white mb-0">
+                            <i class="bi bi-person-vcard me-2 text-info"></i
+                            >Contact Memory
+                          </h6>
+                          <div class="text-muted small">
+                            Allows saving and recalling caller names.
+                          </div>
+                        </div>
+                        <div class="form-check form-switch">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            v-model="editForm.enable_memory"
+                            style="width: 3em; height: 1.5em"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  class="text-end mt-4 pt-3 border-top border-secondary border-opacity-25"
+                >
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary me-2"
+                    data-bs-dismiss="modal"
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    type="submit"
+                    class="btn btn-primary"
+                    :disabled="isSubmitting"
+                  >
+                    <span
+                      v-if="isSubmitting"
+                      class="spinner-border spinner-border-sm me-2"
+                    ></span>
+                    SAVE CONFIGURATION
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORY MODAL -->
+      <div
+        class="modal fade"
+        id="historyModal"
+        tabindex="-1"
+        aria-hidden="true"
+      >
         <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content" style="background: var(--theme-bg-dark); border: 1px solid var(--theme-blue); box-shadow: 0 0 20px rgba(125, 207, 255, 0.2);">
-                <div class="modal-header border-secondary border-opacity-25">
-                    <h5 class="modal-title text-blue" style="font-family: 'JetBrains Mono'; letter-spacing: 1px;">
-                        <i class="bi bi-clock-history me-2"></i>TRANSACTION LOG
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-0">
-                    <div v-if="loadingHistory" class="p-5 text-center text-muted">
-                        <div class="spinner-border text-blue mb-2" role="status"></div>
-                        <div>Decrypting Ledger...</div>
-                    </div>
-                    <div v-else class="table-responsive" style="max-height: 500px;">
-                        <table class="table table-dark table-sm table-hover mb-0" style="font-family: 'JetBrains Mono'; font-size: 0.85rem;">
-                            <thead>
-                                <tr>
-                                    <th class="ps-3">Time</th>
-                                    <th>Type</th>
-                                    <th>Amount</th>
-                                    <th>Detail</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-if="clientLedger.length === 0">
-                                    <td colspan="4" class="text-center py-4 text-muted">No records found.</td>
-                                </tr>
-                                <tr v-for="entry in clientLedger" :key="entry.id">
-                                    <td class="ps-3 text-muted">{{ formatDate(entry.created_at) }}</td>
-                                    <td>
-                                        <span class="badge border" 
-                                            :class="entry.metric_type.includes('CREDIT') ? 'border-success text-success' : 'border-secondary text-muted'">
-                                            {{ entry.metric_type }}
-                                        </span>
-                                    </td>
-                                    <td :class="entry.metric_type.includes('CREDIT') ? 'text-success' : 'text-secondary'">
-                                        {{ entry.metric_type.includes('CREDIT') ? '+' : '-' }}{{ formatDuration(entry.quantity) }}
-                                    </td>
-                                    <td class="text-truncate" style="max-width: 200px;" :title="entry.conversation_id">
-                                        <span v-if="entry.conversation_id" 
-                                              @click="viewTranscript(entry.conversation_id)" 
-                                              class="text-info text-decoration-underline cursor-pointer" 
-                                              style="cursor: pointer;">
-                                            {{ entry.conversation_id }}
-                                        </span>
-                                        <span v-else class="text-muted">Manual Adjustment</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+          <div
+            class="modal-content"
+            style="
+              background: var(--theme-bg-dark);
+              border: 1px solid var(--theme-blue);
+              box-shadow: 0 0 20px rgba(125, 207, 255, 0.2);
+            "
+          >
+            <div class="modal-header border-secondary border-opacity-25">
+              <h5
+                class="modal-title text-blue"
+                style="
+                  font-family: &quot;JetBrains Mono&quot;;
+                  letter-spacing: 1px;
+                "
+              >
+                <i class="bi bi-clock-history me-2"></i>TRANSACTION LOG
+              </h5>
+              <button
+                type="button"
+                class="btn-close btn-close-white"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
             </div>
+            <div class="modal-body p-0">
+              <div v-if="loadingHistory" class="p-5 text-center text-muted">
+                <div class="spinner-border text-blue mb-2" role="status"></div>
+                <div>Decrypting Ledger...</div>
+              </div>
+              <div v-else class="table-responsive" style="max-height: 500px">
+                <table
+                  class="table table-dark table-sm table-hover mb-0"
+                  style="
+                    font-family: &quot;JetBrains Mono&quot;;
+                    font-size: 0.85rem;
+                  "
+                >
+                  <thead>
+                    <tr>
+                      <th class="ps-3">Time</th>
+                      <th>Type</th>
+                      <th>Amount</th>
+                      <th>Detail</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="clientLedger.length === 0">
+                      <td colspan="4" class="text-center py-4 text-muted">
+                        No records found.
+                      </td>
+                    </tr>
+                    <tr v-for="entry in clientLedger" :key="entry.id">
+                      <td class="ps-3 text-muted">
+                        {{ formatDate(entry.created_at) }}
+                      </td>
+                      <td>
+                        <span
+                          class="badge border"
+                          :class="entry.metric_type.includes('CREDIT') ? 'border-success text-success' : 'border-secondary text-muted'"
+                        >
+                          {{ entry.metric_type }}
+                        </span>
+                      </td>
+                      <td
+                        :class="entry.metric_type.includes('CREDIT') ? 'text-success' : 'text-secondary'"
+                      >
+                        {{ entry.metric_type.includes('CREDIT') ? '+' : '-' }}{{
+                        formatDuration(entry.quantity) }}
+                      </td>
+                      <td
+                        class="text-truncate"
+                        style="max-width: 200px"
+                        :title="entry.conversation_id"
+                      >
+                        <span
+                          v-if="entry.conversation_id"
+                          @click="viewTranscript(entry.conversation_id)"
+                          class="text-info text-decoration-underline cursor-pointer"
+                          style="cursor: pointer"
+                        >
+                          {{ entry.conversation_id }}
+                        </span>
+                        <span v-else class="text-muted">Manual Adjustment</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <!-- TRANSCRIPT MODAL -->
+      <div
+        class="modal fade"
+        id="transcriptModal"
+        tabindex="-1"
+        aria-hidden="true"
+      >
+        <div
+          class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"
+        >
+          <div
+            class="modal-content"
+            style="
+              background: var(--theme-bg-dark);
+              border: 1px solid var(--theme-cyan);
+              box-shadow: 0 0 20px rgba(125, 207, 255, 0.2);
+            "
+          >
+            <div class="modal-header border-secondary border-opacity-25">
+              <h5
+                class="modal-title text-cyan"
+                style="
+                  font-family: &quot;JetBrains Mono&quot;;
+                  letter-spacing: 1px;
+                "
+              >
+                <i class="bi bi-chat-left-text me-2"></i>TRANSCRIPT DECRYPTED
+              </h5>
+              <button
+                type="button"
+                class="btn-close btn-close-white"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+              ></button>
+            </div>
+            <div class="modal-body bg-black p-0">
+              <div v-if="loadingTranscript" class="p-5 text-center text-muted">
+                <div class="spinner-border text-cyan mb-2" role="status"></div>
+                <div>Fetching Audio Logs...</div>
+              </div>
+              <div v-else class="p-3 d-flex flex-column gap-3">
+                <div
+                  v-for="(msg, index) in selectedTranscript"
+                  :key="index"
+                  class="d-flex"
+                  :class="msg.role === 'user' ? 'justify-content-end' : 'justify-content-start'"
+                >
+                  <div
+                    class="p-3 rounded border position-relative"
+                    style="max-width: 80%; min-width: 40%"
+                    :class="msg.role === 'user' ? 'border-purple bg-dark bg-opacity-25' : 'border-blue bg-dark bg-opacity-10'"
+                    :style="msg.role === 'user' ? 'border-left: 4px solid var(--theme-purple) !important;' : 'border-left: 4px solid var(--theme-blue) !important;'"
+                  >
+                    <div
+                      class="small text-muted mb-1 font-monospace d-flex justify-content-between"
+                    >
+                      <span class="text-uppercase">{{ msg.role }}</span>
+                      <span
+                        >{{ new Date(msg.timestamp).toLocaleTimeString()
+                        }}</span
+                      >
+                    </div>
+
+                    <div class="text-white" style="white-space: pre-wrap">
+                      {{ msg.content }}
+                    </div>
+
+                    <div
+                      v-if="msg.tool_calls"
+                      class="mt-2 pt-2 border-top border-secondary border-opacity-25"
+                    >
+                      <div class="small text-warning font-monospace mb-1">
+                        <i class="bi bi-lightning-fill"></i> TOOL USE
+                      </div>
+                      <div
+                        v-for="tool in msg.tool_calls"
+                        :key="tool.id"
+                        class="small text-muted font-monospace"
+                      >
+                        > {{ tool.function.name }}({{ tool.function.arguments
+                        }})
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  v-if="selectedTranscript.length === 0"
+                  class="text-center text-muted py-5"
+                >
+                  No transcript data available for this session.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- TRANSCRIPT MODAL -->
-    <div class="modal fade" id="transcriptModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content" style="background: var(--theme-bg-dark); border: 1px solid var(--theme-cyan); box-shadow: 0 0 20px rgba(125, 207, 255, 0.2);">
-                <div class="modal-header border-secondary border-opacity-25">
-                    <h5 class="modal-title text-cyan" style="font-family: 'JetBrains Mono'; letter-spacing: 1px;">
-                        <i class="bi bi-chat-left-text me-2"></i>TRANSCRIPT DECRYPTED
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body bg-black p-0">
-                    <div v-if="loadingTranscript" class="p-5 text-center text-muted">
-                        <div class="spinner-border text-cyan mb-2" role="status"></div>
-                        <div>Fetching Audio Logs...</div>
-                    </div>
-                    <div v-else class="p-3 d-flex flex-column gap-3">
-                        <div v-for="(msg, index) in selectedTranscript" :key="index" 
-                             class="d-flex" 
-                             :class="msg.role === 'user' ? 'justify-content-end' : 'justify-content-start'">
-                            
-                            <div class="p-3 rounded border position-relative" 
-                                 style="max-width: 80%; min-width: 40%;"
-                                 :class="msg.role === 'user' ? 'border-purple bg-dark bg-opacity-25' : 'border-blue bg-dark bg-opacity-10'"
-                                 :style="msg.role === 'user' ? 'border-left: 4px solid var(--theme-purple) !important;' : 'border-left: 4px solid var(--theme-blue) !important;'">
-                                
-                                <div class="small text-muted mb-1 font-monospace d-flex justify-content-between">
-                                    <span class="text-uppercase">{{ msg.role }}</span>
-                                    <span>{{ new Date(msg.timestamp).toLocaleTimeString() }}</span>
-                                </div>
-                                
-                                <div class="text-white" style="white-space: pre-wrap;">{{ msg.content }}</div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="./lib/js/vue.global.js"></script>
+    <script src="./lib/js/axios.min.js"></script>
+    <script>
+      const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
-                                <div v-if="msg.tool_calls" class="mt-2 pt-2 border-top border-secondary border-opacity-25">
-                                    <div class="small text-warning font-monospace mb-1">
-                                        <i class="bi bi-lightning-fill"></i> TOOL USE
-                                    </div>
-                                    <div v-for="tool in msg.tool_calls" :key="tool.id" class="small text-muted font-monospace">
-                                        > {{ tool.function.name }}({{ tool.function.arguments }})
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
-                        <div v-if="selectedTranscript.length === 0" class="text-center text-muted py-5">
-                            No transcript data available for this session.
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="./lib/js/vue.global.js"></script>
-<script src="./lib/js/axios.min.js"></script>
-<script>
-    const { createApp, ref, computed, onMounted, nextTick } = Vue;
-
-    createApp({
+      createApp({
         setup() {
-            const users = ref([]);
-            const clients = ref([]);
-            const ledger = ref([]);
-            const selectedUser = ref(null);
-            const showDebug = ref(false); // Default off for cleaner UI
-            const userSearch = ref("");
-            const token = localStorage.getItem('authToken');
+          const users = ref([]);
+          const clients = ref([]);
+          const ledger = ref([]);
+          const activeCalls = ref([]);
+          const selectedUser = ref(null);
+          const showDebug = ref(false); // Default off for cleaner UI
+          const userSearch = ref("");
+          const token = localStorage.getItem("authToken");
 
-            const voicePresets = [
-                { name: "Rachel (American, Calm, Pro)", id: "21m00Tcm4TlvDq8ikWAM" },
-                { name: "Drew (American, News, Bold)", id: "29vD33N1CtxCmqQRPOHJ" },
-                { name: "Clyde (Deep, Technical)", id: "2EiwWnXFnvU5JabPnv8n" },
-                { name: "Mimi (Australian, Childish)", id: "zrHiDhphv9ZnVXBq79M6" },
-                { name: "Fin (Irish, Energetic)", id: "D38z5RcWu1voky8WS1ja" },
-                { name: "Antoni (American, Well-rounded)", id: "ErXwobaYiN019PkySvjV" },
-                { name: "Thomas (American, Calm)", id: "GBv7mTt5Xyp17vW9q545" },
-                { name: "Charlie (Australian, Casual)", id: "IKne3meq5aSn9XLyUdCD" },
-                { name: "Emily (American, Calm)", id: "LcfcDJNUP1GQjkzn1xUU" },
-                { name: "Elli (American, Emotional)", id: "MF3mGyEYCl7XYWbV9V6O" },
-                { name: "Callum (American, Hoarse)", id: "N2lVS1w4Ejp13nTc3DX7" },
-                { name: "Patrick (American, Shouty)", id: "ODq5zmih8GrVes37Dizd" },
-                { name: "Harry (American, Anxiety)", id: "SOYHLrjzK2X1ezoPC6cr" },
-                { name: "Liam (American, Neutral)", id: "TX3LPaxmHKxFdv7VOQHJ" },
-                { name: "Dorothy (British, Pleasant)", id: "ThT5KcBeYPX3keUQqHPh" },
-                { name: "Josh (American, Deep)", id: "TxGEqnHWrfWFTfGW9XjX" },
-                { name: "Arnold (American, Nasal)", id: "VR6AewLTigWg4xSOukaG" },
-                { name: "Charlotte (British, Seductive)", id: "XB0fDUnXU5powFXDhCwa" },
-                { name: "Matilda (American, Warm)", id: "XrExE9yKIg1WjnnlVkGX" },
-                { name: "James (Australian, Calm)", id: "ZQe5CZNOzWyzPSCn5a3c" },
-                { name: "Joseph (British, News)", id: "Zlb1dXrM653N07WRdFW3" },
-                { name: "Jeremy (American, Excited)", id: "bVMeCyTHy58xNoL34h3p" },
-                { name: "Michael (American, Old)", id: "flq6f7yk4E4fJM5XTYuZ" },
-                { name: "Ethan (American, Whisper)", id: "g5CIjZEefAph4nQFvHAz" },
-                { name: "Gigi (American, Childish)", id: "jBpfuIE2acCO8z3wKNLl" },
-                { name: "Freya (American, Overhyped)", id: "jsCqWAovK2LkecY7zXl4" },
-                { name: "Santa Claus (Deep, Jolly)", id: "knrPHWnBmmDHMoiMeP3l" },
-                { name: "Grace (American, Southern)", id: "oWAxZDx7w5VEj9dCyTzz" },
-                { name: "Daniel (British, News)", id: "onwK4e9ZLuTAKqWW03F9" },
-                { name: "Serena (American, Pleasant)", id: "pMsXgVXv3BLzUgSXRplE" },
-                { name: "Adam (American, Deep)", id: "pNInz6obpgDQGcFmaJgB" },
-                { name: "Nicole (American, Whisper)", id: "piTKgcLEGmPE4e6mEKli" },
-                { name: "Bill (American, Trustworthy)", id: "pqHfZKP75CvOlQylNhV4" },
-                { name: "Jessie (American, Raspy)", id: "t0jbNlBVZ17f02VDIeMI" },
-                { name: "Sam (American, Raspy)", id: "yoZ06aMxZJJ28mfd3POQ" },
-                { name: "Glinda (American, Witch)", id: "z9fAnlkpzviPz146aGWa" },
-                { name: "Giovanni (Italian, Foreign)", id: "zcAOhNBS3c14rBihAFp1" },
-                { name: "Domi (American, Strong)", id: "zRrTh6t1l6l36r8e9a2W" },
-            ];
+          const voicePresets = [
+            {
+              name: "Rachel (American, Calm, Pro)",
+              id: "21m00Tcm4TlvDq8ikWAM",
+            },
+            { name: "Drew (American, News, Bold)", id: "29vD33N1CtxCmqQRPOHJ" },
+            { name: "Clyde (Deep, Technical)", id: "2EiwWnXFnvU5JabPnv8n" },
+            { name: "Mimi (Australian, Childish)", id: "zrHiDhphv9ZnVXBq79M6" },
+            { name: "Fin (Irish, Energetic)", id: "D38z5RcWu1voky8WS1ja" },
+            {
+              name: "Antoni (American, Well-rounded)",
+              id: "ErXwobaYiN019PkySvjV",
+            },
+            { name: "Thomas (American, Calm)", id: "GBv7mTt5Xyp17vW9q545" },
+            {
+              name: "Charlie (Australian, Casual)",
+              id: "IKne3meq5aSn9XLyUdCD",
+            },
+            { name: "Emily (American, Calm)", id: "LcfcDJNUP1GQjkzn1xUU" },
+            { name: "Elli (American, Emotional)", id: "MF3mGyEYCl7XYWbV9V6O" },
+            { name: "Callum (American, Hoarse)", id: "N2lVS1w4Ejp13nTc3DX7" },
+            { name: "Patrick (American, Shouty)", id: "ODq5zmih8GrVes37Dizd" },
+            { name: "Harry (American, Anxiety)", id: "SOYHLrjzK2X1ezoPC6cr" },
+            { name: "Liam (American, Neutral)", id: "TX3LPaxmHKxFdv7VOQHJ" },
+            { name: "Dorothy (British, Pleasant)", id: "ThT5KcBeYPX3keUQqHPh" },
+            { name: "Josh (American, Deep)", id: "TxGEqnHWrfWFTfGW9XjX" },
+            { name: "Arnold (American, Nasal)", id: "VR6AewLTigWg4xSOukaG" },
+            {
+              name: "Charlotte (British, Seductive)",
+              id: "XB0fDUnXU5powFXDhCwa",
+            },
+            { name: "Matilda (American, Warm)", id: "XrExE9yKIg1WjnnlVkGX" },
+            { name: "James (Australian, Calm)", id: "ZQe5CZNOzWyzPSCn5a3c" },
+            { name: "Joseph (British, News)", id: "Zlb1dXrM653N07WRdFW3" },
+            { name: "Jeremy (American, Excited)", id: "bVMeCyTHy58xNoL34h3p" },
+            { name: "Michael (American, Old)", id: "flq6f7yk4E4fJM5XTYuZ" },
+            { name: "Ethan (American, Whisper)", id: "g5CIjZEefAph4nQFvHAz" },
+            { name: "Gigi (American, Childish)", id: "jBpfuIE2acCO8z3wKNLl" },
+            { name: "Freya (American, Overhyped)", id: "jsCqWAovK2LkecY7zXl4" },
+            { name: "Santa Claus (Deep, Jolly)", id: "knrPHWnBmmDHMoiMeP3l" },
+            { name: "Grace (American, Southern)", id: "oWAxZDx7w5VEj9dCyTzz" },
+            { name: "Daniel (British, News)", id: "onwK4e9ZLuTAKqWW03F9" },
+            { name: "Serena (American, Pleasant)", id: "pMsXgVXv3BLzUgSXRplE" },
+            { name: "Adam (American, Deep)", id: "pNInz6obpgDQGcFmaJgB" },
+            { name: "Nicole (American, Whisper)", id: "piTKgcLEGmPE4e6mEKli" },
+            {
+              name: "Bill (American, Trustworthy)",
+              id: "pqHfZKP75CvOlQylNhV4",
+            },
+            { name: "Jessie (American, Raspy)", id: "t0jbNlBVZ17f02VDIeMI" },
+            { name: "Sam (American, Raspy)", id: "yoZ06aMxZJJ28mfd3POQ" },
+            { name: "Glinda (American, Witch)", id: "z9fAnlkpzviPz146aGWa" },
+            { name: "Giovanni (Italian, Foreign)", id: "zcAOhNBS3c14rBihAFp1" },
+            { name: "Domi (American, Strong)", id: "zRrTh6t1l6l36r8e9a2W" },
+          ];
 
-            // Ledger State
-            const ledgerModal = ref(null);
-            const isSubmitting = ref(false);
-            const ledgerForm = ref({
-                client_id: "",
-                action: "credit",
-                amount_minutes: 10,
-                reason: ""
+          // Ledger State
+          const ledgerModal = ref(null);
+          const isSubmitting = ref(false);
+          const ledgerForm = ref({
+            client_id: "",
+            action: "credit",
+            amount_minutes: 10,
+            reason: "",
+          });
+
+          // Edit State
+          const editClientModal = ref(null);
+          const editForm = ref({
+            id: "",
+            name: "",
+            cell: "",
+            is_active: true,
+            system_prompt: "",
+            llm_model: "openai/gpt-4o-mini",
+            tts_voice_id: "21m00Tcm4TlvDq8ikWAM",
+            enable_scheduling: false,
+            enable_memory: false,
+          });
+
+          // History State
+          const historyModal = ref(null);
+          const clientLedger = ref([]);
+          const loadingHistory = ref(false);
+
+          // Transcript State
+          const transcriptModal = ref(null);
+          const selectedTranscript = ref([]);
+          const loadingTranscript = ref(false);
+
+          const fetchData = async () => {
+            if (!token) return (window.location.href = "/static/index.html");
+            try {
+              const res = await axios.get("/api/admin/dashboard", {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              console.log("God Mode Data:", res.data);
+              users.value = res.data.users || [];
+              clients.value = res.data.clients || [];
+              ledger.value = res.data.ledger || [];
+            } catch (e) {
+              console.error(e);
+              if (e.response && e.response.status === 403) {
+                alert("UNAUTHORIZED ACCESS DETECTED. SYSTEM LOCKING.");
+                window.location.href = "/static/index.html";
+              }
+            }
+          };
+
+          // --- COMPUTED HELPERS ---
+
+          const filteredUsers = computed(() => {
+            if (!userSearch.value) return users.value;
+            const q = userSearch.value.toLowerCase();
+
+            return users.value.filter((u) => {
+              // 1. User Identity Match
+              if (u.email.toLowerCase().includes(q) || u.id.includes(q))
+                return true;
+
+              // 2. Deep Search: Check their clients
+              // We find all clients owned by this user
+              const userClients = clients.value.filter(
+                (c) => c.owner_user_id === u.id,
+              );
+
+              // Check if ANY client matches name or cell
+              return userClients.some(
+                (c) =>
+                  c.name.toLowerCase().includes(q) ||
+                  (c.cell && c.cell.includes(q)),
+              );
             });
+          });
 
-            // Edit State
-            const editClientModal = ref(null);
-            const editForm = ref({
-                id: "",
-                name: "",
-                cell: "",
-                is_active: true,
-                system_prompt: "",
-                llm_model: "openai/gpt-4o-mini",
-                tts_voice_id: "21m00Tcm4TlvDq8ikWAM",
-                enable_scheduling: false,
-                enable_memory: false
-            });
+          const availableClients = computed(() => {
+            if (!selectedUser.value) return [];
+            return getUserClients(selectedUser.value.id);
+          });
 
-            // History State
-            const historyModal = ref(null);
-            const clientLedger = ref([]);
-            const loadingHistory = ref(false);
-            
-            // Transcript State
-            const transcriptModal = ref(null);
-            const selectedTranscript = ref([]);
-            const loadingTranscript = ref(false);
+          const totalSystemBalance = computed(() => {
+            return clients.value.reduce(
+              (acc, client) => acc + (client.balance_seconds || 0),
+              0,
+            );
+          });
 
-            const fetchData = async () => {
-                if(!token) return window.location.href = '/static/index.html';
-                try {
-                    const res = await axios.get('/api/admin/dashboard', {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    console.log("God Mode Data:", res.data);
-                    users.value = res.data.users || [];
-                    clients.value = res.data.clients || [];
-                    ledger.value = res.data.ledger || [];
-                } catch (e) {
-                    console.error(e);
-                    if(e.response && e.response.status === 403) {
-                        alert("UNAUTHORIZED ACCESS DETECTED. SYSTEM LOCKING.");
-                        window.location.href = '/static/index.html';
-                    }
-                }
+          const orphanClients = computed(() => {
+            const userIds = new Set(users.value.map((u) => u.id));
+            return clients.value.filter((c) => !userIds.has(c.owner_user_id))
+              .length;
+          });
+
+          // --- UTILITY METHODS ---
+
+          const getClientCount = (uid) =>
+            clients.value.filter((c) => c.owner_user_id === uid).length;
+          const getUserClients = (uid) =>
+            clients.value.filter((c) => c.owner_user_id === uid);
+
+          const getUserTotalBalance = (uid) => {
+            const userClients = getUserClients(uid);
+            return userClients.reduce(
+              (acc, c) => acc + (c.balance_seconds || 0),
+              0,
+            );
+          };
+
+          const selectUser = (u) => (selectedUser.value = u);
+
+          const formatDuration = (seconds) => {
+            if (!seconds) return "0s";
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            if (m === 0) return `${s}s`;
+            return `${m}m ${s}s`;
+          };
+
+          const formatDate = (dateString) => {
+            if (!dateString) return "";
+            return new Date(dateString).toLocaleString();
+          };
+
+          // --- EDIT METHODS ---
+
+          const openEditModal = (client) => {
+            const tools = client.enabled_tools || [];
+            editForm.value = {
+              id: client.id,
+              name: client.name,
+              cell: client.cell || "",
+              is_active: client.is_active !== false,
+              system_prompt: client.system_prompt || "",
+              llm_model: client.llm_model || "openai/gpt-4o-mini",
+              tts_voice_id: client.tts_voice_id || "21m00Tcm4TlvDq8ikWAM",
+              enable_scheduling: tools.includes("book_appointment"),
+              enable_memory: tools.includes("save_contact_name"),
             };
 
-            // --- COMPUTED HELPERS ---
-            
-            const filteredUsers = computed(() => {
-                if(!userSearch.value) return users.value;
-                const q = userSearch.value.toLowerCase();
-                
-                return users.value.filter(u => {
-                    // 1. User Identity Match
-                    if (u.email.toLowerCase().includes(q) || u.id.includes(q)) return true;
+            if (!editClientModal.value) {
+              editClientModal.value = new bootstrap.Modal(
+                document.getElementById("editClientModal"),
+              );
+            }
+            editClientModal.value.show();
+          };
 
-                    // 2. Deep Search: Check their clients
-                    // We find all clients owned by this user
-                    const userClients = clients.value.filter(c => c.owner_user_id === u.id);
-                    
-                    // Check if ANY client matches name or cell
-                    return userClients.some(c => 
-                        c.name.toLowerCase().includes(q) || 
-                        (c.cell && c.cell.includes(q))
-                    );
-                });
-            });
+          const submitEditClient = async () => {
+            isSubmitting.value = true;
+            try {
+              // Construct Enabled Tools
+              const tools = [];
+              if (editForm.value.enable_scheduling) {
+                tools.push(
+                  "get_available_slots",
+                  "book_appointment",
+                  "reschedule_appointment",
+                  "list_my_appointments",
+                  "cancel_appointment",
+                );
+              }
+              if (editForm.value.enable_memory) {
+                tools.push("save_contact_name");
+              }
 
-            const availableClients = computed(() => {
-                if (!selectedUser.value) return [];
-                return getUserClients(selectedUser.value.id);
-            });
+              const payload = {
+                name: editForm.value.name,
+                cell: editForm.value.cell,
+                is_active: editForm.value.is_active,
+                system_prompt: editForm.value.system_prompt,
+                llm_model: editForm.value.llm_model,
+                tts_voice_id: editForm.value.tts_voice_id,
+                enabled_tools: tools,
+              };
 
-            const totalSystemBalance = computed(() => {
-                return clients.value.reduce((acc, client) => acc + (client.balance_seconds || 0), 0);
-            });
+              await axios.put(
+                `/api/admin/client/${editForm.value.id}`,
+                payload,
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                },
+              );
 
-            const orphanClients = computed(() => {
-                const userIds = new Set(users.value.map(u => u.id));
-                return clients.value.filter(c => !userIds.has(c.owner_user_id)).length;
-            });
+              alert("Configuration Updated Successfully.");
+              editClientModal.value.hide();
+              await fetchData(); // Refresh
+            } catch (e) {
+              console.error("Edit failed:", e);
+              alert(
+                "Update Failed: " + (e.response?.data?.detail || e.message),
+              );
+            } finally {
+              isSubmitting.value = false;
+            }
+          };
 
-            // --- UTILITY METHODS ---
+          // --- LEDGER METHODS ---
 
-            const getClientCount = (uid) => clients.value.filter(c => c.owner_user_id === uid).length;
-            const getUserClients = (uid) => clients.value.filter(c => c.owner_user_id === uid);
-            
-            const getUserTotalBalance = (uid) => {
-                const userClients = getUserClients(uid);
-                return userClients.reduce((acc, c) => acc + (c.balance_seconds || 0), 0);
-            };
+          const openLedgerModal = () => {
+            if (!selectedUser.value) return;
 
-            const selectUser = (u) => selectedUser.value = u;
+            const userClients = getUserClients(selectedUser.value.id);
+            if (userClients.length > 0) {
+              ledgerForm.value.client_id = userClients[0].id;
+            }
+            ledgerForm.value.action = "credit";
+            ledgerForm.value.amount_minutes = 60;
+            ledgerForm.value.reason = "";
 
-            const formatDuration = (seconds) => {
-                if (!seconds) return "0s";
-                const m = Math.floor(seconds / 60);
-                const s = seconds % 60;
-                if (m === 0) return `${s}s`;
-                return `${m}m ${s}s`;
-            };
+            if (!ledgerModal.value) {
+              ledgerModal.value = new bootstrap.Modal(
+                document.getElementById("ledgerModal"),
+              );
+            }
+            ledgerModal.value.show();
+          };
 
-            const formatDate = (dateString) => {
-                if (!dateString) return "";
-                return new Date(dateString).toLocaleString();
-            };
+          const submitLedger = async () => {
+            isSubmitting.value = true;
+            try {
+              let seconds = ledgerForm.value.amount_minutes * 60;
+              if (ledgerForm.value.action === "debit") {
+                seconds = -seconds;
+              }
 
-            // --- EDIT METHODS ---
+              await axios.post(
+                "/api/admin/adjust-balance",
+                {
+                  client_id: ledgerForm.value.client_id,
+                  amount_seconds: seconds,
+                  reason: ledgerForm.value.reason,
+                },
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                },
+              );
 
-            const openEditModal = (client) => {
-                const tools = client.enabled_tools || [];
-                editForm.value = {
-                    id: client.id,
-                    name: client.name,
-                    cell: client.cell || "",
-                    is_active: client.is_active !== false,
-                    system_prompt: client.system_prompt || "",
-                    llm_model: client.llm_model || "openai/gpt-4o-mini",
-                    tts_voice_id: client.tts_voice_id || "21m00Tcm4TlvDq8ikWAM",
-                    enable_scheduling: tools.includes("book_appointment"),
-                    enable_memory: tools.includes("save_contact_name")
-                };
+              alert("Transaction Processed Successfully.");
+              ledgerModal.value.hide();
+              await fetchData(); // Refresh data
+            } catch (e) {
+              console.error("Ledger Error:", e);
+              alert(
+                "Transaction Failed: " +
+                  (e.response?.data?.detail || e.message),
+              );
+            } finally {
+              isSubmitting.value = false;
+            }
+          };
 
-                if (!editClientModal.value) {
-                    editClientModal.value = new bootstrap.Modal(document.getElementById('editClientModal'));
-                }
-                editClientModal.value.show();
-            };
+          // --- HISTORY METHODS ---
 
-            const submitEditClient = async () => {
-                isSubmitting.value = true;
-                try {
-                    // Construct Enabled Tools
-                    const tools = [];
-                    if (editForm.value.enable_scheduling) {
-                        tools.push("get_available_slots", "book_appointment", "reschedule_appointment", "list_my_appointments", "cancel_appointment");
-                    }
-                    if (editForm.value.enable_memory) {
-                        tools.push("save_contact_name");
-                    }
+          const openHistoryModal = async (client) => {
+            if (!historyModal.value) {
+              historyModal.value = new bootstrap.Modal(
+                document.getElementById("historyModal"),
+              );
+            }
+            historyModal.value.show();
+            loadingHistory.value = true;
+            clientLedger.value = [];
 
-                    const payload = {
-                        name: editForm.value.name,
-                        cell: editForm.value.cell,
-                        is_active: editForm.value.is_active,
-                        system_prompt: editForm.value.system_prompt,
-                        llm_model: editForm.value.llm_model,
-                        tts_voice_id: editForm.value.tts_voice_id,
-                        enabled_tools: tools
-                    };
+            try {
+              const res = await axios.get(
+                `/api/admin/client/${client.id}/ledger`,
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                },
+              );
+              clientLedger.value = res.data.ledger;
+            } catch (e) {
+              console.error("History fetch failed:", e);
+              alert("Failed to fetch history.");
+            } finally {
+              loadingHistory.value = false;
+            }
+          };
 
-                    await axios.put(`/api/admin/client/${editForm.value.id}`, payload, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
+          const viewTranscript = async (convId) => {
+            historyModal.value.hide();
+            if (!transcriptModal.value) {
+              transcriptModal.value = new bootstrap.Modal(
+                document.getElementById("transcriptModal"),
+              );
+            }
+            transcriptModal.value.show();
+            loadingTranscript.value = true;
+            selectedTranscript.value = [];
 
-                    alert("Configuration Updated Successfully.");
-                    editClientModal.value.hide();
-                    await fetchData(); // Refresh
-                } catch (e) {
-                    console.error("Edit failed:", e);
-                    alert("Update Failed: " + (e.response?.data?.detail || e.message));
-                } finally {
-                    isSubmitting.value = false;
-                }
-            };
+            try {
+              const res = await axios.get(`/api/admin/conversation/${convId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              // The API returns the conversation object, transcript is a property
+              selectedTranscript.value = res.data.transcript || [];
+            } catch (e) {
+              console.error("Transcript fetch failed:", e);
+              alert("Failed to fetch transcript.");
+            } finally {
+              loadingTranscript.value = false;
+            }
+          };
 
-            // --- LEDGER METHODS ---
+          // --- USER ACTIONS ---
 
-            const openLedgerModal = () => {
-                if (!selectedUser.value) return;
-                
-                const userClients = getUserClients(selectedUser.value.id);
-                if (userClients.length > 0) {
-                    ledgerForm.value.client_id = userClients[0].id;
-                }
-                ledgerForm.value.action = "credit";
-                ledgerForm.value.amount_minutes = 60;
-                ledgerForm.value.reason = "";
+          const toggleUserStatus = async (user) => {
+            const action = user.is_active ? "BAN" : "ENABLE";
+            if (!confirm(`Are you sure you want to ${action} this user?`))
+              return;
 
-                if (!ledgerModal.value) {
-                    ledgerModal.value = new bootstrap.Modal(document.getElementById('ledgerModal'));
-                }
-                ledgerModal.value.show();
-            };
+            try {
+              const res = await axios.post(
+                `/api/admin/user/${user.id}/toggle-status`,
+                {},
+                {
+                  headers: { Authorization: `Bearer ${token}` },
+                },
+              );
 
-            const submitLedger = async () => {
-                isSubmitting.value = true;
-                try {
-                    let seconds = ledgerForm.value.amount_minutes * 60;
-                    if (ledgerForm.value.action === 'debit') {
-                        seconds = -seconds;
-                    }
+              // Optimistic update
+              user.is_active = res.data.is_active;
 
-                    await axios.post('/api/admin/adjust-balance', {
-                        client_id: ledgerForm.value.client_id,
-                        amount_seconds: seconds,
-                        reason: ledgerForm.value.reason
-                    }, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
+              // Refresh data to reflect cascaded client status changes
+              await fetchData();
+            } catch (e) {
+              console.error("Status toggle failed:", e);
+              alert("Failed to update user status.");
+            }
+          };
 
-                    alert("Transaction Processed Successfully.");
-                    ledgerModal.value.hide();
-                    await fetchData(); // Refresh data
+          // --- LIVE MONITORING ---
+          const calculateDuration = (startTime) => {
+            if (!startTime) return 0;
+            const start = new Date(startTime).getTime();
+            const now = new Date().getTime();
+            return Math.floor((now - start) / 1000);
+          };
 
-                } catch (e) {
-                    console.error("Ledger Error:", e);
-                    alert("Transaction Failed: " + (e.response?.data?.detail || e.message));
-                } finally {
-                    isSubmitting.value = false;
-                }
-            };
+          const truncateId = (id) => {
+            if (!id) return "UNKNOWN";
+            return id.substring(0, 8);
+          };
 
-            // --- HISTORY METHODS ---
+          const pollActiveCalls = async () => {
+            if (!token) return;
+            try {
+              const res = await axios.get("/api/admin/active-calls", {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              activeCalls.value = res.data;
+            } catch (e) {
+              console.error("Poll failed", e);
+            }
+          };
 
-            const openHistoryModal = async (client) => {
-                if (!historyModal.value) {
-                    historyModal.value = new bootstrap.Modal(document.getElementById('historyModal'));
-                }
-                historyModal.value.show();
-                loadingHistory.value = true;
-                clientLedger.value = [];
+          // Poll every 3 seconds
+          setInterval(pollActiveCalls, 3000);
 
-                try {
-                    const res = await axios.get(`/api/admin/client/${client.id}/ledger`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    clientLedger.value = res.data.ledger;
-                } catch (e) {
-                    console.error("History fetch failed:", e);
-                    alert("Failed to fetch history.");
-                } finally {
-                    loadingHistory.value = false;
-                }
-            };
+          onMounted(() => {
+            fetchData();
+            pollActiveCalls();
+            // Update durations locally every second to keep UI smooth
+            setInterval(() => {
+              // Force reactivity update if needed, though the template uses calculateDuration() directly on render.
+              // Vue's reactivity system handles the time diff if we used a ref for "now", but calling method in template works too.
+              // To be safe and performant, we usually update a "now" ref, but this is simple enough.
+              triggerRef(activeCalls);
+            }, 1000);
+          });
 
-            const viewTranscript = async (convId) => {
-                historyModal.value.hide();
-                if (!transcriptModal.value) {
-                    transcriptModal.value = new bootstrap.Modal(document.getElementById('transcriptModal'));
-                }
-                transcriptModal.value.show();
-                loadingTranscript.value = true;
-                selectedTranscript.value = [];
+          const triggerRef = (ref) => {
+            ref.value = [...ref.value];
+          };
 
-                try {
-                    const res = await axios.get(`/api/admin/conversation/${convId}`, {
-                         headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    // The API returns the conversation object, transcript is a property
-                    selectedTranscript.value = res.data.transcript || [];
-                } catch (e) {
-                    console.error("Transcript fetch failed:", e);
-                    alert("Failed to fetch transcript.");
-                } finally {
-                    loadingTranscript.value = false;
-                }
-            };
-
-            // --- USER ACTIONS ---
-
-            const toggleUserStatus = async (user) => {
-                const action = user.is_active ? "BAN" : "ENABLE";
-                if (!confirm(`Are you sure you want to ${action} this user?`)) return;
-
-                try {
-                    const res = await axios.post(`/api/admin/user/${user.id}/toggle-status`, {}, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    
-                    // Optimistic update
-                    user.is_active = res.data.is_active;
-
-                    // Refresh data to reflect cascaded client status changes
-                    await fetchData();
-                    
-                } catch (e) {
-                    console.error("Status toggle failed:", e);
-                    alert("Failed to update user status.");
-                }
-            };
-
-            onMounted(() => fetchData());
-
-            return { 
-                users, clients, selectedUser, showDebug, userSearch,
-                filteredUsers, totalSystemBalance, orphanClients,
-                fetchData, selectUser, getClientCount, getUserClients, 
-                getUserTotalBalance, formatDuration, formatDate,
-                // Ledger
-                ledgerForm, availableClients, openLedgerModal, submitLedger, isSubmitting,
-                // Edit
-                editForm, openEditModal, submitEditClient,
-                // History
-                openHistoryModal, clientLedger, loadingHistory, viewTranscript,
-                // Transcript
-                transcriptModal, selectedTranscript, loadingTranscript,
-                // Actions
-                toggleUserStatus,
-                // Const
-                voicePresets
-            };
-        }
-    }).mount('#app');
-</script>
-</body>
+          return {
+            users,
+            clients,
+            selectedUser,
+            showDebug,
+            userSearch,
+            filteredUsers,
+            totalSystemBalance,
+            orphanClients,
+            fetchData,
+            selectUser,
+            getClientCount,
+            getUserClients,
+            getUserTotalBalance,
+            formatDuration,
+            formatDate,
+            // Ledger
+            ledgerForm,
+            availableClients,
+            openLedgerModal,
+            submitLedger,
+            isSubmitting,
+            // Edit
+            editForm,
+            openEditModal,
+            submitEditClient,
+            // History
+            openHistoryModal,
+            clientLedger,
+            loadingHistory,
+            viewTranscript,
+            // Transcript
+            transcriptModal,
+            selectedTranscript,
+            loadingTranscript,
+            // Actions
+            toggleUserStatus,
+            // Live
+            activeCalls,
+            calculateDuration,
+            truncateId,
+            // Const
+            voicePresets,
+          };
+        },
+      }).mount("#app");
+    </script>
+  </body>
 </html>

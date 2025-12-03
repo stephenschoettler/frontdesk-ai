@@ -113,6 +113,10 @@ logger = logging.getLogger(__name__)
 logger.info(f"DIAGNOSTIC: Loaded SUPABASE_URL: {os.environ.get('SUPABASE_URL')}")
 # ------------------
 
+# --- Global State ---
+active_calls = {}  # call_id -> { client_id, client_name, caller_phone, start_time, owner_user_id }
+# --------------------
+
 app = FastAPI()
 
 # Mount static files
@@ -299,6 +303,24 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
 
     _, call_data = await parse_telephony_websocket(websocket)
 
+    # --- Call Tracking (LIVE) ---
+    call_id = call_data["call_id"]
+    try:
+        # Fetch client config again to get name and owner
+        # Optimization: initialize_client_services could return this, but this is safer for now
+        cc = await get_client_config(client_id)
+        active_calls[call_id] = {
+            "call_id": call_id,
+            "client_id": client_id,
+            "client_name": cc.get("name", "Unknown Agent"),
+            "owner_user_id": cc.get("owner_user_id", ""),
+            "caller_phone": caller_phone_decoded,
+            "start_time": datetime.datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Failed to register active call: {e}")
+    # ----------------------------
+
     # --- Contact Management (Scoped to Client) ---
     contact = None
     if caller_phone_decoded:
@@ -434,6 +456,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
     except asyncio.CancelledError:
         pass
     finally:
+        # --- Cleanup Active Call ---
+        active_calls.pop(call_id, None)
+        # ---------------------------
+
         safety_task.cancel()
 
         # 4. COMMIT: Finalize Billing
@@ -951,6 +977,45 @@ async def admin_get_conversation(
     return conversation
 
 
+@app.get("/api/admin/active-calls")
+async def admin_get_active_calls(token: str = Depends(get_current_user_token)):
+    """
+    Secure Admin Endpoint to see all active calls in real-time.
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    return list(active_calls.values())
+
+
+@app.get("/api/active-calls")
+async def get_user_active_calls(token: str = Depends(get_current_user_token)):
+    """
+    Get active calls for the current user's clients.
+    """
+    supabase = get_supabase_client()
+    try:
+        user = supabase.auth.get_user(token)
+        if not user or not user.user:
+             raise HTTPException(status_code=401, detail="Invalid Token")
+        user_id = user.user.id
+    except Exception as e:
+        logger.error(f"Auth error: {e}")
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    # Filter calls owned by this user
+    user_calls = [
+        call for call in active_calls.values() 
+        if call.get("owner_user_id") == user_id
+    ]
+    return user_calls
 
 
 async def main():

@@ -105,6 +105,7 @@ if (
       const auditLogs = ref(initialLogs);
 
       const activeTab = ref("clients");
+      const activeCalls = ref([]); // LIVE CALLS
       const contacts = ref([]);
       const selectedContacts = ref([]);
       const callLogs = ref([]);
@@ -1287,6 +1288,23 @@ if (
         },
       );
 
+      const calculateDuration = (startTime) => {
+        if (!startTime) return 0;
+        const start = new Date(startTime).getTime();
+        const now = new Date().getTime();
+        return Math.floor((now - start) / 1000);
+      };
+
+      const pollActiveCalls = async () => {
+        if (!authToken.value) return;
+        try {
+          const response = await axios.get("/api/active-calls");
+          activeCalls.value = response.data;
+        } catch (e) {
+          console.error("Active calls poll failed", e);
+        }
+      };
+
       onMounted(() => {
         nextTick(() => {
           const modalEl = document.getElementById("auditLogModal");
@@ -1304,9 +1322,17 @@ if (
           loadTemplates();
         }, 100);
 
+        // Start Polling for Active Calls
+        setInterval(pollActiveCalls, 3000);
+        setInterval(() => {
+          // Force update for timer
+          activeCalls.value = [...activeCalls.value];
+        }, 1000);
+
         if (authToken.value) {
           setAuthToken(authToken.value);
           loadClients();
+          pollActiveCalls(); // Initial fetch
           if (activeTab.value === "contacts") {
             loadContacts();
           } else if (activeTab.value === "logs") {
@@ -1487,6 +1513,8 @@ if (
         toggleClientStatus, // Added for activate/deactivate
         getVoiceName,
         truncateId,
+        activeCalls,
+        calculateDuration,
       };
     },
   }).mount("#app");

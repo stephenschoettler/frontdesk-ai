@@ -851,6 +851,23 @@ option {
   }
 }
 
+/* --- Pulse Icon Animation for Live Transmissions --- */
+.pulse-icon {
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% {
+    text-shadow: 0 0 0 rgba(247, 118, 142, 0.7);
+  }
+  70% {
+    text-shadow: 0 0 10px rgba(247, 118, 142, 0);
+  }
+  100% {
+    text-shadow: 0 0 0 rgba(247, 118, 142, 0);
+  }
+}
+
 .audit-log {
   max-height: 300px;
   overflow-y: auto;
@@ -1705,4 +1722,21 @@ input[type="file"]::file-selector-button:hover {
 
 .fuel-gauge i {
   font-size: 0.85em;
+}
+
+/* --- Pulse Icon Animation for Live Transmissions --- */
+.pulse-icon {
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% {
+    text-shadow: 0 0 0 rgba(247, 118, 142, 0.7);
+  }
+  70% {
+    text-shadow: 0 0 10px rgba(247, 118, 142, 0);
+  }
+  100% {
+    text-shadow: 0 0 0 rgba(247, 118, 142, 0);
+  }
 }

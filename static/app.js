@@ -96,6 +96,11 @@ if (
       const importFile = ref(null);
       const activeClientTab = ref("basic"); // Added for tabbed UI
 
+      // Twilio Provisioning State
+      const availableNumbers = ref([]);
+      const searchAreaCode = ref("");
+      const searchingNumbers = ref(false);
+
       // SAFETY FIX: Handle corrupted storage gracefully
       let initialLogs = [];
       try {
@@ -459,6 +464,21 @@ if (
         filterClients();
       };
 
+      const searchNumbers = async () => {
+        if (!searchAreaCode.value) return;
+        searchingNumbers.value = true;
+        availableNumbers.value = []; 
+        try {
+            const response = await axios.get(`/api/twilio/available-numbers?area_code=${searchAreaCode.value}`);
+            availableNumbers.value = response.data.numbers;
+        } catch (error) {
+            console.error("Failed to search numbers", error);
+            alert("Failed to search numbers. Please check the area code.");
+        } finally {
+            searchingNumbers.value = false;
+        }
+      };
+
       const editClient = (client) => {
         editingClient.value = client.id;
         const enabledTools = client.enabled_tools || [];
@@ -513,6 +533,11 @@ if (
           delete payload.enable_scheduling;
           delete payload.enable_contact_memory;
 
+          // Provisioning Mapping
+          if (!editingClient.value && payload.cell) {
+              payload.selected_number = payload.cell;
+          }
+
           let response;
           if (editingClient.value) {
             response = await axios.put(
@@ -540,7 +565,12 @@ if (
       };
 
       const deleteClient = async (id) => {
-        if (!confirm("Are you sure you want to delete this client?")) return;
+        if (
+          !confirm(
+            "WARNING: This will permanently delete the AI Agent and release its phone number. Any remaining balance will be forfeited. This cannot be undone. Are you sure?",
+          )
+        )
+          return;
         try {
           await axios.delete(`/api/clients/${id}`);
           clients.value = clients.value.filter((c) => c.id !== id);
@@ -800,6 +830,12 @@ if (
         showCreateModal.value = false;
         showEditModal.value = false;
         editingClient.value = null;
+        
+        // Reset Provisioning State
+        availableNumbers.value = [];
+        searchAreaCode.value = "";
+        searchingNumbers.value = false;
+
         clientForm.value = {
           name: "",
           cell: "",
@@ -1565,6 +1601,11 @@ if (
         truncateId,
         activeCalls,
         calculateDuration,
+        // Provisioning exports
+        searchNumbers,
+        availableNumbers,
+        searchAreaCode,
+        searchingNumbers,
       };
     },
   }).mount("#app");

@@ -93,11 +93,15 @@ from services.response_filter import ToolStrippingAssistantAggregator
 # Import Template Manager
 from services.template_manager import TemplateManager
 
+from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 
 
 # Load environment variables
 load_dotenv()
+
+# Initialize Twilio Client
+twilio_client = Client(os.environ["TWILIO_ACCOUNT_SID"], os.environ["TWILIO_AUTH_TOKEN"])
 
 # Configure logging
 logging.basicConfig(
@@ -130,6 +134,34 @@ async def get_current_user_token(authorization: str = Header(...)) -> str:
     if scheme.lower() != "bearer":
         raise HTTPException(status_code=401, detail="Invalid authentication scheme")
     return credentials
+
+
+def release_twilio_number(phone_number: str) -> bool:
+    """
+    Releases a Twilio phone number by finding its SID and deleting it.
+    """
+    if not phone_number:
+        return False
+        
+    try:
+        # 1. Find the SID
+        incoming_numbers = twilio_client.incoming_phone_numbers.list(
+            phone_number=phone_number, limit=1
+        )
+        
+        if incoming_numbers:
+            sid = incoming_numbers[0].sid
+            # 2. Delete (Release) the number
+            twilio_client.incoming_phone_numbers(sid).delete()
+            logger.info(f"Released Twilio number: {phone_number} (SID: {sid})")
+            return True
+        else:
+            logger.warning(f"Twilio number not found for release: {phone_number}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Failed to release Twilio number {phone_number}: {e}")
+        return False
 
 
 async def initialize_client_services(client_id: str, caller_phone: Optional[str] = None):
@@ -598,6 +630,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
 class ClientCreate(BaseModel):
     name: str
     cell: Optional[str] = None
+    selected_number: Optional[str] = None  # New field for provisioning
     calendar_id: Optional[str] = None
     is_active: bool = True
     business_timezone: str = "America/Los_Angeles"
@@ -719,6 +752,21 @@ async def login_user(user: UserLogin):
         raise HTTPException(500, "Internal server error")
 
 
+@app.get("/api/twilio/available-numbers")
+async def get_available_numbers(area_code: str, token: str = Depends(get_current_user_token)):
+    try:
+        numbers = twilio_client.available_phone_numbers('US').local.list(
+            area_code=area_code, limit=5
+        )
+        return {"numbers": [n.phone_number for n in numbers]}
+    except Exception as e:
+        logger.error(f"Twilio search error: {e}")
+        # Return empty list or 500? Returning empty list is safer for UI, but 500 indicates failure.
+        # Using 400 for bad request if area code is invalid, else 500.
+        # Simple approach:
+        raise HTTPException(status_code=400, detail=f"Failed to search numbers: {str(e)}")
+
+
 @app.get("/api/clients")
 async def list_clients(token: str = Depends(get_current_user_token)):
     clients = await get_all_clients(token)
@@ -731,7 +779,35 @@ async def list_clients(token: str = Depends(get_current_user_token)):
 async def create_new_client(
     client: ClientCreate, token: str = Depends(get_current_user_token)
 ):
-    new_client = await create_client_record(client.dict(), token)
+    # 1. Handle Number Provisioning
+    if client.selected_number:
+        try:
+            # Determine Voice URL (Webhook)
+            # In production, use your real domain. For dev, we assume BASE_URL is set or use a placeholder.
+            # Ideally, the user sets BASE_URL in .env
+            base_url = os.environ.get("BASE_URL")
+            if not base_url:
+                 # Fallback for safety, but this might not work for callbacks
+                 logger.warning("BASE_URL not set. Twilio Voice URL might be incorrect.")
+                 base_url = "https://example.com" 
+            
+            webhook_url = f"{base_url}/voice"
+
+            purchased_number = twilio_client.incoming_phone_numbers.create(
+                phone_number=client.selected_number,
+                voice_url=webhook_url
+            )
+            
+            # Override the cell field with the actually purchased number
+            client.cell = purchased_number.phone_number
+            logger.info(f"Provisioned Twilio Number: {client.cell}")
+            
+        except Exception as e:
+            logger.error(f"Twilio Provisioning Failed: {e}")
+            raise HTTPException(status_code=400, detail=f"Failed to purchase number: {str(e)}")
+
+    # 2. Create DB Record
+    new_client = await create_client_record(client.dict(exclude={'selected_number'}), token)
     if new_client is None:
         raise HTTPException(500, "Failed to create client")
     return new_client
@@ -760,6 +836,14 @@ async def update_existing_client(
 async def delete_existing_client(
     client_id: str, token: str = Depends(get_current_user_token)
 ):
+    # 1. Fetch client data to get the phone number
+    client_data = await get_client_config(client_id)
+    
+    # 2. Release Twilio Number if it exists
+    if client_data and client_data.get("cell"):
+        release_twilio_number(client_data["cell"])
+
+    # 3. Proceed with database deletion
     if not await delete_client(client_id, token):
         raise HTTPException(500, "Failed to delete")
     return {"message": "Deleted"}

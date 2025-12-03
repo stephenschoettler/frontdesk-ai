@@ -1172,14 +1172,56 @@
                           </div>
                           <div class="mb-3">
                             <label class="form-label">Cell Phone</label>
-                            <input
-                              v-model="clientForm.cell"
-                              type="text"
-                              class="form-control"
-                              placeholder="+15551234567"
-                            />
-                            <div class="form-text text-muted">
-                              Must match Twilio 'To' number.
+                            
+                            <!-- Edit Mode: Read Only -->
+                            <div v-if="showEditModal">
+                                <input
+                                  v-model="clientForm.cell"
+                                  type="text"
+                                  class="form-control"
+                                  disabled
+                                />
+                                <div class="form-text text-muted">
+                                  Phone number is locked.
+                                </div>
+                            </div>
+
+                            <!-- Create Mode: Provisioning UI -->
+                            <div v-else>
+                                <div class="input-group mb-2">
+                                    <input 
+                                        v-model="searchAreaCode" 
+                                        type="text" 
+                                        class="form-control" 
+                                        placeholder="Area Code (e.g. 415)" 
+                                        maxlength="3"
+                                        @keyup.enter="searchNumbers"
+                                    >
+                                    <button 
+                                        @click.prevent="searchNumbers" 
+                                        class="btn btn-outline-primary" 
+                                        type="button" 
+                                        :disabled="searchingNumbers || !searchAreaCode"
+                                    >
+                                         <span v-if="searchingNumbers" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                         <span v-else>Search</span>
+                                    </button>
+                                </div>
+                                
+                                <select v-if="availableNumbers.length > 0" v-model="clientForm.cell" class="form-select">
+                                    <option value="" disabled selected>Select a number...</option>
+                                    <option v-for="num in availableNumbers" :key="num" :value="num">
+                                        {{ num }}
+                                    </option>
+                                </select>
+                                
+                                <div v-else-if="!searchingNumbers && searchAreaCode && availableNumbers.length === 0" class="form-text text-muted">
+                                     Enter an area code and click Search to find numbers.
+                                </div>
+                                
+                                 <div class="form-text text-info" v-if="clientForm.cell">
+                                      Selected: {{ clientForm.cell }}
+                                 </div>
                             </div>
                           </div>
                           <div class="mb-3">

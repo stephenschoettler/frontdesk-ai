@@ -40,6 +40,8 @@ if (
       const showBulkModal = ref(false);
       const showEditContactModal = ref(false);
       const showSettingsModal = ref(false);
+      const showTopUpModal = ref(false);
+      const selectedTopUpClient = ref(null);
       const showAuditLog = ref(false);
       const auditModal = ref(null);
       const openAuditLog = () => auditModal.value?.show();
@@ -941,6 +943,36 @@ if (
         showSettingsModal.value = false;
       };
 
+      const openTopUpModal = (client) => {
+        selectedTopUpClient.value = client;
+        showTopUpModal.value = true;
+      };
+
+      const closeTopUpModal = () => {
+        showTopUpModal.value = false;
+        selectedTopUpClient.value = null;
+      };
+
+      const initiateCheckout = async (packageId) => {
+        if (!selectedTopUpClient.value) return;
+        
+        try {
+            // We use the backend to create the session and redirect to the URL
+            
+            const response = await axios.post("/api/billing/create-checkout-session", {
+                client_id: selectedTopUpClient.value.id,
+                package_id: packageId
+            });
+            
+            if (response.data.url) {
+                window.location.href = response.data.url;
+            }
+        } catch (error) {
+            console.error("Checkout failed:", error);
+            alert("Failed to initiate checkout. Please try again.");
+        }
+      };
+
       const updateContactName = async () => {
         savingContact.value = true;
         try {
@@ -1306,6 +1338,19 @@ if (
       };
 
       onMounted(() => {
+        // Check for payment success
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('payment') === 'success') {
+            alert("Payment Successful! System refueling...");
+            // Strip the param from URL without reloading
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.pushState({path: newUrl}, '', newUrl);
+        } else if (urlParams.get('payment') === 'cancelled') {
+             alert("Payment Cancelled.");
+             const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+             window.history.pushState({path: newUrl}, '', newUrl);
+        }
+
         nextTick(() => {
           const modalEl = document.getElementById("auditLogModal");
           if (modalEl && typeof bootstrap !== "undefined") {
@@ -1431,6 +1476,11 @@ if (
         closeEditContactModal,
         showSettingsModal,
         closeSettingsModal,
+        showTopUpModal,
+        selectedTopUpClient,
+        openTopUpModal,
+        closeTopUpModal,
+        initiateCheckout,
         updateContactName,
         deleteContact,
         loadClients,

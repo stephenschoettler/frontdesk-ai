@@ -23,6 +23,7 @@ import uvicorn
 import datetime
 from typing import Optional
 import tiktoken
+import stripe
 
 from pydantic import BaseModel
 from pydantic import EmailStr
@@ -628,6 +629,11 @@ class ClientUpdate(BaseModel):
     enabled_tools: Optional[list[str]] = None
 
 
+class CheckoutSessionRequest(BaseModel):
+    client_id: str
+    package_id: str
+
+
 class UserRegister(BaseModel):
     email: EmailStr
     password: str
@@ -1016,6 +1022,98 @@ async def get_user_active_calls(token: str = Depends(get_current_user_token)):
         if call.get("owner_user_id") == user_id
     ]
     return user_calls
+
+
+@app.post("/api/billing/create-checkout-session")
+async def create_checkout_session(request: CheckoutSessionRequest):
+    stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+    
+    # Define packages
+    packages = {
+        "starter": {"amount": 2000, "seconds": 6000, "name": "Starter Pack (100 mins)"},
+        "growth": {"amount": 5000, "seconds": 18000, "name": "Growth Pack (300 mins)"},
+        "power": {"amount": 10000, "seconds": 42000, "name": "Power Pack (700 mins)"},
+    }
+    
+    package = packages.get(request.package_id)
+    if not package:
+        raise HTTPException(status_code=400, detail="Invalid package ID")
+        
+    try:
+        # Get base URL for success/cancel redirects
+        # In production, this should be configured. For now, we infer from request or env
+        # But since this is called from frontend, we can hardcode the path relative to where frontend is served
+        # or use a configured BASE_URL env var.
+        base_url = os.environ.get("BASE_URL", "http://localhost:8000")
+        
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {
+                        "name": package["name"],
+                    },
+                    "unit_amount": package["amount"],
+                },
+                "quantity": 1,
+            }],
+            mode="payment",
+            metadata={
+                "client_id": request.client_id,
+                "add_seconds": str(package["seconds"]),
+                "package_id": request.package_id
+            },
+            success_url=f"{base_url}/static/index.html?payment=success",
+            cancel_url=f"{base_url}/static/index.html?payment=cancelled",
+        )
+        
+        return {"url": session.url}
+        
+    except Exception as e:
+        logger.error(f"Stripe checkout creation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/billing/webhook")
+async def stripe_webhook(request: Request):
+    stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
+    
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    
+    event = None
+    
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, webhook_secret
+        )
+    except ValueError:
+        # Invalid payload
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        # Invalid signature
+        raise HTTPException(status_code=400, detail="Invalid signature")
+        
+    # Handle the event
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        
+        # Fulfill the purchase...
+        client_id = session["metadata"].get("client_id")
+        add_seconds = session["metadata"].get("add_seconds")
+        
+        if client_id and add_seconds:
+            try:
+                seconds = int(add_seconds)
+                logger.info(f"STRIPE WEBHOOK: Adding {seconds}s to client {client_id}")
+                await adjust_client_balance(client_id, seconds, "STRIPE_TOPUP")
+            except Exception as e:
+                logger.error(f"Error processing stripe fulfillment: {e}")
+                return Response(status_code=500)
+    
+    return {"status": "success"}
 
 
 async def main():

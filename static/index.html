@@ -16,6 +16,7 @@
     <script src="lib/js/vue.global.js"></script>
     <script src="lib/js/axios.min.js"></script>
     <script src="lib/js/bootstrap.bundle.min.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -471,11 +472,15 @@
                     </button>
 
                     <span
-                      class="fuel-gauge rounded-pill"
+                      class="fuel-gauge rounded-pill clickable-fuel"
                       :class="(client.balance_seconds || 0) < 60 ? 'fuel-low' : 'fuel-cyan'"
+                      @click.stop="openTopUpModal(client)"
+                      title="Click to Add Funds"
+                      style="cursor: pointer;"
                     >
                       <i class="bi bi-hourglass-split me-1"></i>
                       {{ formatDuration(client.balance_seconds || 0) }}
+                      <i class="bi bi-plus-circle-fill ms-1" style="font-size: 0.8em; opacity: 0.8;"></i>
                     </span>
 
                     <button
@@ -1453,6 +1458,116 @@
                     </div>
                   </div>
                 </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Up Modal -->
+        <div
+          class="modal fade"
+          :class="{ show: showTopUpModal }"
+          :style="{ display: showTopUpModal ? 'block' : 'none' }"
+          tabindex="-1"
+        >
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header border-bottom border-secondary border-opacity-25">
+                <h5 class="modal-title text-success">
+                  <i class="bi bi-cash-coin me-2"></i> Add Funds
+                </h5>
+                <button
+                  type="button"
+                  class="btn-close"
+                  @click="closeTopUpModal"
+                ></button>
+              </div>
+              <div class="modal-body p-4">
+                <div v-if="selectedTopUpClient" class="text-center mb-4">
+                  <h6 class="text-muted">Refueling Agent:</h6>
+                  <h4 class="text-fg">{{ selectedTopUpClient.name }}</h4>
+                  <div class="badge bg-dark border border-secondary text-secondary mt-1">
+                     Current Balance: {{ formatDuration(selectedTopUpClient.balance_seconds || 0) }}
+                  </div>
+                </div>
+
+                <div class="row g-4">
+                  <!-- Starter -->
+                  <div class="col-md-4">
+                    <div class="card h-100 border-secondary border-opacity-25 bg-dark">
+                      <div class="card-header text-center bg-transparent border-0 pt-4">
+                        <h5 class="text-muted">STARTER</h5>
+                        <h2 class="display-6 fw-bold text-fg">$20</h2>
+                        <span class="text-muted small">100 Minutes</span>
+                      </div>
+                      <div class="card-body text-center">
+                        <ul class="list-unstyled text-muted small">
+                          <li>$0.20 / minute</li>
+                          <li>Great for testing</li>
+                        </ul>
+                      </div>
+                      <div class="card-footer bg-transparent border-0 pb-4">
+                        <button @click="initiateCheckout('starter')" class="btn btn-outline-secondary w-100">
+                          Select
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Growth -->
+                  <div class="col-md-4">
+                    <div class="card h-100 border-success border-opacity-50" style="background: rgba(25, 135, 84, 0.1);">
+                      <div class="card-header text-center bg-transparent border-0 pt-4">
+                        <h5 class="text-success">GROWTH</h5>
+                        <h2 class="display-6 fw-bold text-white">$50</h2>
+                        <span class="text-success small fw-bold">300 Minutes</span>
+                      </div>
+                      <div class="card-body text-center">
+                        <ul class="list-unstyled text-white small opacity-75">
+                          <li>$0.16 / minute</li>
+                          <li>Most Popular</li>
+                        </ul>
+                      </div>
+                      <div class="card-footer bg-transparent border-0 pb-4">
+                        <button @click="initiateCheckout('growth')" class="btn btn-success w-100">
+                          Select
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Power -->
+                  <div class="col-md-4">
+                    <div class="card h-100 border-warning border-opacity-50 bg-dark position-relative overflow-hidden">
+                      <div class="position-absolute top-0 end-0 bg-warning text-dark px-3 py-1 small fw-bold" style="border-bottom-left-radius: 8px;">
+                        BEST VALUE
+                      </div>
+                      <div class="card-header text-center bg-transparent border-0 pt-4">
+                        <h5 class="text-warning">POWER</h5>
+                        <h2 class="display-6 fw-bold text-fg">$100</h2>
+                        <span class="text-warning small fw-bold">700 Minutes</span>
+                      </div>
+                      <div class="card-body text-center">
+                        <ul class="list-unstyled text-muted small">
+                          <li>$0.14 / minute</li>
+                          <li>Serious Business</li>
+                        </ul>
+                      </div>
+                      <div class="card-footer bg-transparent border-0 pb-4">
+                        <button @click="initiateCheckout('power')" class="btn btn-outline-warning w-100">
+                          Select
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="text-center mt-4">
+                  <small class="text-muted">
+                    <i class="bi bi-shield-lock-fill me-1"></i>
+                    Secure payment processing via Stripe
+                  </small>
+                </div>
               </div>
             </div>
           </div>

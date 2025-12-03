@@ -12,3 +12,4 @@ twilio
 uvicorn
 pydantic[email]
 tiktoken
+stripe

@@ -32,7 +32,8 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.llm_context import LLMContext
-from pipecat.frames.frames import TextFrame
+from pipecat.frames.frames import TextFrame, InputAudioRawFrame, OutputAudioRawFrame
+from pipecat.serializers.base_serializer import FrameSerializer, FrameSerializerType
 from pipecat.serializers.twilio import TwilioFrameSerializer
 from pipecat.services.deepgram.stt import DeepgramSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
@@ -121,6 +122,27 @@ logger.info(f"DIAGNOSTIC: Loaded SUPABASE_URL: {os.environ.get('SUPABASE_URL')}"
 # --- Global State ---
 active_calls = {}  # call_id -> { client_id, client_name, caller_phone, start_time, owner_user_id }
 # --------------------
+
+class RawAudioSerializer(FrameSerializer):
+    def __init__(self):
+        pass
+
+    @property
+    def type(self) -> FrameSerializerType:
+        return FrameSerializerType.BINARY
+
+    async def serialize(self, frame):
+        if isinstance(frame, OutputAudioRawFrame):
+            return frame.audio
+        return None
+
+    async def deserialize(self, data):
+        if isinstance(data, bytes):
+            return InputAudioRawFrame(audio=data, sample_rate=16000, num_channels=1)
+        # If we get text (e.g. stringified JSON), ignore it or log it
+        # The transport might occasionally send text if not configured perfectly,
+        # but we only care about raw audio bytes for the STT.
+        return None
 
 app = FastAPI()
 
@@ -624,6 +646,156 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
         shutdown_event.set()
 
 
+@app.websocket("/ws-simulator/{client_id}")
+async def simulator_endpoint(websocket: WebSocket, client_id: str):
+    # 1. CHECK: Verify Balance
+    balance_seconds = await get_client_balance(client_id)
+    if balance_seconds <= 0:
+        logger.warning(f"Client {client_id} has zero balance. Rejecting Simulator.")
+        await websocket.close(code=4002, reason="Insufficient Funds")
+        return
+
+    # Initialize with special "SIMULATOR" caller
+    services = await initialize_client_services(client_id, "SIMULATOR")
+    if not services:
+        await websocket.close()
+        return
+    stt, tts, llm, system_prompt, initial_greeting = services
+
+    # Fetch Runner from app state
+    runner: PipelineRunner = websocket.app.state.runner
+    
+    logger.info(f"Simulator connected for Client: {client_id}")
+    await websocket.accept()
+
+    # --- Active Call Tracking (Simulator) ---
+    call_id = f"sim-{client_id}-{int(datetime.datetime.now().timestamp())}"
+    try:
+        cc = await get_client_config(client_id)
+        active_calls[call_id] = {
+            "call_id": call_id,
+            "client_id": client_id,
+            "client_name": cc.get("name", "Unknown Agent"),
+            "owner_user_id": cc.get("owner_user_id", ""),
+            "caller_phone": "SIMULATOR",
+            "start_time": datetime.datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Failed to register simulator active call: {e}")
+
+    # --- Pipeline Setup (Raw Audio for Browser) ---
+    serializer = RawAudioSerializer()
+    transport = FastAPIWebsocketTransport(
+        websocket=websocket,
+        params=FastAPIWebsocketParams(
+            audio_in_enabled=True,
+            audio_out_enabled=True,
+            add_wav_header=False,
+            audio_in_sample_rate=16000,
+            audio_out_sample_rate=16000,
+            serializer=serializer,
+        ),
+    )
+
+    current_date = datetime.date.today().strftime("%A, %B %d, %Y")
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": "CONTEXT: User is testing via Browser Simulator."},
+        {"role": "system", "content": f"Current date: {current_date}."},
+    ]
+
+    # Tool Registration
+    from pipecat.adapters.schemas.tools_schema import ToolsSchema
+    from pipecat.adapters.schemas.direct_function import DirectFunctionWrapper
+
+    tools_list = []
+    for item in llm._functions.values():
+        if isinstance(item.handler, DirectFunctionWrapper):
+            tools_list.append(item.handler.to_function_schema())
+    tools = ToolsSchema(standard_tools=tools_list)
+
+    context = LLMContext(messages, tools=tools)
+    context_aggregator = LLMContextAggregatorPair(context)
+    assistant_aggregator = ToolStrippingAssistantAggregator(context)
+
+    pipeline = Pipeline(
+        [
+            transport.input(),
+            stt,
+            context_aggregator.user(),
+            llm,
+            tts,
+            transport.output(),
+            assistant_aggregator,
+        ]
+    )
+
+    task = PipelineTask(
+        pipeline,
+        params=PipelineParams(
+            audio_in_sample_rate=16000, 
+            audio_out_sample_rate=16000,
+            enable_metrics=True,
+        ),
+    )
+
+    if initial_greeting:
+         await task.queue_frames([TextFrame(initial_greeting)])
+
+    runner_task = asyncio.create_task(runner.run(task))
+
+    # 2. MONITOR: Safety Valve (Copied from standard endpoint)
+    call_start_time = datetime.datetime.now()
+    last_deduction_time = call_start_time
+    accumulated_deduction = 0
+
+    async def safety_valve_sync():
+        nonlocal last_deduction_time, accumulated_deduction
+        try:
+            while True:
+                await asyncio.sleep(300)  # 5 Minutes
+                now = datetime.datetime.now()
+                chunk = int((now - last_deduction_time).total_seconds())
+                if chunk > 0:
+                    await deduct_balance(client_id, chunk)
+                    last_deduction_time = now
+                    accumulated_deduction += chunk
+        except asyncio.CancelledError:
+            pass
+
+    safety_task = asyncio.create_task(safety_valve_sync())
+
+    try:
+        while websocket.client_state == WebSocketState.CONNECTED:
+            elapsed = (datetime.datetime.now() - call_start_time).total_seconds()
+            if elapsed > balance_seconds:
+                await websocket.close(code=4002, reason="Time Limit Exceeded")
+                break
+            await asyncio.sleep(0.1)
+    except asyncio.CancelledError:
+        pass
+    finally:
+        # --- Cleanup Active Call ---
+        # Do this FIRST so UI updates immediately
+        active_calls.pop(call_id, None)
+        
+        safety_task.cancel()
+
+        # Final Billing
+        call_end_time = datetime.datetime.now()
+        total_seconds = int((call_end_time - call_start_time).total_seconds())
+        remainder = total_seconds - accumulated_deduction
+        if remainder > 0:
+            await deduct_balance(client_id, remainder)
+
+        if not runner_task.done():
+            await task.cancel()
+        try:
+            await runner_task
+        except Exception as e:
+             logger.error(f"Simulator Runner Error (Ignored): {e}")
+
+
 # --- CRUD Endpoints ---
 
 
@@ -648,6 +820,7 @@ class ClientCreate(BaseModel):
 class ClientUpdate(BaseModel):
     name: Optional[str] = None
     cell: Optional[str] = None
+    selected_number: Optional[str] = None # New field for late provisioning
     calendar_id: Optional[str] = None
     is_active: Optional[bool] = None
     business_timezone: Optional[str] = None
@@ -779,33 +952,9 @@ async def list_clients(token: str = Depends(get_current_user_token)):
 async def create_new_client(
     client: ClientCreate, token: str = Depends(get_current_user_token)
 ):
-    # 1. Handle Number Provisioning
-    if client.selected_number:
-        try:
-            # Determine Voice URL (Webhook)
-            # In production, use your real domain. For dev, we assume BASE_URL is set or use a placeholder.
-            # Ideally, the user sets BASE_URL in .env
-            base_url = os.environ.get("BASE_URL")
-            if not base_url:
-                 # Fallback for safety, but this might not work for callbacks
-                 logger.warning("BASE_URL not set. Twilio Voice URL might be incorrect.")
-                 base_url = "https://example.com" 
-            
-            webhook_url = f"{base_url}/voice"
-
-            purchased_number = twilio_client.incoming_phone_numbers.create(
-                phone_number=client.selected_number,
-                voice_url=webhook_url
-            )
-            
-            # Override the cell field with the actually purchased number
-            client.cell = purchased_number.phone_number
-            logger.info(f"Provisioned Twilio Number: {client.cell}")
-            
-        except Exception as e:
-            logger.error(f"Twilio Provisioning Failed: {e}")
-            raise HTTPException(status_code=400, detail=f"Failed to purchase number: {str(e)}")
-
+    # Refactored: "Pay First, Provision Later"
+    # We no longer buy the number here. We just create the skeleton record.
+    
     # 2. Create DB Record
     new_client = await create_client_record(client.dict(exclude={'selected_number'}), token)
     if new_client is None:
@@ -825,7 +974,38 @@ async def get_client(client_id: str):
 async def update_existing_client(
     client_id: str, client: ClientUpdate, token: str = Depends(get_current_user_token)
 ):
-    data = {k: v for k, v in client.dict().items() if v is not None}
+    # 1. Handle Late Provisioning (if selected_number is provided)
+    if client.selected_number:
+        try:
+            # A. Get current client to check for existing number
+            current_config = await get_client_config(client_id)
+            if current_config and current_config.get("cell"):
+                # Release the old number!
+                logger.info(f"Releasing old number {current_config['cell']} for client {client_id}")
+                release_twilio_number(current_config['cell'])
+
+            # B. Buy New Number
+            base_url = os.environ.get("BASE_URL")
+            if not base_url:
+                 logger.warning("BASE_URL not set. Twilio Voice URL might be incorrect.")
+                 base_url = "https://example.com" 
+            
+            webhook_url = f"{base_url}/voice"
+
+            purchased_number = twilio_client.incoming_phone_numbers.create(
+                phone_number=client.selected_number,
+                voice_url=webhook_url
+            )
+            
+            # C. Update the 'cell' field in the update payload
+            client.cell = purchased_number.phone_number
+            logger.info(f"Provisioned Twilio Number: {client.cell} for client {client_id}")
+
+        except Exception as e:
+            logger.error(f"Twilio Provisioning Failed during UPDATE: {e}")
+            raise HTTPException(status_code=400, detail=f"Failed to purchase number: {str(e)}")
+
+    data = {k: v for k, v in client.dict().items() if v is not None and k != 'selected_number'}
     updated = await update_client(client_id, data, token)
     if updated is None:
         raise HTTPException(500, "Failed to update")
@@ -1108,44 +1288,65 @@ async def get_user_active_calls(token: str = Depends(get_current_user_token)):
     return user_calls
 
 
+# Define Price IDs
+PRICE_IDS = {
+    "starter": os.environ.get("STRIPE_PRICE_STARTER"),
+    "growth": os.environ.get("STRIPE_PRICE_GROWTH"),
+    "power": os.environ.get("STRIPE_PRICE_POWER")
+}
+
+TOPUP_IDS = {
+    "topup_small": os.environ.get("STRIPE_TOPUP_SMALL"),
+    "topup_medium": os.environ.get("STRIPE_TOPUP_MEDIUM"),
+    "topup_large": os.environ.get("STRIPE_TOPUP_LARGE")
+}
+
 @app.post("/api/billing/create-checkout-session")
 async def create_checkout_session(request: CheckoutSessionRequest):
     stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
     
-    # Define packages
-    packages = {
-        "starter": {"amount": 2000, "seconds": 6000, "name": "Starter Pack (100 mins)"},
-        "growth": {"amount": 5000, "seconds": 18000, "name": "Growth Pack (300 mins)"},
-        "power": {"amount": 10000, "seconds": 42000, "name": "Power Pack (700 mins)"},
+    # Subscription Packages
+    subscriptions = {
+        "starter": {"seconds": 6000, "name": "Starter Pack (100 mins)"},
+        "growth": {"seconds": 18000, "name": "Growth Pack (300 mins)"},
+        "power": {"seconds": 42000, "name": "Power Pack (700 mins)"},
     }
     
-    package = packages.get(request.package_id)
-    if not package:
+    # One-Time Top-Ups
+    topups = {
+        "topup_small": {"seconds": 3000, "name": "Refuel 50 (50 mins)"},
+        "topup_medium": {"seconds": 6000, "name": "Refuel 100 (100 mins)"},
+        "topup_large": {"seconds": 30000, "name": "Refuel 500 (500 mins)"},
+    }
+    
+    # Determine Mode & Package
+    mode = "subscription"
+    price_id = PRICE_IDS.get(request.package_id)
+    package = subscriptions.get(request.package_id)
+
+    if not price_id:
+        # Check Top-Ups
+        price_id = TOPUP_IDS.get(request.package_id)
+        package = topups.get(request.package_id)
+        mode = "payment"
+
+    if not package or not price_id:
         raise HTTPException(status_code=400, detail="Invalid package ID")
         
     try:
         # Get base URL for success/cancel redirects
-        # In production, this should be configured. For now, we infer from request or env
-        # But since this is called from frontend, we can hardcode the path relative to where frontend is served
-        # or use a configured BASE_URL env var.
         base_url = os.environ.get("BASE_URL", "http://localhost:8000")
         
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {
-                        "name": package["name"],
-                    },
-                    "unit_amount": package["amount"],
-                },
+                "price": price_id,
                 "quantity": 1,
             }],
-            mode="payment",
+            mode=mode,
             metadata={
                 "client_id": request.client_id,
-                "add_seconds": str(package["seconds"]),
+                "add_seconds": str(package["seconds"]), # Kept for webhook simplicity
                 "package_id": request.package_id
             },
             success_url=f"{base_url}/static/index.html?payment=success",

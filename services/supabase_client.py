@@ -57,7 +57,9 @@ def get_authenticated_client(jwt_token: str) -> Optional[Client]:
         return None
 
 
-async def get_or_create_contact(phone_number: str, client_id: str) -> Optional[Dict[str, Any]]:
+async def get_or_create_contact(
+    phone_number: str, client_id: str
+) -> Optional[Dict[str, Any]]:
     """
     Finds a contact by phone AND client_id. Creates one if missing.
     """
@@ -76,17 +78,19 @@ async def get_or_create_contact(phone_number: str, client_id: str) -> Optional[D
         )
 
         if response.data:
-            logger.info(f"Found existing contact for {phone_number} (Client {client_id})")
+            logger.info(
+                f"Found existing contact for {phone_number} (Client {client_id})"
+            )
             return response.data[0]
         else:
             # 2. Create scoped to Client
             logger.info(f"Creating new contact for {phone_number} (Client {client_id})")
             insert_response = (
                 supabase.table("contacts")
-                .insert({
-                    "phone": phone_number,
-                    "client_id": client_id
-                }, returning="representation")
+                .insert(
+                    {"phone": phone_number, "client_id": client_id},
+                    returning="representation",
+                )
                 .execute()
             )
 
@@ -177,18 +181,16 @@ async def update_contact_name(phone_number: str, name: str, client_id: str) -> b
         resp = (
             supabase.table("contacts")
             .upsert(
-                {
-                    "phone": phone_number,
-                    "client_id": client_id,
-                    "name": name
-                },
+                {"phone": phone_number, "client_id": client_id, "name": name},
                 on_conflict="phone,client_id",
                 returning="representation",
             )
             .execute()
         )
         if resp.data:
-            logger.info(f"Updated name for {phone_number} (Client {client_id}) -> {name}")
+            logger.info(
+                f"Updated name for {phone_number} (Client {client_id}) -> {name}"
+            )
             return True
         else:
             logger.error(f"Upsert error: {getattr(resp, 'error', 'unknown')}")
@@ -322,7 +324,9 @@ async def get_all_contacts() -> Optional[list[Dict[str, Any]]]:
 
     try:
         # Fetch all contacts JOINED with clients to get the name
-        contacts_response = supabase.table("contacts").select("*, clients(name)").execute()
+        contacts_response = (
+            supabase.table("contacts").select("*, clients(name)").execute()
+        )
         if not contacts_response.data:
             logger.info("No contacts found.")
             return []
@@ -333,15 +337,15 @@ async def get_all_contacts() -> Optional[list[Dict[str, Any]]]:
             # Extract client name from the joined object
             client_data = row.get("clients")
             client_name = client_data.get("name") if client_data else "Unknown Client"
-            
+
             # Create a clean record
             contact = row.copy()
             contact["client_name"] = client_name
-            
+
             # Remove nested object if present to keep it clean
             if "clients" in contact:
                 del contact["clients"]
-                
+
             contacts.append(contact)
 
         contact_ids = [contact["id"] for contact in contacts]
@@ -572,7 +576,9 @@ async def get_client_balance(client_id: str) -> int:
         return 0
 
 
-async def adjust_client_balance(client_id: str, amount_seconds: int, reason: str) -> bool:
+async def adjust_client_balance(
+    client_id: str, amount_seconds: int, reason: str
+) -> bool:
     """
     ADMIN: Manually adjusts a client's balance.
     amount_seconds: Positive to add (Credit), Negative to deduct (Debit).
@@ -590,14 +596,14 @@ async def adjust_client_balance(client_id: str, amount_seconds: int, reason: str
         supabase.table("clients").update({"balance_seconds": new_balance}).eq(
             "id", client_id
         ).execute()
-        
+
         # 3. Log to Ledger
         # We use specific metric types for manual adjustments to track them easily
         metric_type = "MANUAL_CREDIT" if amount_seconds >= 0 else "MANUAL_DEBIT"
-        
+
         # We log the absolute quantity for the metric, but the effect on balance is already applied
         quantity = abs(amount_seconds)
-        
+
         ledger_entry = {
             "client_id": client_id,
             "metric_type": metric_type,
@@ -605,18 +611,18 @@ async def adjust_client_balance(client_id: str, amount_seconds: int, reason: str
             # We abuse conversation_id or add a notes field if the schema supported it.
             # Since we don't know if 'notes' column exists, we'll try to stick to known columns.
             # If the schema allows extra json in a column, that would be great, but let's stay safe.
-            # The requirement asks to log the reason. I'll Assume there isn't a reason column 
+            # The requirement asks to log the reason. I'll Assume there isn't a reason column
             # and just log the action. If I could, I'd add 'notes': reason.
             # For now, let's just log the metric.
         }
-        
+
         supabase.table("usage_ledger").insert(ledger_entry).execute()
 
         logger.info(
             f"Adjusted balance for {client_id} by {amount_seconds}s. New Balance: {new_balance}. Reason: {reason}"
         )
         return True
-            
+
     except Exception as e:
         logger.error(f"Error adjusting balance: {e}")
         return False
@@ -754,36 +760,39 @@ async def toggle_user_status(user_id: str) -> Optional[bool]:
         user_response = supabase.auth.admin.get_user_by_id(user_id)
         if not user_response or not user_response.user:
             return None
-        
+
         user = user_response.user
         current_meta = user.user_metadata or {}
         # Default to True if not set
         current_status = current_meta.get("is_active", True)
         new_status = not current_status
-        
+
         # 2. Update metadata
         # Merge with existing metadata to avoid data loss
         updated_meta = current_meta.copy()
         updated_meta["is_active"] = new_status
-        
-        supabase.auth.admin.update_user_by_id(
-            user_id, 
-            {"user_metadata": updated_meta}
-        )
+
+        supabase.auth.admin.update_user_by_id(user_id, {"user_metadata": updated_meta})
 
         # 3. Cascade to Clients
         # This ensures that when a user is banned, their AI agents also stop working immediately.
-        supabase.table("clients").update({"is_active": new_status}).eq("owner_user_id", user_id).execute()
-        
-        logger.info(f"Toggled user {user_id} status to {new_status}. Cascaded to clients.")
+        supabase.table("clients").update({"is_active": new_status}).eq(
+            "owner_user_id", user_id
+        ).execute()
+
+        logger.info(
+            f"Toggled user {user_id} status to {new_status}. Cascaded to clients."
+        )
         return new_status
-        
+
     except Exception as e:
         logger.error(f"Toggle user status error: {e}")
         return None
 
 
-async def admin_update_client(client_id: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+async def admin_update_client(
+    client_id: str, data: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
     """
     ADMIN: Updates a client record using the Service Role Key.
     """
@@ -799,7 +808,9 @@ async def admin_update_client(client_id: str, data: Dict[str, Any]) -> Optional[
             .execute()
         )
         if response.data:
-            logger.info(f"ADMIN: Updated client {client_id} with data: {list(data.keys())}")
+            logger.info(
+                f"ADMIN: Updated client {client_id} with data: {list(data.keys())}"
+            )
             return response.data[0]
         else:
             logger.error(f"ADMIN: Failed to update client {client_id}")
@@ -830,7 +841,9 @@ async def get_admin_users() -> list[Dict[str, Any]]:
                 "last_sign_in_at": user.last_sign_in_at,
                 "email_confirmed_at": user.email_confirmed_at,
                 "role": user.role,
-                "is_active": user.user_metadata.get("is_active", True) if user.user_metadata else True
+                "is_active": user.user_metadata.get("is_active", True)
+                if user.user_metadata
+                else True,
             }
             for user in admin_response
         ]
@@ -840,3 +853,47 @@ async def get_admin_users() -> list[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Admin users fetch error (using auth.admin.list_users): {e}")
         return []
+
+
+async def get_client_usage_stats() -> Optional[list[Dict[str, Any]]]:
+    """
+    Fetches client usage stats from the database function.
+    Returns list of dicts with client_id, seconds_today, seconds_month.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return None
+
+    try:
+        response = supabase.rpc("get_client_usage_stats").execute()
+        if response.data:
+            return response.data
+        else:
+            return []
+    except Exception as e:
+        logger.error(f"Error fetching client usage stats: {e}")
+        return None
+
+
+async def get_global_usage_stats() -> dict:
+    """
+    Fetches global usage totals across all clients from DB function.
+    Defaults to 0 on error/empty.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return {"total_seconds_today": 0, "total_seconds_month": 0}
+
+    try:
+        response = supabase.rpc("get_global_usage_stats").execute()
+        if response.data and len(response.data) > 0:
+            data = response.data[0]
+            return {
+                "total_seconds_today": data.get("total_seconds_today", 0),
+                "total_seconds_month": data.get("total_seconds_month", 0),
+            }
+        else:
+            return {"total_seconds_today": 0, "total_seconds_month": 0}
+    except Exception as e:
+        logger.error(f"Error fetching global usage stats: {e}")
+        return {"total_seconds_today": 0, "total_seconds_month": 0}

@@ -21,7 +21,9 @@ from pipecat.services.llm_service import FunctionCallParams
 logger = logging.getLogger(__name__)
 
 
-async def handle_get_available_slots(params: FunctionCallParams, client_id: Optional[str] = None, **kwargs) -> None:
+async def handle_get_available_slots(
+    params: FunctionCallParams, client_id: Optional[str] = None, **kwargs
+) -> None:
     """
     Check for available 1-hour appointment slots on a specific day.
     Returns human-readable times in the business timezone.
@@ -108,7 +110,9 @@ async def handle_get_available_slots(params: FunctionCallParams, client_id: Opti
         await params.result_callback([{"error": str(e)}])
 
 
-async def handle_book_appointment(params: FunctionCallParams, client_id: Optional[str] = None, **kwargs) -> None:
+async def handle_book_appointment(
+    params: FunctionCallParams, client_id: Optional[str] = None, **kwargs
+) -> None:
     """
     Book an appointment. Handles 'lazy' arguments from AI (missing end_time, etc).
     """
@@ -220,7 +224,9 @@ async def handle_book_appointment(params: FunctionCallParams, client_id: Optiona
         await params.result_callback({"status": "error", "message": str(e)})
 
 
-async def handle_save_contact_name(params: FunctionCallParams, client_id: Optional[str] = None, **kwargs) -> None:
+async def handle_save_contact_name(
+    params: FunctionCallParams, client_id: Optional[str] = None, **kwargs
+) -> None:
     """
     Saves contact name. Robust against missing keys.
     """
@@ -234,14 +240,21 @@ async def handle_save_contact_name(params: FunctionCallParams, client_id: Option
 
     if not phone_number or not name or not target_client_id:
         await params.result_callback(
-            {"status": "error", "message": "Missing phone, name, or client configuration."}
+            {
+                "status": "error",
+                "message": "Missing phone, name, or client configuration.",
+            }
         )
         return
 
-    logger.info(f"TOOL CALL: save_contact_name(phone={phone_number}, name={name}, client={target_client_id})")
+    logger.info(
+        f"TOOL CALL: save_contact_name(phone={phone_number}, name={name}, client={target_client_id})"
+    )
 
     # FIX: Pass client_id to update function
-    success = await update_contact_name(phone_number=phone_number, name=name, client_id=target_client_id)
+    success = await update_contact_name(
+        phone_number=phone_number, name=name, client_id=target_client_id
+    )
 
     if success:
         await params.result_callback(
@@ -251,7 +264,9 @@ async def handle_save_contact_name(params: FunctionCallParams, client_id: Option
         await params.result_callback({"status": "error", "message": "Database error."})
 
 
-async def handle_reschedule_appointment(params: FunctionCallParams, client_id: Optional[str] = None, **kwargs) -> None:
+async def handle_reschedule_appointment(
+    params: FunctionCallParams, client_id: Optional[str] = None, **kwargs
+) -> None:
     """
     Reschedule an existing appointment to a new time.
     """
@@ -325,7 +340,9 @@ async def handle_reschedule_appointment(params: FunctionCallParams, client_id: O
         await params.result_callback({"status": "error", "message": str(e)})
 
 
-async def handle_cancel_appointment(params: FunctionCallParams, client_id: Optional[str] = None, **kwargs) -> None:
+async def handle_cancel_appointment(
+    params: FunctionCallParams, client_id: Optional[str] = None, **kwargs
+) -> None:
     """
     Cancel an existing appointment.
     """
@@ -370,7 +387,9 @@ async def handle_cancel_appointment(params: FunctionCallParams, client_id: Optio
         await params.result_callback({"status": "error", "message": str(e)})
 
 
-async def handle_list_my_appointments(params: FunctionCallParams, client_id: Optional[str] = None, **kwargs) -> None:
+async def handle_list_my_appointments(
+    params: FunctionCallParams, client_id: Optional[str] = None, **kwargs
+) -> None:
     """
     List the caller's upcoming appointments with booking_ids.
     """

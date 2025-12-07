@@ -73,6 +73,8 @@ from services.supabase_client import (
     get_admin_ledger,
     get_admin_clients,
     get_admin_users,
+    get_client_usage_stats,
+    get_global_usage_stats,
 )
 
 # Import tool handlers
@@ -102,7 +104,9 @@ from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 load_dotenv()
 
 # Initialize Twilio Client
-twilio_client = Client(os.environ["TWILIO_ACCOUNT_SID"], os.environ["TWILIO_AUTH_TOKEN"])
+twilio_client = Client(
+    os.environ["TWILIO_ACCOUNT_SID"], os.environ["TWILIO_AUTH_TOKEN"]
+)
 
 # Configure logging
 logging.basicConfig(
@@ -122,6 +126,7 @@ logger.info(f"DIAGNOSTIC: Loaded SUPABASE_URL: {os.environ.get('SUPABASE_URL')}"
 # --- Global State ---
 active_calls = {}  # call_id -> { client_id, client_name, caller_phone, start_time, owner_user_id }
 # --------------------
+
 
 class RawAudioSerializer(FrameSerializer):
     def __init__(self):
@@ -144,6 +149,7 @@ class RawAudioSerializer(FrameSerializer):
         # but we only care about raw audio bytes for the STT.
         return None
 
+
 app = FastAPI()
 
 # Mount static files
@@ -164,13 +170,13 @@ def release_twilio_number(phone_number: str) -> bool:
     """
     if not phone_number:
         return False
-        
+
     try:
         # 1. Find the SID
         incoming_numbers = twilio_client.incoming_phone_numbers.list(
             phone_number=phone_number, limit=1
         )
-        
+
         if incoming_numbers:
             sid = incoming_numbers[0].sid
             # 2. Delete (Release) the number
@@ -180,13 +186,15 @@ def release_twilio_number(phone_number: str) -> bool:
         else:
             logger.warning(f"Twilio number not found for release: {phone_number}")
             return False
-            
+
     except Exception as e:
         logger.error(f"Failed to release Twilio number {phone_number}: {e}")
         return False
 
 
-async def initialize_client_services(client_id: str, caller_phone: Optional[str] = None):
+async def initialize_client_services(
+    client_id: str, caller_phone: Optional[str] = None
+):
     """
     Fetches config and initializes AI services.
     Uses a wrapper function to inject client_id and caller_phone safely.
@@ -204,8 +212,11 @@ async def initialize_client_services(client_id: str, caller_phone: Optional[str]
     initial_greeting = client_config.get("initial_greeting")
 
     enabled_tools = client_config.get("enabled_tools") or [
-        "get_available_slots", "book_appointment", "save_contact_name",
-        "reschedule_appointment", "cancel_appointment"
+        "get_available_slots",
+        "book_appointment",
+        "save_contact_name",
+        "reschedule_appointment",
+        "cancel_appointment",
     ]
 
     stt = DeepgramSTTService(
@@ -251,7 +262,7 @@ async def initialize_client_services(client_id: str, caller_phone: Optional[str]
         async def wrapper(params, **kwargs):
             # Inject context variables into the call
             return await func(params, client_id=c_id, caller_phone=c_phone, **kwargs)
-        
+
         # Copy metadata so Pipecat can introspect it
         wrapper.__name__ = func.__name__
         wrapper.__doc__ = func.__doc__
@@ -262,7 +273,7 @@ async def initialize_client_services(client_id: str, caller_phone: Optional[str]
         if tool_func:
             # Create a SAFE wrapper with the client_id bound to it
             safe_tool = create_tool_wrapper(tool_func, client_id, caller_phone)
-            
+
             # Register the wrapper
             llm.register_direct_function(safe_tool)
         else:
@@ -576,18 +587,20 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
                     continue
                 msg_role = message.get("role")
                 msg_content = message.get("content")
-                msg_tool_calls = message.get("tool_calls") # 2. Extract from dict
+                msg_tool_calls = message.get("tool_calls")  # 2. Extract from dict
             else:
                 if getattr(message, "role", "") == "system":
                     continue
                 msg_role = getattr(message, "role", "")
                 msg_content = getattr(message, "content", "")
-                msg_tool_calls = getattr(message, "tool_calls", None) # 3. Extract from object
+                msg_tool_calls = getattr(
+                    message, "tool_calls", None
+                )  # 3. Extract from object
 
             timestamp = base_time - datetime.timedelta(
                 seconds=len(context.messages) - i
             )
-            
+
             # 4. Construct entry with optional tool_calls
             entry = {
                 "role": msg_role,
@@ -595,7 +608,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
                 "timestamp": timestamp.isoformat(),
                 "created_at": timestamp.isoformat(),
             }
-            
+
             # 5. Attach tool_calls if they exist (This triggers the ⚡ icon in UI)
             if msg_tool_calls:
                 entry["tool_calls"] = msg_tool_calls
@@ -664,7 +677,7 @@ async def simulator_endpoint(websocket: WebSocket, client_id: str):
 
     # Fetch Runner from app state
     runner: PipelineRunner = websocket.app.state.runner
-    
+
     logger.info(f"Simulator connected for Client: {client_id}")
     await websocket.accept()
 
@@ -700,7 +713,10 @@ async def simulator_endpoint(websocket: WebSocket, client_id: str):
     current_date = datetime.date.today().strftime("%A, %B %d, %Y")
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "system", "content": "CONTEXT: User is testing via Browser Simulator."},
+        {
+            "role": "system",
+            "content": "CONTEXT: User is testing via Browser Simulator.",
+        },
         {"role": "system", "content": f"Current date: {current_date}."},
     ]
 
@@ -733,14 +749,14 @@ async def simulator_endpoint(websocket: WebSocket, client_id: str):
     task = PipelineTask(
         pipeline,
         params=PipelineParams(
-            audio_in_sample_rate=16000, 
+            audio_in_sample_rate=16000,
             audio_out_sample_rate=16000,
             enable_metrics=True,
         ),
     )
 
     if initial_greeting:
-         await task.queue_frames([TextFrame(initial_greeting)])
+        await task.queue_frames([TextFrame(initial_greeting)])
 
     runner_task = asyncio.create_task(runner.run(task))
 
@@ -778,7 +794,7 @@ async def simulator_endpoint(websocket: WebSocket, client_id: str):
         # --- Cleanup Active Call ---
         # Do this FIRST so UI updates immediately
         active_calls.pop(call_id, None)
-        
+
         safety_task.cancel()
 
         # Final Billing
@@ -793,7 +809,7 @@ async def simulator_endpoint(websocket: WebSocket, client_id: str):
         try:
             await runner_task
         except Exception as e:
-             logger.error(f"Simulator Runner Error (Ignored): {e}")
+            logger.error(f"Simulator Runner Error (Ignored): {e}")
 
 
 # --- CRUD Endpoints ---
@@ -820,7 +836,7 @@ class ClientCreate(BaseModel):
 class ClientUpdate(BaseModel):
     name: Optional[str] = None
     cell: Optional[str] = None
-    selected_number: Optional[str] = None # New field for late provisioning
+    selected_number: Optional[str] = None  # New field for late provisioning
     calendar_id: Optional[str] = None
     is_active: Optional[bool] = None
     business_timezone: Optional[str] = None
@@ -866,8 +882,6 @@ class AdminClientUpdate(BaseModel):
     tts_model: Optional[str] = None
     tts_voice_id: Optional[str] = None
     enabled_tools: Optional[list[str]] = None
-
-
 
 
 @app.post("/api/auth/register")
@@ -926,9 +940,11 @@ async def login_user(user: UserLogin):
 
 
 @app.get("/api/twilio/available-numbers")
-async def get_available_numbers(area_code: str, token: str = Depends(get_current_user_token)):
+async def get_available_numbers(
+    area_code: str, token: str = Depends(get_current_user_token)
+):
     try:
-        numbers = twilio_client.available_phone_numbers('US').local.list(
+        numbers = twilio_client.available_phone_numbers("US").local.list(
             area_code=area_code, limit=5
         )
         return {"numbers": [n.phone_number for n in numbers]}
@@ -937,7 +953,9 @@ async def get_available_numbers(area_code: str, token: str = Depends(get_current
         # Return empty list or 500? Returning empty list is safer for UI, but 500 indicates failure.
         # Using 400 for bad request if area code is invalid, else 500.
         # Simple approach:
-        raise HTTPException(status_code=400, detail=f"Failed to search numbers: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Failed to search numbers: {str(e)}"
+        )
 
 
 @app.get("/api/clients")
@@ -954,9 +972,11 @@ async def create_new_client(
 ):
     # Refactored: "Pay First, Provision Later"
     # We no longer buy the number here. We just create the skeleton record.
-    
+
     # 2. Create DB Record
-    new_client = await create_client_record(client.dict(exclude={'selected_number'}), token)
+    new_client = await create_client_record(
+        client.dict(exclude={"selected_number"}), token
+    )
     if new_client is None:
         raise HTTPException(500, "Failed to create client")
     return new_client
@@ -981,31 +1001,40 @@ async def update_existing_client(
             current_config = await get_client_config(client_id)
             if current_config and current_config.get("cell"):
                 # Release the old number!
-                logger.info(f"Releasing old number {current_config['cell']} for client {client_id}")
-                release_twilio_number(current_config['cell'])
+                logger.info(
+                    f"Releasing old number {current_config['cell']} for client {client_id}"
+                )
+                release_twilio_number(current_config["cell"])
 
             # B. Buy New Number
             base_url = os.environ.get("BASE_URL")
             if not base_url:
-                 logger.warning("BASE_URL not set. Twilio Voice URL might be incorrect.")
-                 base_url = "https://example.com" 
-            
+                logger.warning("BASE_URL not set. Twilio Voice URL might be incorrect.")
+                base_url = "https://example.com"
+
             webhook_url = f"{base_url}/voice"
 
             purchased_number = twilio_client.incoming_phone_numbers.create(
-                phone_number=client.selected_number,
-                voice_url=webhook_url
+                phone_number=client.selected_number, voice_url=webhook_url
             )
-            
+
             # C. Update the 'cell' field in the update payload
             client.cell = purchased_number.phone_number
-            logger.info(f"Provisioned Twilio Number: {client.cell} for client {client_id}")
+            logger.info(
+                f"Provisioned Twilio Number: {client.cell} for client {client_id}"
+            )
 
         except Exception as e:
             logger.error(f"Twilio Provisioning Failed during UPDATE: {e}")
-            raise HTTPException(status_code=400, detail=f"Failed to purchase number: {str(e)}")
+            raise HTTPException(
+                status_code=400, detail=f"Failed to purchase number: {str(e)}"
+            )
 
-    data = {k: v for k, v in client.dict().items() if v is not None and k != 'selected_number'}
+    data = {
+        k: v
+        for k, v in client.dict().items()
+        if v is not None and k != "selected_number"
+    }
     updated = await update_client(client_id, data, token)
     if updated is None:
         raise HTTPException(500, "Failed to update")
@@ -1018,7 +1047,7 @@ async def delete_existing_client(
 ):
     # 1. Fetch client data to get the phone number
     client_data = await get_client_config(client_id)
-    
+
     # 2. Release Twilio Number if it exists
     if client_data and client_data.get("cell"):
         release_twilio_number(client_data["cell"])
@@ -1114,7 +1143,38 @@ async def get_admin_dashboard(token: str = Depends(get_current_user_token)):
     clients = await get_admin_clients()
     users = await get_admin_users()
 
-    return {"ledger": ledger, "clients": clients, "users": users}
+    # Fetch and merge usage stats
+    usage_stats = await get_client_usage_stats()
+
+    # Initialize defaults for all clients first
+    for client in clients:
+        client["usage_today"] = 0
+        client["usage_month"] = 0
+
+    if usage_stats:
+        usage_map = {
+            stat["client_id"]: {
+                "seconds_today": stat["seconds_today"],
+                "seconds_month": stat["seconds_month"],
+            }
+            for stat in usage_stats
+        }
+        for client in clients:
+            client_id = client.get("id")
+            if client_id in usage_map:
+                client["usage_today"] = usage_map[client_id]["seconds_today"]
+                client["usage_month"] = usage_map[client_id]["seconds_month"]
+
+    # FIX: Move this OUT of the if block and use 'or {}' to prevent NoneType error
+    global_stats = await get_global_usage_stats() or {}
+
+    return {
+        "ledger": ledger,
+        "clients": clients,
+        "users": users,
+        "total_seconds_today": global_stats.get("total_seconds_today", 0),
+        "total_seconds_month": global_stats.get("total_seconds_month", 0),
+    }
 
 
 @app.post("/api/admin/adjust-balance")
@@ -1138,10 +1198,10 @@ async def admin_adjust_balance(
     success = await adjust_client_balance(
         request.client_id, request.amount_seconds, request.reason
     )
-    
+
     if not success:
         raise HTTPException(status_code=500, detail="Failed to adjust balance")
-        
+
     return {"message": "Balance adjusted successfully"}
 
 
@@ -1186,16 +1246,18 @@ async def admin_toggle_user_status(
         raise HTTPException(status_code=403, detail="Forbidden")
 
     new_status = await toggle_user_status(user_id)
-    
+
     if new_status is None:
         raise HTTPException(status_code=500, detail="Failed to toggle status")
-        
+
     return {"is_active": new_status}
 
 
 @app.put("/api/admin/client/{client_id}")
 async def admin_update_client_endpoint(
-    client_id: str, client_data: AdminClientUpdate, token: str = Depends(get_current_user_token)
+    client_id: str,
+    client_data: AdminClientUpdate,
+    token: str = Depends(get_current_user_token),
 ):
     """
     Secure Admin Endpoint to update client configuration.
@@ -1213,12 +1275,12 @@ async def admin_update_client_endpoint(
 
     # Filter out None values
     data = {k: v for k, v in client_data.dict().items() if v is not None}
-    
+
     updated_client = await admin_update_client(client_id, data)
-    
+
     if not updated_client:
         raise HTTPException(status_code=500, detail="Failed to update client")
-        
+
     return updated_client
 
 
@@ -1242,8 +1304,8 @@ async def admin_get_conversation(
 
     conversation = await get_conversation_by_id(conversation_id)
     if not conversation:
-         raise HTTPException(status_code=404, detail="Conversation not found")
-         
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
     return conversation
 
 
@@ -1274,7 +1336,7 @@ async def get_user_active_calls(token: str = Depends(get_current_user_token)):
     try:
         user = supabase.auth.get_user(token)
         if not user or not user.user:
-             raise HTTPException(status_code=401, detail="Invalid Token")
+            raise HTTPException(status_code=401, detail="Invalid Token")
         user_id = user.user.id
     except Exception as e:
         logger.error(f"Auth error: {e}")
@@ -1282,8 +1344,7 @@ async def get_user_active_calls(token: str = Depends(get_current_user_token)):
 
     # Filter calls owned by this user
     user_calls = [
-        call for call in active_calls.values() 
-        if call.get("owner_user_id") == user_id
+        call for call in active_calls.values() if call.get("owner_user_id") == user_id
     ]
     return user_calls
 
@@ -1292,33 +1353,34 @@ async def get_user_active_calls(token: str = Depends(get_current_user_token)):
 PRICE_IDS = {
     "starter": os.environ.get("STRIPE_PRICE_STARTER"),
     "growth": os.environ.get("STRIPE_PRICE_GROWTH"),
-    "power": os.environ.get("STRIPE_PRICE_POWER")
+    "power": os.environ.get("STRIPE_PRICE_POWER"),
 }
 
 TOPUP_IDS = {
     "topup_small": os.environ.get("STRIPE_TOPUP_SMALL"),
     "topup_medium": os.environ.get("STRIPE_TOPUP_MEDIUM"),
-    "topup_large": os.environ.get("STRIPE_TOPUP_LARGE")
+    "topup_large": os.environ.get("STRIPE_TOPUP_LARGE"),
 }
+
 
 @app.post("/api/billing/create-checkout-session")
 async def create_checkout_session(request: CheckoutSessionRequest):
     stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
-    
+
     # Subscription Packages
     subscriptions = {
         "starter": {"seconds": 6000, "name": "Starter Pack (100 mins)"},
         "growth": {"seconds": 18000, "name": "Growth Pack (300 mins)"},
         "power": {"seconds": 42000, "name": "Power Pack (700 mins)"},
     }
-    
+
     # One-Time Top-Ups
     topups = {
         "topup_small": {"seconds": 3000, "name": "Refuel 50 (50 mins)"},
         "topup_medium": {"seconds": 6000, "name": "Refuel 100 (100 mins)"},
         "topup_large": {"seconds": 30000, "name": "Refuel 500 (500 mins)"},
     }
-    
+
     # Determine Mode & Package
     mode = "subscription"
     price_id = PRICE_IDS.get(request.package_id)
@@ -1332,29 +1394,31 @@ async def create_checkout_session(request: CheckoutSessionRequest):
 
     if not package or not price_id:
         raise HTTPException(status_code=400, detail="Invalid package ID")
-        
+
     try:
         # Get base URL for success/cancel redirects
         base_url = os.environ.get("BASE_URL", "http://localhost:8000")
-        
+
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
-            line_items=[{
-                "price": price_id,
-                "quantity": 1,
-            }],
+            line_items=[
+                {
+                    "price": price_id,
+                    "quantity": 1,
+                }
+            ],
             mode=mode,
             metadata={
                 "client_id": request.client_id,
-                "add_seconds": str(package["seconds"]), # Kept for webhook simplicity
-                "package_id": request.package_id
+                "add_seconds": str(package["seconds"]),  # Kept for webhook simplicity
+                "package_id": request.package_id,
             },
             success_url=f"{base_url}/static/index.html?payment=success",
             cancel_url=f"{base_url}/static/index.html?payment=cancelled",
         )
-        
+
         return {"url": session.url}
-        
+
     except Exception as e:
         logger.error(f"Stripe checkout creation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1364,31 +1428,29 @@ async def create_checkout_session(request: CheckoutSessionRequest):
 async def stripe_webhook(request: Request):
     stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
     webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
-    
+
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
-    
+
     event = None
-    
+
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, webhook_secret
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
     except ValueError:
         # Invalid payload
         raise HTTPException(status_code=400, detail="Invalid payload")
     except stripe.error.SignatureVerificationError:
         # Invalid signature
         raise HTTPException(status_code=400, detail="Invalid signature")
-        
+
     # Handle the event
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        
+
         # Fulfill the purchase...
         client_id = session["metadata"].get("client_id")
         add_seconds = session["metadata"].get("add_seconds")
-        
+
         if client_id and add_seconds:
             try:
                 seconds = int(add_seconds)
@@ -1397,7 +1459,7 @@ async def stripe_webhook(request: Request):
             except Exception as e:
                 logger.error(f"Error processing stripe fulfillment: {e}")
                 return Response(status_code=500)
-    
+
     return {"status": "success"}
 
 

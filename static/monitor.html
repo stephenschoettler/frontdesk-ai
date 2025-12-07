@@ -49,7 +49,7 @@
       .user-row {
         cursor: pointer;
       }
-      
+
       /* --- FIX FOR VUE MANUAL MODALS (No Backdrop Element) --- */
       /* Since there is no .modal-backdrop div, we dim the .modal container itself */
       #app .modal.show {
@@ -118,8 +118,12 @@
           <button class="btn btn-outline-info btn-sm" @click="fetchData">
             <i class="bi bi-arrow-clockwise"></i> REFRESH DATA
           </button>
-          <a href="/" class="btn btn-sm btn-outline-secondary ms-2">
-            EXIT <i class="bi bi-box-arrow-right"></i>
+          <a
+            href="javascript:void(0)"
+            onclick="logout()"
+            class="btn btn-sm btn-outline-secondary ms-2"
+          >
+            LOGOUT <i class="bi bi-box-arrow-right"></i>
           </a>
         </div>
       </div>
@@ -222,6 +226,41 @@
                   >
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <div class="card stat-card p-3 border-info">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="stat-label text-info">Global Daily Usage</div>
+                <div class="stat-value text-white">
+                  {{ formatDuration(total_usage_today) }}
+                </div>
+              </div>
+              <i
+                class="bi bi-calendar-day text-info"
+                style="font-size: 2rem; opacity: 0.5"
+              ></i>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card stat-card p-3 border-success">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="stat-label text-success">Global Monthly Usage</div>
+                <div class="stat-value text-white">
+                  {{ formatDuration(total_usage_month) }}
+                </div>
+              </div>
+              <i
+                class="bi bi-calendar-month text-success"
+                style="font-size: 2rem; opacity: 0.5"
+              ></i>
             </div>
           </div>
         </div>
@@ -333,7 +372,7 @@
 
             <div class="card-body">
               <div class="row mb-4 g-2">
-                <div class="col-md-6">
+                <div class="col-md-3">
                   <div
                     class="p-3 border border-secondary border-opacity-25 rounded bg-dark"
                   >
@@ -345,7 +384,29 @@
                     </div>
                   </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-3">
+                  <div
+                    class="p-3 border border-secondary border-opacity-25 rounded bg-dark"
+                  >
+                    <label class="text-success small mb-1">USER DAILY</label>
+                    <div class="h4 mb-0 font-monospace">
+                      {{ formatDuration(getUserTotalUsage(selectedUser.id,
+                      'usage_today')) }}
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div
+                    class="p-3 border border-secondary border-opacity-25 rounded bg-dark"
+                  >
+                    <label class="text-purple small mb-1">USER MONTHLY</label>
+                    <div class="h4 mb-0 font-monospace">
+                      {{ formatDuration(getUserTotalUsage(selectedUser.id,
+                      'usage_month')) }}
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
                   <div
                     class="p-3 border border-secondary border-opacity-25 rounded bg-dark"
                   >
@@ -378,7 +439,8 @@
                       <th>Phone</th>
                       <th>Status</th>
                       <th>Balance</th>
-                      <th>Integrity</th>
+                      <th>Daily</th>
+                      <th>Monthly</th>
                       <th class="text-end">Actions</th>
                     </tr>
                   </thead>
@@ -416,14 +478,11 @@
                       <td class="font-monospace">
                         {{ formatDuration(c.balance_seconds || 0) }}
                       </td>
-                      <td>
-                        <i
-                          class="bi bi-check-circle-fill text-success"
-                          v-if="c.owner_user_id === selectedUser.id"
-                        ></i>
-                        <span class="badge bg-danger text-white" v-else
-                          >OWNER MISMATCH</span
-                        >
+                      <td class="font-monospace text-muted small">
+                        {{ formatDuration(c.usage_today) }}
+                      </td>
+                      <td class="font-monospace text-muted small">
+                        {{ formatDuration(c.usage_month) }}
                       </td>
                       <td class="text-end">
                         <button
@@ -633,386 +692,421 @@
               </h5>
 
               <div class="ms-auto d-flex align-items-center gap-3">
-                 <button
-                    type="submit"
-                    form="editClientForm"
-                    class="btn btn-sm btn-primary"
-                    :disabled="isSubmitting"
-                  >
-                    <span v-if="isSubmitting" class="spinner-border spinner-border-sm me-2"></span>
-                    {{ isSubmitting ? 'SAVING...' : 'SAVE' }}
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-close btn-close-white"
-                    data-bs-dismiss="modal"
-                    aria-label="Close"
-                  ></button>
+                <button
+                  type="submit"
+                  form="editClientForm"
+                  class="btn btn-sm btn-primary"
+                  :disabled="isSubmitting"
+                >
+                  <span
+                    v-if="isSubmitting"
+                    class="spinner-border spinner-border-sm me-2"
+                  ></span>
+                  {{ isSubmitting ? 'SAVING...' : 'SAVE' }}
+                </button>
+                <button
+                  type="button"
+                  class="btn-close btn-close-white"
+                  data-bs-dismiss="modal"
+                  aria-label="Close"
+                ></button>
               </div>
             </div>
             <div class="modal-body">
-                <!-- Full-screen System Prompt Editor -->
+              <!-- Full-screen System Prompt Editor -->
+              <div
+                v-if="systemPromptExpanded"
+                class="system-prompt-fullscreen"
+                style="
+                  position: fixed;
+                  top: 0;
+                  left: 0;
+                  width: 100%;
+                  height: 100%;
+                  z-index: 2000;
+                  background: var(--theme-bg-dark);
+                  padding: 20px;
+                  display: flex;
+                  flex-direction: column;
+                "
+              >
                 <div
-                  v-if="systemPromptExpanded"
-                  class="system-prompt-fullscreen"
-                  style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2000; background: var(--theme-bg-dark); padding: 20px; display: flex; flex-direction: column;"
+                  class="d-flex justify-content-between align-items-center mb-3"
                 >
-                  <div
-                    class="d-flex justify-content-between align-items-center mb-3"
+                  <h5 class="mb-0 text-white">System Prompt Editor</h5>
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    @click="toggleSystemPromptExpansion"
                   >
-                    <h5 class="mb-0 text-white">System Prompt Editor</h5>
-                    <button
-                      type="button"
-                      class="btn btn-outline-secondary btn-sm"
-                      @click="toggleSystemPromptExpansion"
-                    >
-                      ← Back to Form
-                    </button>
-                  </div>
-                  <textarea
-                    v-model="editForm.system_prompt"
-                    class="form-control bg-dark text-white border-secondary system-prompt-fullscreen-textarea"
-                    style="flex-grow: 1; font-family: &quot;JetBrains Mono&quot;;"
-                    placeholder="Enter your system prompt here..."
-                  ></textarea>
+                    ← Back to Form
+                  </button>
                 </div>
+                <textarea
+                  v-model="editForm.system_prompt"
+                  class="form-control bg-dark text-white border-secondary system-prompt-fullscreen-textarea"
+                  style="flex-grow: 1; font-family: &quot;JetBrains Mono&quot;"
+                  placeholder="Enter your system prompt here..."
+                ></textarea>
+              </div>
 
-                <!-- Normal Form View -->
-                <form v-else id="editClientForm" @submit.prevent="submitEditClient">
-                  <ul class="nav nav-tabs mb-3 border-secondary border-opacity-25">
-                    <li class="nav-item">
-                      <a
-                        class="nav-link"
-                        :class="{ active: activeClientTab === 'basic' }"
-                        href="#"
-                        @click.prevent="activeClientTab = 'basic'"
-                        >Basic Info</a
-                      >
-                    </li>
-                    <li class="nav-item">
-                      <a
-                        class="nav-link"
-                        :class="{ active: activeClientTab === 'ai' }"
-                        href="#"
-                        @click.prevent="activeClientTab = 'ai'"
-                        >AI Config</a
-                      >
-                    </li>
-                    <li class="nav-item">
-                      <a
-                        class="nav-link"
-                        :class="{ active: activeClientTab === 'prompting' }"
-                        href="#"
-                        @click.prevent="activeClientTab = 'prompting'"
-                        >Prompting</a
-                      >
-                    </li>
-                    <li class="nav-item">
-                      <a
-                        class="nav-link"
-                        :class="{ active: activeClientTab === 'tools' }"
-                        href="#"
-                        @click.prevent="activeClientTab = 'tools'"
-                        >Tools</a
-                      >
-                    </li>
-                  </ul>
+              <!-- Normal Form View -->
+              <form
+                v-else
+                id="editClientForm"
+                @submit.prevent="submitEditClient"
+              >
+                <ul
+                  class="nav nav-tabs mb-3 border-secondary border-opacity-25"
+                >
+                  <li class="nav-item">
+                    <a
+                      class="nav-link"
+                      :class="{ active: activeClientTab === 'basic' }"
+                      href="#"
+                      @click.prevent="activeClientTab = 'basic'"
+                      >Basic Info</a
+                    >
+                  </li>
+                  <li class="nav-item">
+                    <a
+                      class="nav-link"
+                      :class="{ active: activeClientTab === 'ai' }"
+                      href="#"
+                      @click.prevent="activeClientTab = 'ai'"
+                      >AI Config</a
+                    >
+                  </li>
+                  <li class="nav-item">
+                    <a
+                      class="nav-link"
+                      :class="{ active: activeClientTab === 'prompting' }"
+                      href="#"
+                      @click.prevent="activeClientTab = 'prompting'"
+                      >Prompting</a
+                    >
+                  </li>
+                  <li class="nav-item">
+                    <a
+                      class="nav-link"
+                      :class="{ active: activeClientTab === 'tools' }"
+                      href="#"
+                      @click.prevent="activeClientTab = 'tools'"
+                      >Tools</a
+                    >
+                  </li>
+                </ul>
 
-                  <div class="tab-content">
-                    <div v-if="activeClientTab === 'basic'">
-                      <div class="row">
-                        <div class="col-md-6">
-                          <div class="mb-3">
-                            <label class="form-label text-muted small">Name *</label>
-                            <input
-                              v-model="editForm.name"
-                              type="text"
-                              class="form-control bg-dark text-white border-secondary"
-                              required
-                            />
-                          </div>
-                          <div class="mb-3">
-                            <label class="form-label text-muted small">Cell Phone</label>
-                            <input
-                              v-model="editForm.cell"
-                              type="text"
-                              class="form-control bg-dark text-white border-secondary"
-                            />
-                             <div class="form-text text-muted">
-                              Admin Override: Enter full E.164 format (e.g. +14155551234).
-                            </div>
-                          </div>
-                          <div class="mb-3">
-                            <label class="form-label text-muted small">Calendar ID</label>
-                            <input
-                              v-model="editForm.calendar_id"
-                              type="text"
-                              class="form-control bg-dark text-white border-secondary"
-                            />
-                          </div>
-                           <div class="form-check form-switch p-3 border border-secondary border-opacity-25 rounded bg-dark mb-3">
-                              <input
-                                class="form-check-input"
-                                type="checkbox"
-                                id="clientActiveSwitch"
-                                v-model="editForm.is_active"
-                              />
-                              <label
-                                class="form-check-label text-white ms-2"
-                                for="clientActiveSwitch"
-                                >Agent Active Status</label
-                              >
-                            </div>
+                <div class="tab-content">
+                  <div v-if="activeClientTab === 'basic'">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label text-muted small"
+                            >Name *</label
+                          >
+                          <input
+                            v-model="editForm.name"
+                            type="text"
+                            class="form-control bg-dark text-white border-secondary"
+                            required
+                          />
                         </div>
-                        <div class="col-md-6">
-                          <div class="mb-3">
-                            <label class="form-label text-muted small">Business Timezone</label>
-                            <select
-                              v-model="editForm.business_timezone"
-                              class="form-select bg-dark text-white border-secondary"
-                            >
-                              <option value="America/Los_Angeles">
-                                America/Los_Angeles
-                              </option>
-                              <option value="America/New_York">
-                                America/New_York
-                              </option>
-                              <option value="America/Chicago">
-                                America/Chicago
-                              </option>
-                              <option value="America/Denver">
-                                America/Denver
-                              </option>
-                            </select>
+                        <div class="mb-3">
+                          <label class="form-label text-muted small"
+                            >Cell Phone</label
+                          >
+                          <input
+                            v-model="editForm.cell"
+                            type="text"
+                            class="form-control bg-dark text-white border-secondary"
+                          />
+                          <div class="form-text text-muted">
+                            Admin Override: Enter full E.164 format (e.g.
+                            +14155551234).
                           </div>
-                          <div class="row">
-                            <div class="col-md-6">
-                              <div class="mb-3">
-                                <label class="form-label text-muted small">Start Hour</label>
-                                <select
-                                  v-model.number="editForm.business_start_hour"
-                                  class="form-select bg-dark text-white border-secondary"
-                                >
-                                  <option
-                                    v-for="h in 24"
-                                    :key="h-1"
-                                    :value="h-1"
-                                  >
-                                    {{ formatHour(h-1) }}
-                                  </option>
-                                </select>
-                              </div>
-                            </div>
-                            <div class="col-md-6">
-                              <div class="mb-3">
-                                <label class="form-label text-muted small">End Hour</label>
-                                <select
-                                  v-model.number="editForm.business_end_hour"
-                                  class="form-select bg-dark text-white border-secondary"
-                                >
-                                  <option
-                                    v-for="h in 24"
-                                    :key="h-1"
-                                    :value="h-1"
-                                  >
-                                    {{ formatHour(h-1) }}
-                                  </option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label text-muted small"
+                            >Calendar ID</label
+                          >
+                          <input
+                            v-model="editForm.calendar_id"
+                            type="text"
+                            class="form-control bg-dark text-white border-secondary"
+                          />
+                        </div>
+                        <div
+                          class="form-check form-switch p-3 border border-secondary border-opacity-25 rounded bg-dark mb-3"
+                        >
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            id="clientActiveSwitch"
+                            v-model="editForm.is_active"
+                          />
+                          <label
+                            class="form-check-label text-white ms-2"
+                            for="clientActiveSwitch"
+                            >Agent Active Status</label
+                          >
                         </div>
                       </div>
-                    </div>
-
-                    <div v-if="activeClientTab === 'ai'">
-                      <div class="row">
-                        <div class="col-md-6">
-                          <div class="mb-3">
-                            <label class="form-label text-muted small">LLM Model</label>
-                            <select
-                              v-model="editForm.llm_model"
-                              class="form-select bg-dark text-white border-secondary"
-                            >
-                              <option value="openai/gpt-4o-mini">
-                                openai/gpt-4o-mini
-                              </option>
-                              <option value="openai/gpt-4o">
-                                openai/gpt-4o
-                              </option>
-                              <option value="anthropic/claude-3-haiku">
-                                anthropic/claude-3-haiku
-                              </option>
-                              <option value="google/gemini-flash-1.5">
-                                google/gemini-flash-1.5
-                              </option>
-                              <option value="x-ai/grok-4-fast">
-                                x-ai/grok-4-fast
-                              </option>
-                            </select>
-                          </div>
-                          <div class="mb-3">
-                            <label class="form-label text-muted small">STT Model</label>
-                            <select
-                              v-model="editForm.stt_model"
-                              class="form-select bg-dark text-white border-secondary"
-                            >
-                              <option value="nova-2-phonecall">
-                                Deepgram Nova 2 Phonecall
-                              </option>
-                              <option value="nova-2-conversationalai">
-                                Deepgram Nova 2 Conversational AI
-                              </option>
-                              <option value="nova-2-medical">
-                                Deepgram Nova 2 Medical
-                              </option>
-                              <option value="nova-2-automotive">
-                                Deepgram Nova 2 Automotive
-                              </option>
-                            </select>
-                          </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label text-muted small"
+                            >Business Timezone</label
+                          >
+                          <select
+                            v-model="editForm.business_timezone"
+                            class="form-select bg-dark text-white border-secondary"
+                          >
+                            <option value="America/Los_Angeles">
+                              America/Los_Angeles
+                            </option>
+                            <option value="America/New_York">
+                              America/New_York
+                            </option>
+                            <option value="America/Chicago">
+                              America/Chicago
+                            </option>
+                            <option value="America/Denver">
+                              America/Denver
+                            </option>
+                          </select>
                         </div>
-                        <div class="col-md-6">
-                          <div class="mb-3">
-                            <label class="form-label text-muted small">TTS Model</label>
-                            <select
-                              v-model="editForm.tts_model"
-                              class="form-select bg-dark text-white border-secondary"
-                            >
-                              <option value="eleven_flash_v2_5">
-                                ElevenLabs Flash v2.5
-                              </option>
-                              <option value="eleven_flash_v2">
-                                ElevenLabs Flash v2
-                              </option>
-                              <option value="eleven_turbo_v2_5">
-                                ElevenLabs Turbo v2.5
-                              </option>
-                              <option value="eleven_turbo_v2">
-                                ElevenLabs Turbo v2
-                              </option>
-                            </select>
-                          </div>
-                          <div class="mb-3">
-                            <label class="form-label text-muted small">TTS Voice ID</label>
-
-                            <div class="input-group">
-                              <select
-                                class="form-select bg-dark text-white border-secondary"
-                                style="max-width: 160px; border-right: none"
-                                @change="editForm.tts_voice_id = $event.target.value"
+                        <div class="row">
+                          <div class="col-md-6">
+                            <div class="mb-3">
+                              <label class="form-label text-muted small"
+                                >Start Hour</label
                               >
-                                <option value="" disabled selected>
-                                  Quick Fill...
-                                </option>
-                                <option
-                                  v-for="voice in voicePresets"
-                                  :key="voice.id"
-                                  :value="voice.id"
-                                >
-                                  {{ voice.name }}
+                              <select
+                                v-model.number="editForm.business_start_hour"
+                                class="form-select bg-dark text-white border-secondary"
+                              >
+                                <option v-for="h in 24" :key="h-1" :value="h-1">
+                                  {{ formatHour(h-1) }}
                                 </option>
                               </select>
-
-                              <input
-                                v-model="editForm.tts_voice_id"
-                                type="text"
-                                class="form-control bg-dark text-white border-secondary"
-                                placeholder="Paste ID here or select preset..."
-                              />
+                            </div>
+                          </div>
+                          <div class="col-md-6">
+                            <div class="mb-3">
+                              <label class="form-label text-muted small"
+                                >End Hour</label
+                              >
+                              <select
+                                v-model.number="editForm.business_end_hour"
+                                class="form-select bg-dark text-white border-secondary"
+                              >
+                                <option v-for="h in 24" :key="h-1" :value="h-1">
+                                  {{ formatHour(h-1) }}
+                                </option>
+                              </select>
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div v-if="activeClientTab === 'prompting'">
-                      <div class="mb-3">
-                        <label class="form-label text-muted small">Initial Greeting</label>
-                        <textarea
-                          v-model="editForm.initial_greeting"
-                          class="form-control bg-dark text-white border-secondary"
-                          rows="2"
-                        ></textarea>
-                      </div>
-                      <div class="mb-3">
-                        <label
-                          class="form-label d-flex justify-content-between align-items-center text-muted small"
-                        >
-                          System Prompt
-                          <button
-                            type="button"
-                            class="btn btn-sm btn-outline-secondary"
-                            @click="toggleSystemPromptExpansion"
+                  <div v-if="activeClientTab === 'ai'">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label text-muted small"
+                            >LLM Model</label
                           >
-                            Expand to Full Screen
-                          </button>
-                        </label>
-                        <textarea
-                          v-model="editForm.system_prompt"
-                          class="form-control bg-dark text-white border-secondary"
-                          style="font-family: &quot;JetBrains Mono&quot;;"
-                          rows="12"
-                        ></textarea>
-                      </div>
-                    </div>
-
-                    <div v-if="activeClientTab === 'tools'">
-                      <div
-                        class="p-4 border rounded"
-                        style="
-                          background: var(--theme-bg-dark);
-                          border-color: var(--theme-bg-mid) !important;
-                        "
-                      >
-                        <label
-                          class="form-label mb-4 text-warning"
-                          style="letter-spacing: 2px"
-                          >>> ACTIVE CAPABILITIES</label
-                        >
-
-                        <div class="form-check mb-3">
-                          <input
-                            class="form-check-input"
-                            type="checkbox"
-                            v-model="editForm.enable_scheduling"
-                            id="bundle_scheduling"
-                          />
-                          <label
-                            class="form-check-label fw-bold text-white"
-                            for="bundle_scheduling"
-                            >Enable Scheduling</label
+                          <select
+                            v-model="editForm.llm_model"
+                            class="form-select bg-dark text-white border-secondary"
                           >
-                          <div class="text-muted small ms-4 mt-1">
-                            Allows the agent to check availability, book,
-                            reschedule, and cancel appointments via Google
-                            Calendar.
-                          </div>
+                            <option value="openai/gpt-4o-mini">
+                              openai/gpt-4o-mini
+                            </option>
+                            <option value="openai/gpt-4o">openai/gpt-4o</option>
+                            <option value="anthropic/claude-3-haiku">
+                              anthropic/claude-3-haiku
+                            </option>
+                            <option value="google/gemini-flash-1.5">
+                              google/gemini-flash-1.5
+                            </option>
+                            <option value="x-ai/grok-4-fast">
+                              x-ai/grok-4-fast
+                            </option>
+                          </select>
                         </div>
-
-                        <hr class="border-secondary opacity-25 my-3" />
-
-                        <div class="form-check">
-                          <input
-                            class="form-check-input"
-                            type="checkbox"
-                            v-model="editForm.enable_memory"
-                            id="bundle_contact"
-                          />
-                          <label
-                            class="form-check-label fw-bold text-white"
-                            for="bundle_contact"
-                            >Contact Memory</label
+                        <div class="mb-3">
+                          <label class="form-label text-muted small"
+                            >STT Model</label
                           >
-                          <div class="text-muted small ms-4 mt-1">
-                            Allows the agent to learn and save the caller's name
-                            for future personalized greetings.
+                          <select
+                            v-model="editForm.stt_model"
+                            class="form-select bg-dark text-white border-secondary"
+                          >
+                            <option value="nova-2-phonecall">
+                              Deepgram Nova 2 Phonecall
+                            </option>
+                            <option value="nova-2-conversationalai">
+                              Deepgram Nova 2 Conversational AI
+                            </option>
+                            <option value="nova-2-medical">
+                              Deepgram Nova 2 Medical
+                            </option>
+                            <option value="nova-2-automotive">
+                              Deepgram Nova 2 Automotive
+                            </option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label text-muted small"
+                            >TTS Model</label
+                          >
+                          <select
+                            v-model="editForm.tts_model"
+                            class="form-select bg-dark text-white border-secondary"
+                          >
+                            <option value="eleven_flash_v2_5">
+                              ElevenLabs Flash v2.5
+                            </option>
+                            <option value="eleven_flash_v2">
+                              ElevenLabs Flash v2
+                            </option>
+                            <option value="eleven_turbo_v2_5">
+                              ElevenLabs Turbo v2.5
+                            </option>
+                            <option value="eleven_turbo_v2">
+                              ElevenLabs Turbo v2
+                            </option>
+                          </select>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label text-muted small"
+                            >TTS Voice ID</label
+                          >
+
+                          <div class="input-group">
+                            <select
+                              class="form-select bg-dark text-white border-secondary"
+                              style="max-width: 160px; border-right: none"
+                              @change="editForm.tts_voice_id = $event.target.value"
+                            >
+                              <option value="" disabled selected>
+                                Quick Fill...
+                              </option>
+                              <option
+                                v-for="voice in voicePresets"
+                                :key="voice.id"
+                                :value="voice.id"
+                              >
+                                {{ voice.name }}
+                              </option>
+                            </select>
+
+                            <input
+                              v-model="editForm.tts_voice_id"
+                              type="text"
+                              class="form-control bg-dark text-white border-secondary"
+                              placeholder="Paste ID here or select preset..."
+                            />
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </form>
+
+                  <div v-if="activeClientTab === 'prompting'">
+                    <div class="mb-3">
+                      <label class="form-label text-muted small"
+                        >Initial Greeting</label
+                      >
+                      <textarea
+                        v-model="editForm.initial_greeting"
+                        class="form-control bg-dark text-white border-secondary"
+                        rows="2"
+                      ></textarea>
+                    </div>
+                    <div class="mb-3">
+                      <label
+                        class="form-label d-flex justify-content-between align-items-center text-muted small"
+                      >
+                        System Prompt
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary"
+                          @click="toggleSystemPromptExpansion"
+                        >
+                          Expand to Full Screen
+                        </button>
+                      </label>
+                      <textarea
+                        v-model="editForm.system_prompt"
+                        class="form-control bg-dark text-white border-secondary"
+                        style="font-family: &quot;JetBrains Mono&quot;"
+                        rows="12"
+                      ></textarea>
+                    </div>
+                  </div>
+
+                  <div v-if="activeClientTab === 'tools'">
+                    <div
+                      class="p-4 border rounded"
+                      style="
+                        background: var(--theme-bg-dark);
+                        border-color: var(--theme-bg-mid) !important;
+                      "
+                    >
+                      <label
+                        class="form-label mb-4 text-warning"
+                        style="letter-spacing: 2px"
+                        >>> ACTIVE CAPABILITIES</label
+                      >
+
+                      <div class="form-check mb-3">
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          v-model="editForm.enable_scheduling"
+                          id="bundle_scheduling"
+                        />
+                        <label
+                          class="form-check-label fw-bold text-white"
+                          for="bundle_scheduling"
+                          >Enable Scheduling</label
+                        >
+                        <div class="text-muted small ms-4 mt-1">
+                          Allows the agent to check availability, book,
+                          reschedule, and cancel appointments via Google
+                          Calendar.
+                        </div>
+                      </div>
+
+                      <hr class="border-secondary opacity-25 my-3" />
+
+                      <div class="form-check">
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          v-model="editForm.enable_memory"
+                          id="bundle_contact"
+                        />
+                        <label
+                          class="form-check-label fw-bold text-white"
+                          for="bundle_contact"
+                          >Contact Memory</label
+                        >
+                        <div class="text-muted small ms-4 mt-1">
+                          Allows the agent to learn and save the caller's name
+                          for future personalized greetings.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </form>
             </div>
           </div>
         </div>
@@ -1057,7 +1151,7 @@
                 <div>Decrypting Ledger...</div>
               </div>
               <div v-else class="table-responsive" style="max-height: 500px">
-                    <table class="table table-custom table-sm table-hover mb-0">
+                <table class="table table-custom table-sm table-hover mb-0">
                   <thead>
                     <tr>
                       <th class="ps-3">Time</th>
@@ -1216,6 +1310,12 @@
     <script src="./lib/js/vue.global.js"></script>
     <script src="./lib/js/axios.min.js"></script>
     <script>
+      // Global logout function
+      window.logout = function () {
+        localStorage.removeItem("authToken");
+        window.location.href = "/static/index.html";
+      };
+
       const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
       createApp({
@@ -1224,6 +1324,8 @@
           const clients = ref([]);
           const ledger = ref([]);
           const activeCalls = ref([]);
+          const total_usage_today = ref(0);
+          const total_usage_month = ref(0);
           const selectedUser = ref(null);
           const showDebug = ref(false); // Default off for cleaner UI
           const userSearch = ref("");
@@ -1297,9 +1399,9 @@
 
           // Edit State
           const editClientModal = ref(null);
-          const activeClientTab = ref('basic');
+          const activeClientTab = ref("basic");
           const systemPromptExpanded = ref(false);
-          
+
           const editForm = ref({
             id: "",
             name: "",
@@ -1339,6 +1441,8 @@
               users.value = res.data.users || [];
               clients.value = res.data.clients || [];
               ledger.value = res.data.ledger || [];
+              total_usage_today.value = res.data.total_seconds_today || 0;
+              total_usage_month.value = res.data.total_seconds_month || 0;
             } catch (e) {
               console.error(e);
               if (e.response && e.response.status === 403) {
@@ -1407,6 +1511,14 @@
             );
           };
 
+          const getUserTotalUsage = (uid, field) => {
+            const userClients = getUserClients(uid);
+            return userClients.reduce(
+              (acc, client) => acc + (client[field] || 0),
+              0,
+            );
+          };
+
           const selectUser = (u) => (selectedUser.value = u);
 
           const formatDuration = (seconds) => {
@@ -1416,10 +1528,10 @@
             if (m === 0) return `${s}s`;
             return `${m}m ${s}s`;
           };
-          
+
           const formatHour = (h) => {
-            if (h === 0) return '12 AM';
-            if (h === 12) return '12 PM';
+            if (h === 0) return "12 AM";
+            if (h === 12) return "12 PM";
             return h > 12 ? `${h - 12} PM` : `${h} AM`;
           };
 
@@ -1429,16 +1541,16 @@
           };
 
           // --- EDIT METHODS ---
-          
+
           const toggleSystemPromptExpansion = () => {
             systemPromptExpanded.value = !systemPromptExpanded.value;
           };
 
           const openEditModal = (client) => {
             const tools = client.enabled_tools || [];
-            activeClientTab.value = 'basic';
+            activeClientTab.value = "basic";
             systemPromptExpanded.value = false;
-            
+
             editForm.value = {
               id: client.id,
               name: client.name,
@@ -1450,7 +1562,8 @@
               tts_model: client.tts_model || "eleven_flash_v2_5",
               tts_voice_id: client.tts_voice_id || "21m00Tcm4TlvDq8ikWAM",
               calendar_id: client.calendar_id || "",
-              business_timezone: client.business_timezone || "America/Los_Angeles",
+              business_timezone:
+                client.business_timezone || "America/Los_Angeles",
               business_start_hour: client.business_start_hour ?? 9,
               business_end_hour: client.business_end_hour ?? 17,
               initial_greeting: client.initial_greeting || "",
@@ -1715,6 +1828,7 @@
             getClientCount,
             getUserClients,
             getUserTotalBalance,
+            getUserTotalUsage,
             formatDuration,
             formatDate,
             // Ledger
@@ -1748,6 +1862,8 @@
             truncateId,
             // Const
             voicePresets,
+            total_usage_today,
+            total_usage_month,
           };
         },
       }).mount("#app");

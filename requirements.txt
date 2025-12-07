@@ -1,15 +1,14 @@
 fastapi
 google-api-python-client
 google-auth-oauthlib
-# Use Pipecat extras to enforce compatible versions of AI SDKs
 pipecat-ai[deepgram,elevenlabs,openai]
+pydantic[email]
+pytest>=7.0
 python-dotenv
 python-multipart
-pytest>=7.0
 pytz
+stripe
 supabase==2.23.0
+tiktoken
 twilio
 uvicorn
-pydantic[email]
-tiktoken
-stripe

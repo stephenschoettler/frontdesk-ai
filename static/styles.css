@@ -8,6 +8,7 @@
   --theme-blue: #7dcfff;
   --theme-purple: #bb9af7;
   --theme-green: #9ece6a;
+  --theme-yellow: #e0af68;
   --theme-orange: #e0af68;
   --theme-red: #f7768e;
   --theme-cyan: #7dcfff;
@@ -68,15 +69,22 @@ body {
   padding-bottom: 120px !important; /* Extra space for the + button */
 }
 
+/* Floating Island Navbar */
 .navbar {
-  margin-bottom: 20px;
-  background: var(--theme-bg-dark) !important;
+  margin: 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--theme-bg-dark), transparent 20%) !important; /* Glass effect base */
+  backdrop-filter: blur(12px);
   border: 1px solid var(--theme-bg-mid);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  position: sticky;
+  top: 16px;
+  z-index: 1000;
 }
 
 .navbar-brand {
   font-weight: 700;
+  color: var(--theme-fg) !important;
 }
 
 .nav-link {
@@ -92,7 +100,7 @@ body {
 }
 
 .d-flex > .card {
-  background: rgba(22, 22, 30, 0.85) !important;
+  background: color-mix(in srgb, var(--theme-card-bg), transparent 15%) !important;
   backdrop-filter: blur(10px);
   border: 1px solid var(--theme-blue) !important;
   box-shadow: 0 0 30px rgba(125, 207, 255, 0.15);
@@ -157,28 +165,25 @@ body {
   letter-spacing: 1px;
 }
 
-/* --- Primary Action Button (Holographic/Stealth) --- */
+/* --- Primary Action Button (Hero - Solid) --- */
 .btn-primary {
-  background: transparent !important; /* Kill the solid blue */
-  border: 1px solid var(--theme-blue) !important; /* Wireframe border */
-  color: var(--theme-blue) !important; /* Neon text */
+  background: var(--theme-blue) !important; /* Solid Fill */
+  border: none !important;
+  color: var(--theme-bg-dark) !important; /* Dark Text */
   text-transform: uppercase;
   letter-spacing: 2px;
   font-weight: 700;
-  box-shadow: 0 0 5px rgba(125, 207, 255, 0.1); /* Subtle resting glow */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: none;
+  transition: all 0.2s ease;
   border-radius: 2px; /* Sharper corners */
 }
 
-/* Hover State: Power Up */
+/* Hover State: Brighten */
 .btn-primary:hover {
-  background: rgba(125, 207, 255, 0.1) !important; /* 10% Tint */
-  box-shadow:
-    0 0 20px var(--theme-blue),
-    /* Outer glow */ inset 0 0 10px rgba(125, 207, 255, 0.1); /* Inner glow */
-  text-shadow: 0 0 8px var(--theme-blue); /* Text bloom */
-  color: var(--theme-fg) !important; /* Brighten text */
+  filter: brightness(1.1);
+  box-shadow: 0 0 8px rgba(125, 207, 255, 0.2); /* Reduced glow */
   transform: translateY(-1px);
+  color: var(--theme-bg-dark) !important;
 }
 
 /* Active/Click State */
@@ -235,15 +240,15 @@ body {
 }
 
 .btn-outline-primary:hover {
-  background: rgba(125, 207, 255, 0.1);
+  background: color-mix(in srgb, var(--theme-blue), transparent 90%);
   color: var(--theme-blue);
-  box-shadow: 0 0 10px rgba(125, 207, 255, 0.4);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--theme-blue), transparent 60%);
 }
 
 .btn-outline-primary:active,
 .btn-outline-primary:focus,
 .btn-outline-primary.active {
-  background-color: rgba(125, 207, 255, 0.15) !important;
+  background-color: color-mix(in srgb, var(--theme-blue), transparent 85%) !important;
   color: var(--theme-blue) !important;
   border-color: var(--theme-blue) !important;
   box-shadow: 0 0 15px var(--theme-blue) !important;
@@ -259,7 +264,7 @@ body {
 .btn-outline-danger:hover,
 .btn-outline-danger:active,
 .btn-outline-danger:focus {
-  background-color: rgba(247, 118, 142, 0.15) !important;
+  background-color: color-mix(in srgb, var(--theme-red), transparent 85%) !important;
   color: var(--theme-red) !important;
   border-color: var(--theme-red) !important;
   box-shadow: 0 0 15px var(--theme-red) !important;
@@ -275,7 +280,7 @@ body {
 .btn-outline-info:active,
 .btn-outline-info:focus,
 .btn-outline-info.active {
-  background-color: rgba(187, 154, 247, 0.15) !important;
+  background-color: color-mix(in srgb, var(--theme-purple), transparent 85%) !important;
   color: var(--theme-purple) !important;
   border-color: var(--theme-purple) !important;
   box-shadow: 0 0 15px var(--theme-purple) !important;
@@ -296,12 +301,7 @@ body {
 .btn-outline-secondary:active,
 .btn-outline-secondary:focus,
 .btn-outline-secondary.active {
-  background-color: rgba(
-    86,
-    95,
-    137,
-    0.15
-  ) !important; /* faint var(--theme-comment) */
+  background-color: color-mix(in srgb, var(--theme-comment), transparent 85%) !important; /* faint var(--theme-comment) */
   color: var(--theme-comment) !important;
   border-color: var(--theme-comment) !important;
   box-shadow: 0 0 15px var(--theme-comment) !important;
@@ -334,10 +334,10 @@ body {
 .btn-outline-success:hover:not(:disabled),
 .btn-outline-success:focus:not(:disabled),
 .btn-outline-success:active:not(:disabled) {
-  background: rgba(158, 206, 106, 0.1) !important; /* 10% Tint */
+  background: color-mix(in srgb, var(--theme-green), transparent 90%) !important; /* 10% Tint */
   color: var(--theme-green) !important;
-  box-shadow: 0 0 15px var(--theme-green) !important; /* Green Glow */
-  text-shadow: 0 0 8px var(--theme-green);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--theme-green), transparent 80%) !important; /* Reduced glow */
+  text-shadow: none;
   transform: translateY(-1px);
   border-color: var(--theme-green) !important;
   outline: none !important;
@@ -367,10 +367,10 @@ body {
 .btn-outline-info:hover,
 .btn-outline-info:focus,
 .btn-outline-info:active {
-  background: rgba(187, 154, 247, 0.1) !important; /* 10% Tint only */
+  background: color-mix(in srgb, var(--theme-purple), transparent 90%) !important; /* 10% Tint only */
   color: var(--theme-purple) !important;
-  box-shadow: 0 0 15px var(--theme-purple) !important; /* Neon Glow */
-  text-shadow: 0 0 8px var(--theme-purple);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--theme-purple), transparent 80%) !important; /* Reduced Glow */
+  text-shadow: none;
   transform: translateY(-1px);
   border-color: var(--theme-purple) !important;
   outline: none !important;
@@ -389,10 +389,10 @@ body {
 .btn-outline-danger:hover,
 .btn-outline-danger:focus,
 .btn-outline-danger:active {
-  background: rgba(247, 118, 142, 0.1) !important; /* 10% Tint */
+  background: color-mix(in srgb, var(--theme-red), transparent 90%) !important; /* 10% Tint */
   color: var(--theme-red) !important;
-  box-shadow: 0 0 15px var(--theme-red) !important; /* Red Neon Glow */
-  text-shadow: 0 0 8px var(--theme-red);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--theme-red), transparent 80%) !important; /* Reduced Glow */
+  text-shadow: none;
   transform: translateY(-1px);
   border-color: var(--theme-red) !important;
   outline: none !important;
@@ -456,27 +456,39 @@ option {
   color: var(--theme-purple);
 }
 
+/* Glass Terminal Modals */
 .modal-content {
-  background: var(--theme-bg-dark) !important;
-  border: 1px solid var(--theme-bg-mid) !important;
-  border-radius: 2px !important;
+  background: color-mix(in srgb, var(--theme-bg-dark), transparent 5%) !important; /* Glass Terminal */
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--theme-blue) !important; /* Blue Border */
+  border-radius: 8px !important;
   color: var(--theme-fg);
-  box-shadow: none;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
 }
 
 .modal-header {
-  background: var(--theme-bg-dark);
-  border-bottom: 1px solid var(--theme-bg-mid);
-  color: var(--theme-purple);
+  background: transparent;
+  border-bottom: none !important;
+  color: var(--theme-blue);
+  padding: 1.5rem 1.5rem 0 1.5rem;
+}
+
+.modal-title {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+  color: var(--theme-blue) !important;
 }
 
 .modal-body {
-  background: var(--theme-bg-dark);
+  background: transparent;
+  padding: 1.5rem;
 }
 
 .modal-footer {
-  background: var(--theme-bg-dark);
-  border-top: 1px solid var(--theme-bg-mid);
+  background: transparent;
+  border-top: none !important;
+  padding: 0 1.5rem 1.5rem 1.5rem;
 }
 
 .mb-3.border.p-2.rounded {
@@ -505,7 +517,7 @@ option {
   color: var(--theme-purple);
   font-family: "JetBrains Mono", monospace;
   border-radius: 4px;
-  box-shadow: 0 0 4px rgba(125, 207, 255, 0.3);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--theme-blue), transparent 70%);
 }
 
 .pagination .page-link {
@@ -552,46 +564,56 @@ option {
   color: var(--theme-red) !important;
 }
 
+/* --- Hyprland Card Design (Refactored) --- */
 .client-card {
-  background: var(--theme-bg-dark) !important;
+  background: var(--theme-card-bg) !important;
   border: 1px solid var(--theme-bg-mid) !important;
-  border-radius: 2px !important;
+  border-radius: 8px !important; /* Hyprland Standard */
   box-shadow: none;
   overflow: hidden;
   box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .client-card .card-body {
-  background: var(--theme-bg-dark);
+  background: transparent;
+  padding: 1.25rem; /* More breathing room */
 }
 
+/* Active/Hover State (Hyprland Focus) */
+.client-card:hover,
 .client-card.focused {
-  background: var(--theme-bg-dark) !important;
-  border: var(--theme-border-active) solid var(--theme-blue) !important;
-  box-shadow: none !important;
-  transform: none !important;
+  border-color: var(--theme-blue-bright) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--theme-blue-bright) !important; /* Crisp highlight */
+  transform: translateY(-2px);
 }
 
-.client-card:hover {
-  box-shadow: none !important;
-  transform: none !important;
-  border-color: var(--theme-bg-mid) !important;
+.client-card.selected-card {
+  border-color: var(--theme-blue) !important;
+  box-shadow: 0 0 0 2px var(--theme-blue) !important; /* Stronger highlight */
+  background: color-mix(in srgb, var(--theme-blue), transparent 95%) !important; /* Very subtle tint */
 }
 
+/* Header: No Border, just spacing */
 .client-card .card-header {
-  border-bottom: 1px solid var(--theme-bg-mid);
+  background: transparent;
+  border-bottom: none !important; /* Remove divider */
+  padding: 1.25rem 1.25rem 0 1.25rem; /* Top padding only */
 }
 
 .client-card .card-header .card-title {
-  color: var(--theme-blue) !important; /* Back to Blue */
-  font-weight: 700;
-  opacity: 1; /* Full opacity for readability */
-  font-family: "JetBrains Mono";
-  letter-spacing: 1px;
-  text-transform: none !important; /* Force proper casing */
+  color: var(--theme-purple) !important; /* Client Name - Purple */
+  font-weight: 800; /* Extra Bold */
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+  text-shadow: none;
+}
 
-  /* Optional: A very tight, subtle glow to match the 'Screen' aesthetic without being fuzzy */
-  text-shadow: 0 0 10px rgba(125, 207, 255, 0.3);
+/* Footer: No Border */
+.client-card .card-footer {
+  background: transparent;
+  border-top: none !important; /* Remove divider */
+  padding: 0 1.25rem 1.25rem 1.25rem; /* Bottom padding only */
 }
 
 .modal-title,
@@ -626,11 +648,18 @@ option {
 }
 
 .spec-value {
-  color: var(--theme-fg) !important; /* Was inheriting muted/comment color */
-  font-weight: 500; /* Makes thin fonts 10% more legible on dark backgrounds */
+  color: var(--theme-fg) !important; /* Standard Text - White/Black */
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Tech Font Utility (Phone Numbers) */
+.tech-font {
+  font-family: "JetBrains Mono", monospace;
+  letter-spacing: 1px;
+  font-weight: 700;
 }
 
 .spec-sub {
@@ -648,45 +677,41 @@ option {
 .text-purple {
   color: var(--theme-purple) !important;
 }
-
-/* Refined Badges */
-.model-badge {
-  /* Was Blue, now Purple to match Voice */
-  background: rgba(187, 154, 247, 0.05);
-  color: var(--theme-purple);
-  border: 1px solid var(--theme-purple);
-
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+.text-fg {
+  color: var(--theme-fg) !important;
 }
 
-.voice-badge {
-  background: rgba(187, 154, 247, 0.05);
-  color: var(--theme-purple);
-  border: 1px solid var(--theme-purple);
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+/* Refined Badges (Pills) */
+.model-badge,
+.voice-badge,
+.sst-badge {
+  background: color-mix(in srgb, var(--theme-blue), transparent 85%);
+  color: var(--theme-blue);
+  border: none !important;
+  padding: 4px 12px; /* Increased padding */
+  border-radius: 50px; /* Pill Shape */
+  font-size: 0.75rem; /* Increased font size */
+  font-weight: 700;
+  letter-spacing: 1px;
   text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 
-/* --- Tool Badges (Orange) --- */
+/* --- Tool Badges (Chip Style) --- */
 .tool-badge {
-  background: rgba(224, 175, 104, 0.05); /* Lighter background */
-  color: var(--theme-orange);
-  border: 1px solid var(--theme-orange);
+  background: color-mix(in srgb, var(--theme-purple), transparent 85%); /* Soft Fill */
+  color: var(--theme-purple);
+  border: none !important; /* No Border */
 
   /* Pill Shape */
   border-radius: 50px;
-  padding: 3px 10px;
+  padding: 4px 12px; /* Increased padding */
 
   /* Typography */
-  font-size: 0.65rem; /* Smaller, punchier text */
+  font-size: 0.75rem; /* Increased font size */
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -694,10 +719,7 @@ option {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-
-  /* Remove the glow to make them feel "flat" and informational, not clickable */
-  box-shadow: none;
-  margin-top: 4px; /* Slight breathing room from the content above */
+  margin-top: 4px;
 }
 
 /* Optional: Dimmed state for disabled tools */
@@ -712,56 +734,28 @@ option {
   color: var(--theme-comment) !important;
 }
 
-/* --- Edit Button (Fixed Hover) --- */
-
+/* --- Edit Button (Icon Only Stealth) --- */
 .btn-edit {
-  /* Layout matches status-toggle-btn */
-
   display: inline-flex;
-
   align-items: center;
-
   justify-content: center;
-
   font-weight: 700;
-
-  letter-spacing: 1px;
-
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
+  transition: all 0.2s ease;
   border-radius: 4px;
+  padding: 0.25rem; /* Compact */
 
-  padding: 0.25rem 1.5rem;
-
-  /* Blue Color Scheme (Resting) */
-
+  /* Stealth Default */
   background: transparent !important;
-
-  border: 1px solid var(--theme-blue) !important;
-
-  color: var(--theme-blue) !important;
-
-  /* Subtle resting glow (Same physics as Online button) */
-
-  box-shadow: 0 0 5px rgba(125, 207, 255, 0.1);
+  border: none !important;
+  color: var(--theme-comment) !important;
+  box-shadow: none;
 }
 
 .btn-edit:hover {
-  /* Exact Physics of the Online Button */
-
-  background: rgba(125, 207, 255, 0.1) !important; /* 10% Tint only */
-
-  /* The "Ghost" Neon Glow */
-
-  box-shadow:
-    0 0 20px var(--theme-blue),
-    inset 0 0 10px rgba(125, 207, 255, 0.2);
-
-  text-shadow: 0 0 8px var(--theme-blue);
-
-  transform: translateY(-1px);
-
+  background: color-mix(in srgb, var(--theme-blue), transparent 90%) !important;
   color: var(--theme-blue) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--theme-blue), transparent 90%); /* Reduced glow */
+  text-shadow: none;
 }
 
 .client-card .card-footer .form-check-input {
@@ -769,8 +763,7 @@ option {
   margin-top: 0;
 }
 
-/* --- Client Status Toggle Buttons --- */
-
+/* --- Client Status Toggle Buttons (Soft Fill) --- */
 .status-toggle-btn {
   font-weight: 700;
   letter-spacing: 1px;
@@ -778,41 +771,37 @@ option {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 100px;
+  transition: all 0.2s ease;
+  min-width: 40px;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  border: none !important; /* No Border */
 }
 
 /* Online State (Green) */
 .client-card .btn-outline-success {
-  background: transparent !important; /* Keep background clear */
-  border: 1px solid var(--theme-green) !important; /* Force visible border */
+  background: color-mix(in srgb, var(--theme-green), transparent 85%) !important;
   color: var(--theme-green) !important;
-  box-shadow: 0 0 5px rgba(158, 206, 106, 0.1); /* Subtle resting glow */
+  border: none !important;
 }
 
-/* Hover: Intensify the glow, do NOT fill solid */
 .client-card .btn-outline-success:hover {
-  background: rgba(158, 206, 106, 0.1) !important; /* 10% Tint only */
-  box-shadow:
-    0 0 20px var(--theme-green),
-    inset 0 0 10px rgba(158, 206, 106, 0.2);
-  text-shadow: 0 0 8px var(--theme-green);
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--theme-green), transparent 75%) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--theme-green), transparent 80%); /* Reduced glow */
+  text-shadow: none;
 }
 
 /* Offline State (Red) */
 .client-card .btn-outline-danger {
-  background: transparent !important;
-  border: 1px solid var(--theme-red) !important;
+  background: color-mix(in srgb, var(--theme-red), transparent 85%) !important;
   color: var(--theme-red) !important;
-  opacity: 0.7;
+  border: none !important;
 }
 
 .client-card .btn-outline-danger:hover {
-  background: rgba(247, 118, 142, 0.1) !important; /* 10% Tint */
-  opacity: 1;
-  box-shadow: 0 0 15px var(--theme-red);
-  text-shadow: 0 0 8px var(--theme-red);
+  background: color-mix(in srgb, var(--theme-red), transparent 75%) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--theme-red), transparent 80%); /* Reduced glow */
+  text-shadow: none;
 }
 
 /* Blinking dot */
@@ -871,7 +860,7 @@ option {
 .audit-log {
   max-height: 300px;
   overflow-y: auto;
-  background: #000 !important;
+  background: var(--theme-bg-dark) !important;
   border: 1px solid var(--theme-bg-mid);
   border-radius: 6px;
   font-size: 0.65rem;
@@ -975,30 +964,33 @@ h6 {
 /* Tabs Styling */
 .nav-tabs {
   border: none;
+  margin-bottom: 0;
 }
 
 .nav-tabs .nav-link {
   font-family: "JetBrains Mono", monospace;
   text-transform: uppercase;
   letter-spacing: 1px;
-  border-radius: 2px;
-  border: 1px solid var(--theme-bg-mid) !important;
+  font-weight: 700;
+  border: none !important; /* Remove box borders */
   background: transparent !important;
   color: var(--theme-comment) !important;
   padding: 0.75rem 1.5rem;
   margin-right: 4px;
+  border-bottom: 2px solid transparent !important; /* Prep for active state */
+  transition: all 0.2s ease;
 }
 
 .nav-tabs .nav-link:hover {
-  border-color: var(--theme-fg) !important;
   color: var(--theme-fg) !important;
 }
 
 .nav-tabs .nav-link.active {
-  border-color: var(--theme-blue) !important;
+  border-bottom: 2px solid var(--theme-blue) !important; /* Bottom Glow */
   color: var(--theme-blue) !important;
-  text-shadow: 0 0 8px rgba(125, 207, 255, 0.4);
-  box-shadow: inset 0 0 10px rgba(125, 207, 255, 0.05);
+  text-shadow: 0 0 10px var(--theme-blue);
+  background: transparent !important;
+  box-shadow: none;
 }
 
 /* Top Right Action Buttons */
@@ -1055,56 +1047,89 @@ h6 {
   text-shadow: 0 0 10px var(--theme-green);
 }
 
-/* Table Styling */
-.table-dark {
+/* Table Styling (Floating Rows) */
+.table-custom {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--theme-fg);
+  --bs-table-hover-bg: transparent;
+  --bs-table-hover-color: var(--theme-fg);
+  --bs-table-active-bg: transparent;
+  --bs-table-active-color: var(--theme-fg);
   background-color: transparent;
   color: var(--theme-fg) !important;
+  border-collapse: separate !important;
+  border-spacing: 0 6px !important; /* Vertical Gap */
 }
 
-.table-dark thead th {
-  background: var(--theme-bg-dark) !important;
-  border-top: none !important;
+.table-custom thead th {
+  background: transparent !important;
   border-bottom: 1px solid var(--theme-bg-mid) !important;
   text-transform: uppercase;
-
-  /* WAS: var(--theme-blue) -> NOW: Grey/Muted */
   color: var(--theme-comment) !important;
-
   letter-spacing: 2px;
-  font-size: 0.8rem; /* Optional: Make headers slightly smaller */
+  font-size: 0.8rem;
+  padding-bottom: 12px;
 }
 
-.table-dark tbody tr {
-  background-color: transparent !important;
-  --bs-table-bg: transparent !important;
+/* Reset default striping and backgrounds */
+.table-custom tbody tr {
+  background-color: var(--theme-bg-dark) !important;
+  transition: none !important; /* Disable transition to prevent artifacts */
 }
 
-.table-dark tbody tr:nth-child(odd) {
-  background-color: transparent !important;
-  --bs-table-bg: transparent !important;
-}
-
-.table-dark tbody tr:nth-child(even) {
-  background-color: transparent !important;
-  --bs-table-bg: transparent !important;
-}
-
-.table-dark tbody tr:hover {
-  background-color: rgba(125, 207, 255, 0.05) !important;
-  box-shadow: inset 0 0 15px rgba(125, 207, 255, 0.05);
-  border-left: 2px solid var(--theme-blue);
-}
-
-.table-dark td {
-  border-color: var(--theme-bg-mid);
-  border-bottom: 1px solid var(--theme-bg-mid);
+/* Floating Row Appearance */
+.table-custom tbody td {
+  border: none !important; /* Remove internal borders */
+  border-top: 1px solid var(--theme-bg-mid) !important;
+  border-bottom: 1px solid var(--theme-bg-mid) !important;
   vertical-align: middle;
-  color: var(--theme-fg) !important;
+  padding: 12px;
+  box-shadow: none !important; /* Prevent Bootstrap hover artifacts */
+  transition: none !important; /* Ensure no delay on cells either */
 }
 
-tr.selected {
-  background: var(--theme-table-hover) !important;
-  border-left: 3px solid var(--theme-blue);
+.table-custom tbody td:first-child {
+  border-left: 1px solid var(--theme-bg-mid) !important;
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.table-custom tbody td:last-child {
+  border-right: 1px solid var(--theme-bg-mid) !important;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+/* Active Row Hover */
+.table-custom tbody tr:hover {
+  background-color: transparent !important; /* Moved to td */
+  box-shadow: none; /* Moved to td */
+}
+
+/* Apply background to cells to respect border-radius */
+.table-custom tbody tr:hover td {
+  background-color: var(--theme-bg-mid) !important;
+  border-color: transparent !important;
+  box-shadow: none !important; /* Kill any leakage */
+}
+
+/* Apply indicator to first cell */
+.table-custom tbody tr:hover td:first-child {
+  box-shadow: inset 4px 0 0 var(--theme-purple) !important;
+}
+
+.table-custom tbody tr.selected {
+  background: transparent !important;
+  box-shadow: none;
+}
+
+.table-custom tbody tr.selected td {
+  background: var(--theme-bg-mid) !important;
+  border-color: transparent !important;
+}
+
+.table-custom tbody tr.selected td:first-child {
+  box-shadow: inset 4px 0 0 var(--theme-blue) !important;
 }
 
 /* Conversation Transcript */
@@ -1121,9 +1146,8 @@ tr.selected {
 /* Logs View Split-Pane Layout */
 .logs-view .table-responsive,
 .contacts-tab .table-responsive {
-  border: 1px solid var(--theme-bg-mid) !important;
-  border-radius: 4px;
-  background: var(--theme-bg-dark) !important;
+  border: none !important;
+  background: transparent !important;
   height: calc(100vh - 240px);
   overflow-y: auto;
   display: block;
@@ -1136,7 +1160,7 @@ tr.selected {
   background-color: transparent !important;
 }
 
-.logs-view .table-dark thead th {
+.logs-view .table-custom thead th {
   position: sticky;
   top: 0;
   border-top: none !important;
@@ -1144,15 +1168,15 @@ tr.selected {
 }
 
 /* Uppercase System Status in Call Logs */
-.logs-view .table-dark tbody td:last-child {
+.logs-view .table-custom tbody td:last-child {
   text-transform: uppercase !important;
   letter-spacing: 1px;
   font-size: 0.75rem;
   font-weight: 600;
 }
 
-.logs-view .table-dark thead th,
-.contacts-tab .table-dark thead th {
+.logs-view .table-custom thead th,
+.contacts-tab .table-custom thead th {
   position: sticky;
   top: 0;
   border-bottom: none !important;
@@ -1216,24 +1240,14 @@ tr.selected {
 
 /* System Action: Subtle Orange Background + Orange Border */
 .message.msg-action {
-  background: rgba(
-    224,
-    175,
-    104,
-    0.08
-  ) !important; /* faint var(--theme-orange) */
+  background: color-mix(in srgb, var(--theme-orange), transparent 92%) !important; /* faint var(--theme-orange) */
   border-left: 3px solid var(--theme-orange) !important;
   color: var(--theme-fg);
 }
 
 /* Tool Result: Subtle Green Background + Green Border */
 .message.msg-result {
-  background: rgba(
-    158,
-    206,
-    106,
-    0.08
-  ) !important; /* faint var(--theme-green) */
+  background: color-mix(in srgb, var(--theme-green), transparent 92%) !important; /* faint var(--theme-green) */
   border-left: 3px solid var(--theme-green) !important;
   color: var(--theme-fg);
 }
@@ -1386,15 +1400,10 @@ tr.selected {
 .navbar #userDropdown:hover,
 .navbar #userDropdown:focus,
 .navbar .show > #userDropdown {
-  background-color: rgba(
-    125,
-    207,
-    255,
-    0.1
-  ) !important; /* Transparent Blue Tint */
+  background-color: color-mix(in srgb, var(--theme-blue), transparent 90%) !important; /* Transparent Blue Tint */
   color: var(--theme-blue) !important;
   border-color: var(--theme-blue) !important;
-  box-shadow: 0 0 15px rgba(125, 207, 255, 0.3) !important; /* Neon Glow */
+  box-shadow: 0 0 15px color-mix(in srgb, var(--theme-blue), transparent 70%) !important; /* Neon Glow */
   transform: none !important;
 }
 
@@ -1447,7 +1456,7 @@ tr.selected {
 
 /* System Log Terminal */
 .terminal-console {
-  background-color: #000 !important; /* Pure black */
+  background-color: var(--theme-bg-dark) !important; /* Pure black */
   border: 1px solid var(--theme-bg-mid);
   padding: 15px;
   font-family: "JetBrains Mono", monospace;
@@ -1485,7 +1494,7 @@ tr.selected {
 
 /* Inline table input styling */
 .table-inline-input {
-  background: rgba(0, 0, 0, 0.3) !important; /* Darker background */
+  background: var(--theme-bg-mid) !important; /* Darker background */
   border: 1px solid var(--theme-blue) !important;
   border-radius: 4px;
   color: var(--theme-fg) !important;
@@ -1504,7 +1513,7 @@ tr.selected {
 }
 
 /* Delete button styling for contacts table */
-.contacts-tab .table-dark .btn-action-delete {
+.contacts-tab .table-custom .btn-action-delete {
   border: none !important;
   background: transparent !important;
   color: var(--theme-comment) !important;
@@ -1513,7 +1522,7 @@ tr.selected {
   padding: 0;
   margin-left: 15px; /* Spacing from View History */
 }
-.contacts-tab .table-dark .btn-action-delete:hover {
+.contacts-tab .table-custom .btn-action-delete:hover {
   color: var(--theme-red) !important;
   text-shadow: 0 0 8px var(--theme-red);
   text-decoration: underline;
@@ -1537,88 +1546,21 @@ input[type="file"] {
   cursor: pointer !important;
 }
 
-/* --- Fuel Gauge Styling (Matches Edit/Status Buttons) --- */
-.fuel-gauge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  font-family: "JetBrains Mono", monospace;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: 50px; /* rounded-pill equivalent */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 5px rgba(125, 207, 255, 0.1); /* Subtle resting glow like buttons */
-  min-width: 70px; /* Consistent sizing */
-  white-space: nowrap;
-}
-
-.fuel-normal {
-  background: transparent !important;
-  border: 1px solid var(--theme-blue) !important;
-  color: var(--theme-blue) !important;
-}
-
-.fuel-normal:hover {
-  background: rgba(125, 207, 255, 0.1) !important;
-  box-shadow:
-    0 0 20px var(--theme-blue),
-    inset 0 0 10px rgba(125, 207, 255, 0.2);
-  text-shadow: 0 0 8px var(--theme-blue);
-  transform: translateY(-1px);
-}
-
-.fuel-low {
-  background: transparent !important;
-  border: 1px solid var(--theme-red) !important;
-  color: var(--theme-red) !important;
-  opacity: 0.9;
-}
-
-.fuel-low:hover {
-  background: rgba(247, 118, 142, 0.1) !important;
-  box-shadow:
-    0 0 20px var(--theme-red),
-    inset 0 0 10px rgba(247, 118, 142, 0.2);
-  text-shadow: 0 0 8px var(--theme-red);
-  transform: translateY(-1px);
-  opacity: 1;
-}
-
-.fuel-cyan {
-  background: transparent !important;
-  border: 1px solid var(--theme-cyan) !important;
-  color: var(--theme-cyan) !important;
-  box-shadow: 0 0 5px rgba(125, 207, 255, 0.15);
-}
-
-.fuel-cyan:hover {
-  background: rgba(125, 207, 255, 0.12) !important;
-  box-shadow:
-    0 0 20px var(--theme-cyan),
-    inset 0 0 8px rgba(125, 207, 255, 0.2);
-  text-shadow: 0 0 6px var(--theme-cyan);
-  transform: translateY(-1px);
-}
-
 /* --- Table Color Overrides --- */
 /* Ensure utility classes win over the global table text color */
-.table-dark td.text-success {
+.table-custom td.text-success {
   color: var(--theme-green) !important;
 }
 
-.table-dark td.text-muted {
+.table-custom td.text-muted {
   color: var(--theme-comment) !important;
 }
 
-.table-dark td.text-blue {
+.table-custom td.text-blue {
   color: var(--theme-blue) !important;
 }
 
-.table-dark td.text-purple {
+.table-custom td.text-purple {
   color: var(--theme-purple) !important;
 }
 
@@ -1664,64 +1606,8 @@ input[type="file"]::file-selector-button {
   transition: all 0.2s ease;
 }
 input[type="file"]::file-selector-button:hover {
-  background: rgba(125, 207, 255, 0.15) !important;
+  background: color-mix(in srgb, var(--theme-blue), transparent 85%) !important;
   box-shadow: 0 0 10px var(--theme-blue);
-}
-
-/* --- Fuel Gauge (Time Used) - Matches Edit/Status Buttons, Rounded --- */
-.fuel-gauge {
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  font-size: 0.8rem;
-  font-family: "JetBrains Mono", monospace !important;
-  padding: 0.35rem 0.75rem;
-  border-radius: 50px !important; /* Keep rounded-pill */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  white-space: nowrap;
-  min-width: 65px;
-  box-sizing: border-box;
-}
-
-.fuel-normal {
-  background: transparent !important;
-  border: 1px solid var(--theme-blue) !important;
-  color: var(--theme-blue) !important;
-  box-shadow: 0 0 5px rgba(125, 207, 255, 0.15); /* Subtle resting glow */
-}
-
-.fuel-normal:hover {
-  background: rgba(125, 207, 255, 0.12) !important;
-  box-shadow:
-    0 0 20px var(--theme-blue),
-    inset 0 0 8px rgba(125, 207, 255, 0.2);
-  text-shadow: 0 0 6px var(--theme-blue);
-  transform: translateY(-1px);
-}
-
-.fuel-low {
-  background: transparent !important;
-  border: 1px solid var(--theme-red) !important;
-  color: var(--theme-red) !important;
-  opacity: 0.9;
-  box-shadow: 0 0 5px rgba(247, 118, 142, 0.15);
-}
-
-.fuel-low:hover {
-  background: rgba(247, 118, 142, 0.12) !important;
-  opacity: 1;
-  box-shadow:
-    0 0 20px var(--theme-red),
-    inset 0 0 8px rgba(247, 118, 142, 0.2);
-  text-shadow: 0 0 6px var(--theme-red);
-  transform: translateY(-1px);
-}
-
-.fuel-gauge i {
-  font-size: 0.85em;
 }
 
 /* --- Pulse Icon Animation for Live Transmissions --- */
@@ -1743,29 +1629,84 @@ input[type="file"]::file-selector-button:hover {
 
 /* --- Stripe Billing Styles --- */
 .clickable-fuel {
-    transition: all 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .clickable-fuel:hover {
-    transform: scale(1.05);
-    filter: brightness(1.2);
-    box-shadow: 0 0 15px var(--theme-cyan);
-    cursor: pointer;
+  transform: translateY(-1px);
+  filter: none !important; /* Remove brightness bloom */
+  /* Subtle shadow using theme color */
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--theme-cyan), transparent 80%) !important;
+  cursor: pointer;
 }
 
 /* Top Up Modal Tweaks */
 .modal-content {
-    border: 1px solid var(--theme-bg-mid);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  border: 1px solid var(--theme-bg-mid);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .display-6 {
-    font-family: "JetBrains Mono", monospace;
-    letter-spacing: -1px;
+  font-family: "JetBrains Mono", monospace;
+  letter-spacing: -1px;
 }
 
 .badge.bg-dark {
-    background-color: var(--theme-bg-dark) !important;
-    color: var(--theme-fg) !important;
-    font-weight: 500;
+  background-color: var(--theme-bg-dark) !important;
+  color: var(--theme-fg) !important;
+  font-weight: 500;
+}
+
+/* --- Unified Fuel Gauge (Stealth) --- */
+.fuel-gauge {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-size: 0.75rem;
+    font-family: "JetBrains Mono", monospace !important;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px !important;
+    transition: all 0.2s ease;
+    min-width: 80px;
+    white-space: nowrap;
+    border: none !important;
+}
+
+/* Cyan State (Active) */
+.fuel-cyan {
+    background: color-mix(in srgb, var(--theme-cyan), transparent 85%) !important;
+    color: var(--theme-cyan) !important;
+}
+.fuel-cyan:hover {
+    background: color-mix(in srgb, var(--theme-cyan), transparent 75%) !important;
+    box-shadow: 0 0 8px color-mix(in srgb, var(--theme-cyan), transparent 80%) !important;
+    transform: translateY(-1px);
+}
+
+/* Low State (Warning) */
+.fuel-low {
+    background: color-mix(in srgb, var(--theme-red), transparent 85%) !important;
+    color: var(--theme-red) !important;
+}
+.fuel-low:hover {
+    background: color-mix(in srgb, var(--theme-red), transparent 75%) !important;
+    box-shadow: 0 0 8px color-mix(in srgb, var(--theme-red), transparent 80%) !important;
+    transform: translateY(-1px);
+}
+
+/* --- SUPER FORCE MODAL BACKDROP --- */
+/* Target every possible state of the backdrop */
+.modal-backdrop,
+.modal-backdrop.fade,
+.modal-backdrop.show,
+div.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.85) !important; /* Heavy Dark Dim */
+    /* Vendor Prefixes for Safari/Chrome/Firefox */
+    -webkit-backdrop-filter: blur(8px) !important;
+    backdrop-filter: blur(8px) !important;
+    opacity: 1 !important;
+    z-index: 1050 !important; /* Ensure it sits on top of navbar */
 }

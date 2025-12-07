@@ -479,15 +479,17 @@ if (
       const searchNumbers = async () => {
         if (!searchAreaCode.value) return;
         searchingNumbers.value = true;
-        availableNumbers.value = []; 
+        availableNumbers.value = [];
         try {
-            const response = await axios.get(`/api/twilio/available-numbers?area_code=${searchAreaCode.value}`);
-            availableNumbers.value = response.data.numbers;
+          const response = await axios.get(
+            `/api/twilio/available-numbers?area_code=${searchAreaCode.value}`,
+          );
+          availableNumbers.value = response.data.numbers;
         } catch (error) {
-            console.error("Failed to search numbers", error);
-            alert("Failed to search numbers. Please check the area code.");
+          console.error("Failed to search numbers", error);
+          alert("Failed to search numbers. Please check the area code.");
         } finally {
-            searchingNumbers.value = false;
+          searchingNumbers.value = false;
         }
       };
 
@@ -566,12 +568,16 @@ if (
             response = await axios.post("/api/clients", payload);
             clients.value.push(response.data);
             addAuditLog("create", `Created client: ${response.data.name}`);
-            
+
             // SUBSCRIPTION FIRST FLOW
             // 1. Close Create Modal
             closeModal();
             // 2. Set context for checkout (reuse selectedTopUpClient for simplicity)
             selectedTopUpClient.value = response.data;
+
+            // Track pending payment
+            localStorage.setItem("pendingPaymentClientId", response.data.id);
+
             // 3. Open Subscription Modal
             showSubscriptionModal.value = true;
           }
@@ -709,6 +715,26 @@ if (
           const template = templates.value[selectedTemplate.value];
           clientForm.value.initial_greeting = template.initial_greeting;
           clientForm.value.system_prompt = template.system_prompt;
+        }
+      };
+
+      const toggleClientSelection = (id) => {
+        if (selectedClients.value.includes(id)) {
+          selectedClients.value = selectedClients.value.filter(
+            (clientId) => clientId !== id,
+          );
+        } else {
+          selectedClients.value.push(id);
+        }
+      };
+
+      const toggleContactSelection = (phone) => {
+        if (selectedContacts.value.includes(phone)) {
+          selectedContacts.value = selectedContacts.value.filter(
+            (p) => p !== phone,
+          );
+        } else {
+          selectedContacts.value.push(phone);
         }
       };
 
@@ -850,7 +876,7 @@ if (
         showCreateModal.value = false;
         showEditModal.value = false;
         editingClient.value = null;
-        
+
         // Reset Provisioning State
         availableNumbers.value = [];
         searchAreaCode.value = "";
@@ -1001,192 +1027,215 @@ if (
 
       // --- SIMULATOR LOGIC ---
       const openSimulator = (client) => {
-          simulatingClient.value = client;
-          // Init modal using Bootstrap API
-          if (!simulatorModal.value) {
-              simulatorModal.value = new bootstrap.Modal(document.getElementById('simulatorModal'));
-          }
-          simulatorModal.value.show();
+        simulatingClient.value = client;
+        // Init modal using Bootstrap API
+        if (!simulatorModal.value) {
+          simulatorModal.value = new bootstrap.Modal(
+            document.getElementById("simulatorModal"),
+          );
+        }
+        simulatorModal.value.show();
       };
 
       const convertFloat32ToInt16 = (buffer) => {
-          let l = buffer.length;
-          let buf = new Int16Array(l);
-          while (l--) {
-              // Clamp between -1 and 1 before scaling
-              let s = Math.max(-1, Math.min(1, buffer[l]));
-              buf[l] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-          }
-          return buf.buffer;
+        let l = buffer.length;
+        let buf = new Int16Array(l);
+        while (l--) {
+          // Clamp between -1 and 1 before scaling
+          let s = Math.max(-1, Math.min(1, buffer[l]));
+          buf[l] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        }
+        return buf.buffer;
       };
 
       const startSimulation = async () => {
-          if (!simulatingClient.value) return;
+        if (!simulatingClient.value) return;
 
-          try {
-              // 1. Setup Audio Context (Let browser pick sample rate)
-              const AudioContext = window.AudioContext || window.webkitAudioContext;
-              audioContext.value = new AudioContext();
-              let nextStartTime = 0; // GAPLESS AUDIO POINTER
-              
-              // RESUME CONTEXT IF SUSPENDED
-              if (audioContext.value.state === 'suspended') {
-                  await audioContext.value.resume();
-              }
-              console.log("Simulator: Connected, Audio Context State:", audioContext.value.state);
-              
-              // 2. Get Mic Stream
-              mediaStream.value = await navigator.mediaDevices.getUserMedia({ 
-                  audio: { 
-                      channelCount: 1, 
-                      // Remove sampleRate constraint to satisfy Linux/Mac drivers
-                      echoCancellation: true,
-                      noiseSuppression: true
-                  } 
-              });
+        try {
+          // 1. Setup Audio Context (Let browser pick sample rate)
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          audioContext.value = new AudioContext();
+          let nextStartTime = 0; // GAPLESS AUDIO POINTER
 
-              // 3. Connect WebSocket
-              const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-              const url = `${proto}://${window.location.host}/ws-simulator/${simulatingClient.value.id}`;
-              
-              simulatorSocket.value = new WebSocket(url);
-              simulatorSocket.value.binaryType = 'arraybuffer';
-
-              simulatorSocket.value.onopen = () => {
-                  isSimulating.value = true;
-                  nextStartTime = 0; // Reset pointer on connect
-                  
-                  // 4. Setup Audio Processing (Mic -> WS)
-                  const source = audioContext.value.createMediaStreamSource(mediaStream.value);
-                  processor.value = audioContext.value.createScriptProcessor(4096, 1, 1);
-
-                  source.connect(processor.value);
-                  processor.value.connect(audioContext.value.destination);
-
-                  processor.value.onaudioprocess = (e) => {
-                      if (!isSimulating.value) return;
-                      
-                      const inputData = e.inputBuffer.getChannelData(0);
-                      const sourceRate = audioContext.value.sampleRate;
-                      const targetRate = 16000;
-                      
-                      if (sourceRate === targetRate) {
-                          // No resampling needed
-                          const int16Data = convertFloat32ToInt16(inputData);
-                          if (simulatorSocket.value && simulatorSocket.value.readyState === WebSocket.OPEN) {
-                              simulatorSocket.value.send(int16Data);
-                          }
-                      } else {
-                          // Manual Downsampling (Linear Interpolation)
-                          const ratio = sourceRate / targetRate;
-                          const newLength = Math.floor(inputData.length / ratio);
-                          const downsampled = new Float32Array(newLength);
-                          
-                          for (let i = 0; i < newLength; i++) {
-                              const offset = i * ratio;
-                              const index = Math.floor(offset);
-                              const decimal = offset - index;
-                              const a = inputData[index] || 0;
-                              const b = inputData[index + 1] || 0;
-                              downsampled[i] = a + (b - a) * decimal;
-                          }
-                          
-                          const int16Data = convertFloat32ToInt16(downsampled);
-                          if (simulatorSocket.value && simulatorSocket.value.readyState === WebSocket.OPEN) {
-                              simulatorSocket.value.send(int16Data);
-                          }
-                      }
-                  };
-              };
-              
-              let firstPacketReceived = false;
-              simulatorSocket.value.onmessage = (event) => {
-                  // 5. Handle Incoming Audio (WS -> Speakers)
-                  if (event.data instanceof ArrayBuffer) {
-                      if (!firstPacketReceived) {
-                          console.log("RX Bytes (First Packet):", event.data.byteLength);
-                          console.log("Browser Sample Rate:", audioContext.value.sampleRate);
-                          firstPacketReceived = true;
-                      }
-
-                      const int16Data = new Int16Array(event.data);
-                      const float32Data = new Float32Array(int16Data.length);
-                      
-                      for (let i = 0; i < int16Data.length; i++) {
-                          float32Data[i] = int16Data[i] / 0x7FFF; 
-                      }
-                      
-                      // Queue audio
-                      const buffer = audioContext.value.createBuffer(1, float32Data.length, 16000);
-                      buffer.getChannelData(0).set(float32Data);
-                      
-                      const source = audioContext.value.createBufferSource();
-                      source.buffer = buffer;
-                      source.connect(audioContext.value.destination);
-                      
-                      // GAPLESS SCHEDULING LOGIC
-                      const now = audioContext.value.currentTime;
-                      // If the queue has run dry (underrun), reset time to 'now' + Jitter Buffer
-                      if (nextStartTime < now) {
-                          nextStartTime = now + 0.10; // 100ms jitter buffer
-                      }
-                      
-                      source.start(nextStartTime);
-                      nextStartTime += buffer.duration;
-                  }
-              };
-
-              simulatorSocket.value.onclose = (event) => {
-                   isSimulating.value = false;
-                   if (event.code === 4002) {
-                       alert(`Simulation ended: ${event.reason}`);
-                   }
-                   stopSimulation();
-              };
-              
-              simulatorSocket.value.onerror = (error) => {
-                  console.error("Simulator WS Error:", error);
-                  stopSimulation();
-              };
-
-          } catch (e) {
-              console.error("Simulator Init Failed:", e);
-              alert("Failed to start simulator. Check microphone permissions.");
-              stopSimulation();
+          // RESUME CONTEXT IF SUSPENDED
+          if (audioContext.value.state === "suspended") {
+            await audioContext.value.resume();
           }
+          console.log(
+            "Simulator: Connected, Audio Context State:",
+            audioContext.value.state,
+          );
+
+          // 2. Get Mic Stream
+          mediaStream.value = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              channelCount: 1,
+              // Remove sampleRate constraint to satisfy Linux/Mac drivers
+              echoCancellation: true,
+              noiseSuppression: true,
+            },
+          });
+
+          // 3. Connect WebSocket
+          const proto = window.location.protocol === "https:" ? "wss" : "ws";
+          const url = `${proto}://${window.location.host}/ws-simulator/${simulatingClient.value.id}`;
+
+          simulatorSocket.value = new WebSocket(url);
+          simulatorSocket.value.binaryType = "arraybuffer";
+
+          simulatorSocket.value.onopen = () => {
+            isSimulating.value = true;
+            nextStartTime = 0; // Reset pointer on connect
+
+            // 4. Setup Audio Processing (Mic -> WS)
+            const source = audioContext.value.createMediaStreamSource(
+              mediaStream.value,
+            );
+            processor.value = audioContext.value.createScriptProcessor(
+              4096,
+              1,
+              1,
+            );
+
+            source.connect(processor.value);
+            processor.value.connect(audioContext.value.destination);
+
+            processor.value.onaudioprocess = (e) => {
+              if (!isSimulating.value) return;
+
+              const inputData = e.inputBuffer.getChannelData(0);
+              const sourceRate = audioContext.value.sampleRate;
+              const targetRate = 16000;
+
+              if (sourceRate === targetRate) {
+                // No resampling needed
+                const int16Data = convertFloat32ToInt16(inputData);
+                if (
+                  simulatorSocket.value &&
+                  simulatorSocket.value.readyState === WebSocket.OPEN
+                ) {
+                  simulatorSocket.value.send(int16Data);
+                }
+              } else {
+                // Manual Downsampling (Linear Interpolation)
+                const ratio = sourceRate / targetRate;
+                const newLength = Math.floor(inputData.length / ratio);
+                const downsampled = new Float32Array(newLength);
+
+                for (let i = 0; i < newLength; i++) {
+                  const offset = i * ratio;
+                  const index = Math.floor(offset);
+                  const decimal = offset - index;
+                  const a = inputData[index] || 0;
+                  const b = inputData[index + 1] || 0;
+                  downsampled[i] = a + (b - a) * decimal;
+                }
+
+                const int16Data = convertFloat32ToInt16(downsampled);
+                if (
+                  simulatorSocket.value &&
+                  simulatorSocket.value.readyState === WebSocket.OPEN
+                ) {
+                  simulatorSocket.value.send(int16Data);
+                }
+              }
+            };
+          };
+
+          let firstPacketReceived = false;
+          simulatorSocket.value.onmessage = (event) => {
+            // 5. Handle Incoming Audio (WS -> Speakers)
+            if (event.data instanceof ArrayBuffer) {
+              if (!firstPacketReceived) {
+                console.log("RX Bytes (First Packet):", event.data.byteLength);
+                console.log(
+                  "Browser Sample Rate:",
+                  audioContext.value.sampleRate,
+                );
+                firstPacketReceived = true;
+              }
+
+              const int16Data = new Int16Array(event.data);
+              const float32Data = new Float32Array(int16Data.length);
+
+              for (let i = 0; i < int16Data.length; i++) {
+                float32Data[i] = int16Data[i] / 0x7fff;
+              }
+
+              // Queue audio
+              const buffer = audioContext.value.createBuffer(
+                1,
+                float32Data.length,
+                16000,
+              );
+              buffer.getChannelData(0).set(float32Data);
+
+              const source = audioContext.value.createBufferSource();
+              source.buffer = buffer;
+              source.connect(audioContext.value.destination);
+
+              // GAPLESS SCHEDULING LOGIC
+              const now = audioContext.value.currentTime;
+              // If the queue has run dry (underrun), reset time to 'now' + Jitter Buffer
+              if (nextStartTime < now) {
+                nextStartTime = now + 0.1; // 100ms jitter buffer
+              }
+
+              source.start(nextStartTime);
+              nextStartTime += buffer.duration;
+            }
+          };
+
+          simulatorSocket.value.onclose = (event) => {
+            isSimulating.value = false;
+            if (event.code === 4002) {
+              alert(`Simulation ended: ${event.reason}`);
+            }
+            stopSimulation();
+          };
+
+          simulatorSocket.value.onerror = (error) => {
+            console.error("Simulator WS Error:", error);
+            stopSimulation();
+          };
+        } catch (e) {
+          console.error("Simulator Init Failed:", e);
+          alert("Failed to start simulator. Check microphone permissions.");
+          stopSimulation();
+        }
       };
 
       const stopSimulation = () => {
-          try {
-              if (processor.value) {
-                  processor.value.disconnect();
-                  processor.value.onaudioprocess = null;
-                  processor.value = null;
-              }
-              
-              if (mediaStream.value) {
-                  mediaStream.value.getTracks().forEach(track => track.stop());
-                  mediaStream.value = null;
-              }
-              
-              if (audioContext.value) {
-                  audioContext.value.close();
-                  audioContext.value = null;
-              }
-
-              if (simulatorSocket.value) {
-                  simulatorSocket.value.close();
-                  simulatorSocket.value = null;
-              }
-              simulatingClient.value = null;
-          } catch (e) {
-              console.error("Error stopping simulation:", e);
-          } finally {
-               isSimulating.value = false;
-               if (simulatorModal.value) {
-                   simulatorModal.value.hide();
-               }
+        try {
+          if (processor.value) {
+            processor.value.disconnect();
+            processor.value.onaudioprocess = null;
+            processor.value = null;
           }
+
+          if (mediaStream.value) {
+            mediaStream.value.getTracks().forEach((track) => track.stop());
+            mediaStream.value = null;
+          }
+
+          if (audioContext.value) {
+            audioContext.value.close();
+            audioContext.value = null;
+          }
+
+          if (simulatorSocket.value) {
+            simulatorSocket.value.close();
+            simulatorSocket.value = null;
+          }
+          simulatingClient.value = null;
+        } catch (e) {
+          console.error("Error stopping simulation:", e);
+        } finally {
+          isSimulating.value = false;
+          if (simulatorModal.value) {
+            simulatorModal.value.hide();
+          }
+        }
       };
 
       const openTopUpModal = (client) => {
@@ -1200,67 +1249,94 @@ if (
       };
 
       const openProvisionModal = (client) => {
-          provisioningClient.value = client;
-          // Reset search
-          availableNumbers.value = [];
-          searchAreaCode.value = "";
-          showProvisionModal.value = true;
+        provisioningClient.value = client;
+        // Reset search
+        availableNumbers.value = [];
+        searchAreaCode.value = "";
+        showProvisionModal.value = true;
       };
 
       const closeProvisionModal = () => {
-          showProvisionModal.value = false;
-          provisioningClient.value = null;
+        showProvisionModal.value = false;
+        provisioningClient.value = null;
       };
 
       const confirmNumber = async (client, number) => {
-          if (!confirm(`Claim ${number} for ${client.name}? This will configure the voice webhook.`)) return;
-          
-          try {
-              // Call PUT with selected_number to trigger provisioning in backend
-              const response = await axios.put(`/api/clients/${client.id}`, {
-                  selected_number: number
-              });
-              
-              // Update local state
-              const index = clients.value.findIndex(c => c.id === client.id);
-              if (index !== -1) {
-                  clients.value[index] = response.data;
-              }
-              
-              alert("Number provisioned successfully!");
-              closeProvisionModal();
-              filterClients();
-              
-          } catch (error) {
-              console.error("Provisioning failed:", error);
-              alert("Failed to provision number: " + (error.response?.data?.detail || error.message));
+        if (
+          !confirm(
+            `Claim ${number} for ${client.name}? This will configure the voice webhook.`,
+          )
+        )
+          return;
+
+        try {
+          // Call PUT with selected_number to trigger provisioning in backend
+          const response = await axios.put(`/api/clients/${client.id}`, {
+            selected_number: number,
+          });
+
+          // Update local state
+          const index = clients.value.findIndex((c) => c.id === client.id);
+          if (index !== -1) {
+            clients.value[index] = response.data;
           }
+
+          alert("Number provisioned successfully!");
+          closeProvisionModal();
+          filterClients();
+        } catch (error) {
+          console.error("Provisioning failed:", error);
+          alert(
+            "Failed to provision number: " +
+              (error.response?.data?.detail || error.message),
+          );
+        }
       };
 
       const initiateCheckout = async (packageId) => {
         if (!selectedTopUpClient.value) return;
-        
+
         try {
-            // We use the backend to create the session and redirect to the URL
-            
-            const response = await axios.post("/api/billing/create-checkout-session", {
-                client_id: selectedTopUpClient.value.id,
-                package_id: packageId
-            });
-            
-            if (response.data.url) {
-                window.location.href = response.data.url;
-            }
+          // We use the backend to create the session and redirect to the URL
+
+          const response = await axios.post(
+            "/api/billing/create-checkout-session",
+            {
+              client_id: selectedTopUpClient.value.id,
+              package_id: packageId,
+            },
+          );
+
+          if (response.data.url) {
+            window.location.href = response.data.url;
+          }
         } catch (error) {
-            console.error("Checkout failed:", error);
-            alert("Failed to initiate checkout. Please try again.");
+          console.error("Checkout failed:", error);
+          alert("Failed to initiate checkout. Please try again.");
         }
       };
 
       const selectSubscription = async (packageId) => {
-          // Wrapper for initiateCheckout but specific to subscription flow
-          await initiateCheckout(packageId);
-          showSubscriptionModal.value = false;
+        // Wrapper for initiateCheckout but specific to subscription flow
+        await initiateCheckout(packageId);
+        showSubscriptionModal.value = false;
+      };
+
+      const cancelSubscription = async () => {
+        const pendingId = localStorage.getItem("pendingPaymentClientId");
+        if (pendingId) {
+          try {
+            await axios.delete(`/api/clients/${pendingId}`);
+            clients.value = clients.value.filter((c) => c.id !== pendingId);
+            addAuditLog("delete", `Deleted pending client ID: ${pendingId}`);
+            filterClients();
+          } catch (e) {
+            console.warn("Failed to clean up pending client", e);
+          }
+          localStorage.removeItem("pendingPaymentClientId");
+        }
+        showSubscriptionModal.value = false;
+        selectedTopUpClient.value = null;
       };
 
       const updateContactName = async () => {
@@ -1294,6 +1370,7 @@ if (
       const viewContactHistory = (contact) => {
         logFilterContact.value = contact.phone;
         logFilterClient.value = ""; // Clear client filter to ensure we see the logs
+        logSearchQuery.value = contact.phone; // Set search query to phone number
         activeTab.value = "logs";
       };
 
@@ -1334,25 +1411,24 @@ if (
               foreground: "#c0caf5",
               cursor: "#7aa2f7",
               selection: "#283457",
-              ansi_colors: {
-                black: "#15161E",
-                red: "#F77693",
-                green: "#9ECE6A",
-                yellow: "#E0AF68",
-                blue: "#7AA2F7",
-                magenta: "#BB9AF7",
-                cyan: "#7DCFFF",
-                white: "#A9B1D6",
-                bright_black: "#414868",
-                bright_red: "#F77693",
-                bright_green: "#9ECE6A",
-                bright_yellow: "#E0AF68",
-                bright_blue: "#7AA2F7",
-                bright_magenta: "#BB9AF7",
-                bright_cyan: "#7DCFFF",
-                bright_white: "#C0CAF5",
-              },
-            },
+                          ansi_colors: {
+                            black: "#15161E",
+                            red: "#F77693",
+                            green: "#9ECE6A",
+                                          yellow: "#E0AF68",
+                                          blue: "#7AA2F7",
+                                          magenta: "#BB9AF7",
+                                          cyan: "#7DCFFF",
+                                          white: "#A9B1D6",
+                                          bright_black: "#414868",
+                                          bright_red: "#F77693",
+                                                        bright_green: "#9ECE6A",
+                                                        bright_yellow: "#E0AF68",
+                                                        bright_blue: "#7AA2F7",
+                            bright_magenta: "#BB9AF7",
+                            bright_cyan: "#7DCFFF",
+                            bright_white: "#C0CAF5",
+                          },            },
           },
           {
             key: "tokyo-night-day",
@@ -1509,6 +1585,10 @@ if (
             ansiColors.green || "#9ece6a",
           );
           root.style.setProperty(
+            "--theme-yellow",
+            ansiColors.yellow || "#e0af68",
+          );
+          root.style.setProperty(
             "--theme-orange",
             ansiColors.yellow || "#e0af68",
           );
@@ -1521,6 +1601,40 @@ if (
           root.style.setProperty(
             "--theme-logo-white",
             ansiColors.bright_white || "#ffffff",
+          );
+
+          // --- BRIGHT VARIANT MAPPING (Phase 1) ---
+          root.style.setProperty(
+            "--theme-black-bright",
+            ansiColors.bright_black || "#414868",
+          );
+          root.style.setProperty(
+            "--theme-red-bright",
+            ansiColors.bright_red || "#f7768e",
+          );
+          root.style.setProperty(
+            "--theme-green-bright",
+            ansiColors.bright_green || "#9ece6a",
+          );
+          root.style.setProperty(
+            "--theme-yellow-bright",
+            ansiColors.bright_yellow || "#e0af68",
+          );
+          root.style.setProperty(
+            "--theme-blue-bright",
+            ansiColors.bright_blue || "#7aa2f7",
+          );
+          root.style.setProperty(
+            "--theme-magenta-bright",
+            ansiColors.bright_magenta || "#bb9af7",
+          );
+          root.style.setProperty(
+            "--theme-cyan-bright",
+            ansiColors.bright_cyan || "#7dcfff",
+          );
+          root.style.setProperty(
+            "--theme-white-bright",
+            ansiColors.bright_white || "#c0caf5",
           );
         }
 
@@ -1630,15 +1744,23 @@ if (
       onMounted(() => {
         // Check for payment success
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('payment') === 'success') {
-            alert("Payment Successful! System refueling...");
-            // Strip the param from URL without reloading
-            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.pushState({path: newUrl}, '', newUrl);
-        } else if (urlParams.get('payment') === 'cancelled') {
-             alert("Payment Cancelled.");
-             const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-             window.history.pushState({path: newUrl}, '', newUrl);
+        if (urlParams.get("payment") === "success") {
+          alert("Payment Successful! System refueling...");
+          // Strip the param from URL without reloading
+          const newUrl =
+            window.location.protocol +
+            "//" +
+            window.location.host +
+            window.location.pathname;
+          window.history.pushState({ path: newUrl }, "", newUrl);
+        } else if (urlParams.get("payment") === "cancelled") {
+          alert("Payment Cancelled.");
+          const newUrl =
+            window.location.protocol +
+            "//" +
+            window.location.host +
+            window.location.pathname;
+          window.history.pushState({ path: newUrl }, "", newUrl);
         }
 
         nextTick(() => {
@@ -1666,7 +1788,32 @@ if (
 
         if (authToken.value) {
           setAuthToken(authToken.value);
-          loadClients();
+
+          // Clean up pending clients on refresh/cancel
+          const pendingId = localStorage.getItem("pendingPaymentClientId");
+          if (pendingId) {
+            if (urlParams.get("payment") === "success") {
+              localStorage.removeItem("pendingPaymentClientId");
+              loadClients();
+            } else {
+              // Silent delete
+              axios
+                .delete(`/api/clients/${pendingId}`)
+                .then(() =>
+                  console.log(`Cleaned up pending client ${pendingId}`),
+                )
+                .catch((e) =>
+                  console.warn("Failed to cleanup pending client", e),
+                )
+                .finally(() => {
+                  localStorage.removeItem("pendingPaymentClientId");
+                  loadClients();
+                });
+            }
+          } else {
+            loadClients();
+          }
+
           pollActiveCalls(); // Initial fetch
           if (activeTab.value === "contacts") {
             loadContacts();
@@ -1733,8 +1880,15 @@ if (
           );
       };
 
+      const formatSttModel = (model) => {
+        if (!model) return "";
+        const type = model.split("-").pop();
+        return type.charAt(0).toUpperCase() + type.slice(1);
+      };
+
       return {
         formatName,
+        formatSttModel,
         clients,
         filteredClients: paginatedClients,
         selectedClients,
@@ -1772,6 +1926,7 @@ if (
         closeTopUpModal,
         showSubscriptionModal,
         selectSubscription,
+        cancelSubscription,
         showProvisionModal,
         provisioningClient,
         openProvisionModal,
@@ -1799,6 +1954,8 @@ if (
         executeImport,
         importFile,
         toggleBulkSelect,
+        toggleClientSelection,
+        toggleContactSelection,
         bulkDuplicateClients,
         bulkDeleteClients,
         allSelected,

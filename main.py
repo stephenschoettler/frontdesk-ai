@@ -78,6 +78,12 @@ from services.supabase_client import (
     get_financial_history,
 )
 
+from services.balance_manager import (
+    get_service_balances,
+    get_system_rates,
+    update_system_rate,
+)
+
 # Import tool handlers
 from services.llm_tools import (
     handle_get_available_slots,
@@ -345,11 +351,6 @@ async def voice_handler(request: Request):
     response.append(connect)
     return Response(content=str(response), media_type="application/xml")
 
-
-# Cost constants
-COST_TWILIO_PER_MIN = 0.013
-COST_STT_PER_MIN = 0.0043
-COST_TTS_PER_CHAR = 0.00003
 
 @app.websocket("/ws/{client_id}/{caller_phone}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone: str):
@@ -652,6 +653,13 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
             client_config = await get_client_config(client_id)
             llm_model = client_config.get("llm_model", "openai/gpt-4o-mini") if client_config else "openai/gpt-4o-mini"
 
+            # Fetch dynamic system rates
+            system_rates = await get_system_rates()
+            # Defaults if DB fetch fails
+            cost_twilio = system_rates.get("twilio_cost_per_min", 0.013)
+            cost_stt = system_rates.get("stt_cost_per_min", 0.0043)
+            cost_tts = system_rates.get("tts_cost_per_char", 0.00003)
+
             # Calculate costs
             model_price = await get_model_price(llm_model)
             if model_price:
@@ -662,10 +670,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
                 output_cost = 0.0
 
             audio_minutes = total_seconds / 60
-            stt_cost = audio_minutes * COST_STT_PER_MIN
-            twilio_cost = audio_minutes * COST_TWILIO_PER_MIN
+            stt_cost = audio_minutes * cost_stt
+            twilio_cost = audio_minutes * cost_twilio
             combined_audio_cost = stt_cost + twilio_cost
-            tts_cost = tts_chars * COST_TTS_PER_CHAR
+            tts_cost = tts_chars * cost_tts
 
             costs = {
                 "call_duration": combined_audio_cost,
@@ -918,6 +926,11 @@ class AdminClientUpdate(BaseModel):
     tts_model: Optional[str] = None
     tts_voice_id: Optional[str] = None
     enabled_tools: Optional[list[str]] = None
+
+
+class UpdateSystemRateRequest(BaseModel):
+    key: str
+    value: str
 
 
 @app.post("/api/auth/register")
@@ -1381,6 +1394,66 @@ async def get_analytics(token: str = Depends(get_current_user_token)):
 
     data = await get_financial_history(30)
     return data
+
+
+@app.get("/api/admin/balances")
+async def get_admin_balances(token: str = Depends(get_current_user_token)):
+    """
+    Secure Admin Endpoint to fetch service balances.
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    return await get_service_balances()
+
+
+@app.get("/api/admin/settings")
+async def get_admin_settings(token: str = Depends(get_current_user_token)):
+    """
+    Secure Admin Endpoint to fetch system rates.
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    return await get_system_rates()
+
+
+@app.post("/api/admin/settings")
+async def update_admin_setting(
+    request: UpdateSystemRateRequest, token: str = Depends(get_current_user_token)
+):
+    """
+    Secure Admin Endpoint to update a system rate.
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    success = await update_system_rate(request.key, request.value)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update setting")
+    return {"message": "Setting updated", "key": request.key, "value": request.value}
+
 
 @app.get("/api/active-calls")
 async def get_user_active_calls(token: str = Depends(get_current_user_token)):

@@ -73,7 +73,11 @@ body {
 .navbar {
   margin: 16px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--theme-bg-dark), transparent 20%) !important; /* Glass effect base */
+  background: color-mix(
+    in srgb,
+    var(--theme-bg-dark),
+    transparent 20%
+  ) !important; /* Glass effect base */
   backdrop-filter: blur(12px);
   border: 1px solid var(--theme-bg-mid);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -100,7 +104,11 @@ body {
 }
 
 .d-flex > .card {
-  background: color-mix(in srgb, var(--theme-card-bg), transparent 15%) !important;
+  background: color-mix(
+    in srgb,
+    var(--theme-card-bg),
+    transparent 15%
+  ) !important;
   backdrop-filter: blur(10px);
   border: 1px solid var(--theme-blue) !important;
   box-shadow: 0 0 30px rgba(125, 207, 255, 0.15);
@@ -248,7 +256,11 @@ body {
 .btn-outline-primary:active,
 .btn-outline-primary:focus,
 .btn-outline-primary.active {
-  background-color: color-mix(in srgb, var(--theme-blue), transparent 85%) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--theme-blue),
+    transparent 85%
+  ) !important;
   color: var(--theme-blue) !important;
   border-color: var(--theme-blue) !important;
   box-shadow: 0 0 15px var(--theme-blue) !important;
@@ -264,7 +276,11 @@ body {
 .btn-outline-danger:hover,
 .btn-outline-danger:active,
 .btn-outline-danger:focus {
-  background-color: color-mix(in srgb, var(--theme-red), transparent 85%) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--theme-red),
+    transparent 85%
+  ) !important;
   color: var(--theme-red) !important;
   border-color: var(--theme-red) !important;
   box-shadow: 0 0 15px var(--theme-red) !important;
@@ -280,7 +296,11 @@ body {
 .btn-outline-info:active,
 .btn-outline-info:focus,
 .btn-outline-info.active {
-  background-color: color-mix(in srgb, var(--theme-purple), transparent 85%) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--theme-purple),
+    transparent 85%
+  ) !important;
   color: var(--theme-purple) !important;
   border-color: var(--theme-purple) !important;
   box-shadow: 0 0 15px var(--theme-purple) !important;
@@ -301,7 +321,11 @@ body {
 .btn-outline-secondary:active,
 .btn-outline-secondary:focus,
 .btn-outline-secondary.active {
-  background-color: color-mix(in srgb, var(--theme-comment), transparent 85%) !important; /* faint var(--theme-comment) */
+  background-color: color-mix(
+    in srgb,
+    var(--theme-comment),
+    transparent 85%
+  ) !important; /* faint var(--theme-comment) */
   color: var(--theme-comment) !important;
   border-color: var(--theme-comment) !important;
   box-shadow: 0 0 15px var(--theme-comment) !important;
@@ -334,7 +358,11 @@ body {
 .btn-outline-success:hover:not(:disabled),
 .btn-outline-success:focus:not(:disabled),
 .btn-outline-success:active:not(:disabled) {
-  background: color-mix(in srgb, var(--theme-green), transparent 90%) !important; /* 10% Tint */
+  background: color-mix(
+    in srgb,
+    var(--theme-green),
+    transparent 90%
+  ) !important; /* 10% Tint */
   color: var(--theme-green) !important;
   box-shadow: 0 0 8px color-mix(in srgb, var(--theme-green), transparent 80%) !important; /* Reduced glow */
   text-shadow: none;
@@ -367,7 +395,11 @@ body {
 .btn-outline-info:hover,
 .btn-outline-info:focus,
 .btn-outline-info:active {
-  background: color-mix(in srgb, var(--theme-purple), transparent 90%) !important; /* 10% Tint only */
+  background: color-mix(
+    in srgb,
+    var(--theme-purple),
+    transparent 90%
+  ) !important; /* 10% Tint only */
   color: var(--theme-purple) !important;
   box-shadow: 0 0 8px color-mix(in srgb, var(--theme-purple), transparent 80%) !important; /* Reduced Glow */
   text-shadow: none;
@@ -389,7 +421,11 @@ body {
 .btn-outline-danger:hover,
 .btn-outline-danger:focus,
 .btn-outline-danger:active {
-  background: color-mix(in srgb, var(--theme-red), transparent 90%) !important; /* 10% Tint */
+  background: color-mix(
+    in srgb,
+    var(--theme-red),
+    transparent 90%
+  ) !important; /* 10% Tint */
   color: var(--theme-red) !important;
   box-shadow: 0 0 8px color-mix(in srgb, var(--theme-red), transparent 80%) !important; /* Reduced Glow */
   text-shadow: none;
@@ -458,7 +494,11 @@ option {
 
 /* Glass Terminal Modals */
 .modal-content {
-  background: color-mix(in srgb, var(--theme-bg-dark), transparent 5%) !important; /* Glass Terminal */
+  background: color-mix(
+    in srgb,
+    var(--theme-bg-dark),
+    transparent 5%
+  ) !important; /* Glass Terminal */
   backdrop-filter: blur(16px);
   border: 1px solid var(--theme-blue) !important; /* Blue Border */
   border-radius: 8px !important;
@@ -584,14 +624,20 @@ option {
 .client-card:hover,
 .client-card.focused {
   border-color: var(--theme-blue-bright) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--theme-blue-bright) !important; /* Crisp highlight */
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 0 1px var(--theme-blue-bright) !important; /* Crisp highlight */
   transform: translateY(-2px);
 }
 
 .client-card.selected-card {
   border-color: var(--theme-blue) !important;
   box-shadow: 0 0 0 2px var(--theme-blue) !important; /* Stronger highlight */
-  background: color-mix(in srgb, var(--theme-blue), transparent 95%) !important; /* Very subtle tint */
+  background: color-mix(
+    in srgb,
+    var(--theme-blue),
+    transparent 95%
+  ) !important; /* Very subtle tint */
 }
 
 /* Header: No Border, just spacing */
@@ -702,7 +748,11 @@ option {
 
 /* --- Tool Badges (Chip Style) --- */
 .tool-badge {
-  background: color-mix(in srgb, var(--theme-purple), transparent 85%); /* Soft Fill */
+  background: color-mix(
+    in srgb,
+    var(--theme-purple),
+    transparent 85%
+  ); /* Soft Fill */
   color: var(--theme-purple);
   border: none !important; /* No Border */
 
@@ -780,13 +830,21 @@ option {
 
 /* Online State (Green) */
 .client-card .btn-outline-success {
-  background: color-mix(in srgb, var(--theme-green), transparent 85%) !important;
+  background: color-mix(
+    in srgb,
+    var(--theme-green),
+    transparent 85%
+  ) !important;
   color: var(--theme-green) !important;
   border: none !important;
 }
 
 .client-card .btn-outline-success:hover {
-  background: color-mix(in srgb, var(--theme-green), transparent 75%) !important;
+  background: color-mix(
+    in srgb,
+    var(--theme-green),
+    transparent 75%
+  ) !important;
   box-shadow: 0 0 8px color-mix(in srgb, var(--theme-green), transparent 80%); /* Reduced glow */
   text-shadow: none;
 }
@@ -1240,14 +1298,22 @@ h6 {
 
 /* System Action: Subtle Orange Background + Orange Border */
 .message.msg-action {
-  background: color-mix(in srgb, var(--theme-orange), transparent 92%) !important; /* faint var(--theme-orange) */
+  background: color-mix(
+    in srgb,
+    var(--theme-orange),
+    transparent 92%
+  ) !important; /* faint var(--theme-orange) */
   border-left: 3px solid var(--theme-orange) !important;
   color: var(--theme-fg);
 }
 
 /* Tool Result: Subtle Green Background + Green Border */
 .message.msg-result {
-  background: color-mix(in srgb, var(--theme-green), transparent 92%) !important; /* faint var(--theme-green) */
+  background: color-mix(
+    in srgb,
+    var(--theme-green),
+    transparent 92%
+  ) !important; /* faint var(--theme-green) */
   border-left: 3px solid var(--theme-green) !important;
   color: var(--theme-fg);
 }
@@ -1400,7 +1466,11 @@ h6 {
 .navbar #userDropdown:hover,
 .navbar #userDropdown:focus,
 .navbar .show > #userDropdown {
-  background-color: color-mix(in srgb, var(--theme-blue), transparent 90%) !important; /* Transparent Blue Tint */
+  background-color: color-mix(
+    in srgb,
+    var(--theme-blue),
+    transparent 90%
+  ) !important; /* Transparent Blue Tint */
   color: var(--theme-blue) !important;
   border-color: var(--theme-blue) !important;
   box-shadow: 0 0 15px color-mix(in srgb, var(--theme-blue), transparent 70%) !important; /* Neon Glow */
@@ -1659,42 +1729,42 @@ input[type="file"]::file-selector-button:hover {
 
 /* --- Unified Fuel Gauge (Stealth) --- */
 .fuel-gauge {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    font-size: 0.75rem;
-    font-family: "JetBrains Mono", monospace !important;
-    padding: 0.25rem 0.75rem;
-    border-radius: 4px !important;
-    transition: all 0.2s ease;
-    min-width: 80px;
-    white-space: nowrap;
-    border: none !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-size: 0.75rem;
+  font-family: "JetBrains Mono", monospace !important;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px !important;
+  transition: all 0.2s ease;
+  min-width: 80px;
+  white-space: nowrap;
+  border: none !important;
 }
 
 /* Cyan State (Active) */
 .fuel-cyan {
-    background: color-mix(in srgb, var(--theme-cyan), transparent 85%) !important;
-    color: var(--theme-cyan) !important;
+  background: color-mix(in srgb, var(--theme-cyan), transparent 85%) !important;
+  color: var(--theme-cyan) !important;
 }
 .fuel-cyan:hover {
-    background: color-mix(in srgb, var(--theme-cyan), transparent 75%) !important;
-    box-shadow: 0 0 8px color-mix(in srgb, var(--theme-cyan), transparent 80%) !important;
-    transform: translateY(-1px);
+  background: color-mix(in srgb, var(--theme-cyan), transparent 75%) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--theme-cyan), transparent 80%) !important;
+  transform: translateY(-1px);
 }
 
 /* Low State (Warning) */
 .fuel-low {
-    background: color-mix(in srgb, var(--theme-red), transparent 85%) !important;
-    color: var(--theme-red) !important;
+  background: color-mix(in srgb, var(--theme-red), transparent 85%) !important;
+  color: var(--theme-red) !important;
 }
 .fuel-low:hover {
-    background: color-mix(in srgb, var(--theme-red), transparent 75%) !important;
-    box-shadow: 0 0 8px color-mix(in srgb, var(--theme-red), transparent 80%) !important;
-    transform: translateY(-1px);
+  background: color-mix(in srgb, var(--theme-red), transparent 75%) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--theme-red), transparent 80%) !important;
+  transform: translateY(-1px);
 }
 
 /* --- SUPER FORCE MODAL BACKDROP --- */
@@ -1703,10 +1773,10 @@ input[type="file"]::file-selector-button:hover {
 .modal-backdrop.fade,
 .modal-backdrop.show,
 div.modal-backdrop {
-    background-color: rgba(0, 0, 0, 0.85) !important; /* Heavy Dark Dim */
-    /* Vendor Prefixes for Safari/Chrome/Firefox */
-    -webkit-backdrop-filter: blur(8px) !important;
-    backdrop-filter: blur(8px) !important;
-    opacity: 1 !important;
-    z-index: 1050 !important; /* Ensure it sits on top of navbar */
+  background-color: rgba(0, 0, 0, 0.85) !important; /* Heavy Dark Dim */
+  /* Vendor Prefixes for Safari/Chrome/Firefox */
+  -webkit-backdrop-filter: blur(8px) !important;
+  backdrop-filter: blur(8px) !important;
+  opacity: 1 !important;
+  z-index: 1050 !important; /* Ensure it sits on top of navbar */
 }

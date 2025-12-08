@@ -75,6 +75,7 @@ from services.supabase_client import (
     get_admin_users,
     get_client_usage_stats,
     get_global_usage_stats,
+    get_financial_history,
 )
 
 # Import tool handlers
@@ -95,6 +96,9 @@ from services.response_filter import ToolStrippingAssistantAggregator
 
 # Import Template Manager
 from services.template_manager import TemplateManager
+
+# Import Price Manager
+from services.price_manager import sync_openrouter_prices, get_model_price
 
 from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
@@ -341,6 +345,11 @@ async def voice_handler(request: Request):
     response.append(connect)
     return Response(content=str(response), media_type="application/xml")
 
+
+# Cost constants
+COST_TWILIO_PER_MIN = 0.013
+COST_STT_PER_MIN = 0.0043
+COST_TTS_PER_CHAR = 0.00003
 
 @app.websocket("/ws/{client_id}/{caller_phone}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone: str):
@@ -639,6 +648,32 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
 
         # 3. Log to Ledger (Only if we have a valid string ID)
         if actual_conv_id:
+            # Get LLM model for pricing
+            client_config = await get_client_config(client_id)
+            llm_model = client_config.get("llm_model", "openai/gpt-4o-mini") if client_config else "openai/gpt-4o-mini"
+
+            # Calculate costs
+            model_price = await get_model_price(llm_model)
+            if model_price:
+                input_cost = input_tokens * model_price['input']
+                output_cost = output_tokens * model_price['output']
+            else:
+                input_cost = 0.0
+                output_cost = 0.0
+
+            audio_minutes = total_seconds / 60
+            stt_cost = audio_minutes * COST_STT_PER_MIN
+            twilio_cost = audio_minutes * COST_TWILIO_PER_MIN
+            combined_audio_cost = stt_cost + twilio_cost
+            tts_cost = tts_chars * COST_TTS_PER_CHAR
+
+            costs = {
+                "call_duration": combined_audio_cost,
+                "llm_tokens_input": input_cost,
+                "llm_tokens_output": output_cost,
+                "tts_characters": tts_cost
+            }
+
             await log_usage_ledger(
                 client_id,
                 actual_conv_id,
@@ -648,6 +683,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
                     "llm_tokens_output": output_tokens,
                     "tts_characters": tts_chars,
                 },
+                costs
             )
 
         logger.info("Call ended. Cleaning up.")
@@ -1327,6 +1363,25 @@ async def admin_get_active_calls(token: str = Depends(get_current_user_token)):
     return list(active_calls.values())
 
 
+@app.get("/api/admin/analytics")
+async def get_analytics(token: str = Depends(get_current_user_token)):
+    """
+    Admin endpoint for daily financial analytics (Cost vs Revenue).
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    data = await get_financial_history(30)
+    return data
+
 @app.get("/api/active-calls")
 async def get_user_active_calls(token: str = Depends(get_current_user_token)):
     """
@@ -1454,8 +1509,10 @@ async def stripe_webhook(request: Request):
         if client_id and add_seconds:
             try:
                 seconds = int(add_seconds)
-                logger.info(f"STRIPE WEBHOOK: Adding {seconds}s to client {client_id}")
-                await adjust_client_balance(client_id, seconds, "STRIPE_TOPUP")
+                # Extract revenue from Stripe session (amount_total is in cents)
+                revenue_usd = session.get("amount_total", 0) / 100.0
+                logger.info(f"STRIPE WEBHOOK: Adding {seconds}s to client {client_id} for ${revenue_usd}")
+                await adjust_client_balance(client_id, seconds, "STRIPE_TOPUP", revenue_usd)
             except Exception as e:
                 logger.error(f"Error processing stripe fulfillment: {e}")
                 return Response(status_code=500)
@@ -1476,6 +1533,11 @@ async def main():
     app.state.template_manager = template_manager
     app.state.test_mode = args.test_mode
     app.state.shutdown_event = shutdown_event
+
+    # Sync pricing data on startup
+    logging.info("Syncing OpenRouter pricing data...")
+    await sync_openrouter_prices()
+    logging.info("Pricing data synced successfully.")
 
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
     server = uvicorn.Server(config)

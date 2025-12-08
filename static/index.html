@@ -339,7 +339,7 @@
                 :key="client.id"
                 class="col-md-6 col-lg-4 mb-4"
               >
-                <div 
+                <div
                   class="card client-card h-100"
                   @click="toggleClientSelection(client.id)"
                   :class="{ 'selected-card': selectedClients.includes(client.id) }"
@@ -360,8 +360,6 @@
                         <i class="bi bi-pencil-square"></i>
                       </button>
                     </div>
-
-
                   </div>
                   <div class="card-body d-flex flex-column gap-3">
                     <!-- Hyprland Layout: Flex Row -->
@@ -689,7 +687,6 @@
                       <strong>{{ provisioningClient.name }}</strong>.
                     </p>
 
-
                     <div class="input-group mb-3">
                       <input
                         v-model="searchAreaCode"
@@ -851,21 +848,23 @@
                     <td colspan="5" class="text-center p-5">
                       <div
                         class="h5 text-success"
-                        style="letter-spacing: 2px; animation: pulse 1s infinite"
+                        style="
+                          letter-spacing: 2px;
+                          animation: pulse 1s infinite;
+                        "
                       >
                         &gt;&gt; ACCESSING DATABASE...
                       </div>
                     </td>
                   </tr>
-                  <tr 
+                  <tr
                     v-else
-                    v-for="contact in filteredContacts" 
+                    v-for="contact in filteredContacts"
                     :key="contact.phone"
                     @click="toggleContactSelection(contact.phone)"
                     :class="{ 'selected': selectedContacts.includes(contact.phone) }"
-                    style="cursor: pointer;"
+                    style="cursor: pointer"
                   >
-
                     <td class="text-blue">
                       <span
                         v-if="editingContactPhone !== contact.phone"
@@ -1120,7 +1119,6 @@
               </div>
               <div class="row">
                 <div :class="selectedTranscript ? 'col-md-6' : 'col-md-12'">
-
                   <div class="table-responsive">
                     <table class="table table-custom">
                       <thead>
@@ -1138,7 +1136,10 @@
                           <td colspan="6" class="text-center p-5">
                             <div
                               class="h5 text-success"
-                              style="letter-spacing: 2px; animation: pulse 1s infinite"
+                              style="
+                                letter-spacing: 2px;
+                                animation: pulse 1s infinite;
+                              "
                             >
                               &gt;&gt; ACCESSING DATABASE...
                             </div>

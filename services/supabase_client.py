@@ -577,11 +577,12 @@ async def get_client_balance(client_id: str) -> int:
 
 
 async def adjust_client_balance(
-    client_id: str, amount_seconds: int, reason: str
+    client_id: str, amount_seconds: int, reason: str, revenue_usd: float = 0.0
 ) -> bool:
     """
     ADMIN: Manually adjusts a client's balance.
     amount_seconds: Positive to add (Credit), Negative to deduct (Debit).
+    revenue_usd: Revenue amount for payments (default 0.0).
     """
     supabase = get_supabase_client()
     if not supabase:
@@ -608,6 +609,7 @@ async def adjust_client_balance(
             "client_id": client_id,
             "metric_type": metric_type,
             "quantity": quantity,
+            "revenue_usd": revenue_usd,
             # We abuse conversation_id or add a notes field if the schema supported it.
             # Since we don't know if 'notes' column exists, we'll try to stick to known columns.
             # If the schema allows extra json in a column, that would be great, but let's stay safe.
@@ -653,11 +655,12 @@ async def deduct_balance(client_id: str, seconds: int) -> None:
 
 
 async def log_usage_ledger(
-    client_id: str, conversation_id: Optional[str], metrics: dict
+    client_id: str, conversation_id: Optional[str], metrics: dict, costs: Optional[Dict[str, float]] = None
 ):
     """
     COMMIT: Writes the detailed breakdown to the ledger.
     metrics = {'duration': 120, 'input_tokens': 500, 'output_tokens': 200, 'tts_chars': 1500}
+    costs = {'duration': 0.5, 'input_tokens': 0.1, ...}  # optional USD costs per metric
     """
     supabase = get_supabase_client()
     if not supabase:
@@ -666,14 +669,15 @@ async def log_usage_ledger(
     rows = []
     for m_type, qty in metrics.items():
         if qty > 0:
-            rows.append(
-                {
-                    "client_id": client_id,
-                    "conversation_id": conversation_id,
-                    "metric_type": m_type,
-                    "quantity": qty,
-                }
-            )
+            row = {
+                "client_id": client_id,
+                "conversation_id": conversation_id,
+                "metric_type": m_type,
+                "quantity": qty,
+            }
+            if costs and m_type in costs:
+                row["cost_usd"] = costs[m_type]
+            rows.append(row)
 
     if rows:
         try:
@@ -897,3 +901,21 @@ async def get_global_usage_stats() -> dict:
     except Exception as e:
         logger.error(f"Error fetching global usage stats: {e}")
         return {"total_seconds_today": 0, "total_seconds_month": 0}
+
+
+async def get_financial_history(days: int = 30) -> list[Dict[str, Any]]:
+    """
+    Fetches daily financial summary (revenue, cost, profit) for last N days via RPC.
+    Defaults to empty list on error.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return []
+
+    try:
+        response = supabase.rpc("get_daily_financials", {"days_history": days}).execute()
+        return response.data or []
+    except Exception as e:
+        logger.error(f"Error fetching financial history: {e}")
+        return []
+

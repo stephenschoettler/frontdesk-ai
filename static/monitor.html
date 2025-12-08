@@ -54,7 +54,7 @@
       /* Since there is no .modal-backdrop div, we dim the .modal container itself */
       #app .modal.show {
         background-color: rgba(0, 0, 0, 0.6) !important; /* The Dim */
-        -webkit-backdrop-filter: blur(8px) !important;   /* The Blur */
+        -webkit-backdrop-filter: blur(8px) !important; /* The Blur */
         backdrop-filter: blur(8px) !important;
       }
 
@@ -95,19 +95,25 @@
     </style>
   </head>
   <body>
-      <div id="app" class="container-fluid p-4">
-        <div
-          class="d-flex justify-content-between align-items-center admin-header"
-        >
+    <div id="app" class="container-fluid p-4">
+      <div
+        class="d-flex justify-content-between align-items-center admin-header"
+      ></div>
+      <div
+        v-if="isLoading"
+        class="d-flex justify-content-center align-items-center min-vh-50 mt-5"
+      >
+        <div class="text-center">
+          <div
+            class="spinner-border text-purple mb-3"
+            role="status"
+            style="width: 4rem; height: 4rem"
+          ></div>
+          <h4>Initializing Overwatch...</h4>
+          <p class="text-muted">Loading users, clients & live data...</p>
         </div>
-        <div v-if="isLoading" class="d-flex justify-content-center align-items-center min-vh-50 mt-5">
-          <div class="text-center">
-            <div class="spinner-border text-purple mb-3" role="status" style="width: 4rem; height: 4rem;"></div>
-            <h4>Initializing Overwatch...</h4>
-            <p class="text-muted">Loading users, clients & live data...</p>
-          </div>
-        </div>
-        <div v-else>
+      </div>
+      <div v-else>
         <div class="d-flex align-items-center gap-3">
           <h3 class="mb-0 text-purple" style="letter-spacing: 2px">
             <i class="bi bi-eye-fill me-2"></i>OVERWATCH
@@ -126,9 +132,7 @@
           >
             <i class="bi bi-bug"></i> {{ showDebug ? 'HIDE X-RAY' : 'X-RAY' }}
           </button>
-          <button class="btn btn-sm btn-outline-warning me-2" @click="openSettings">
-            <i class="bi bi-wallet2"></i> SETTINGS
-          </button>
+
           <button class="btn btn-outline-info btn-sm" @click="fetchData">
             <i class="bi bi-arrow-clockwise"></i> REFRESH DATA
           </button>
@@ -541,113 +545,10 @@
           </div>
         </div>
       </div>
-        <!-- SETTINGS MODAL -->
-        <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
-          <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content" style="background: var(--theme-bg-dark); border: 1px solid var(--theme-warning); box-shadow: 0 0 20px rgba(255, 193, 7, 0.2);">
-              <div class="modal-header border-secondary border-opacity-25">
-                <h5 class="modal-title text-warning" style="font-family: 'JetBrains Mono'; letter-spacing: 1px;">
-                  <i class="bi bi-wallet2 me-2"></i>SYSTEM CONFIGURATION
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-              </div>
-              <div class="modal-body">
-                <ul class="nav nav-tabs mb-3 border-secondary border-opacity-25" id="settingsTabs" role="tablist">
-                  <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="wallet-tab" data-bs-toggle="tab" data-bs-target="#wallet" type="button" role="tab">Service Wallet</button>
-                  </li>
-                  <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="rates-tab" data-bs-toggle="tab" data-bs-target="#rates" type="button" role="tab">Unit Costs</button>
-                  </li>
-                </ul>
-                <div class="tab-content" id="settingsTabsContent">
-                  <!-- Wallet Tab -->
-                  <div class="tab-pane fade show active" id="wallet" role="tabpanel">
-                    <div class="row g-3">
-                      <!-- Twilio -->
-                      <div class="col-md-4">
-                        <div class="p-3 border rounded bg-dark border-secondary border-opacity-25">
-                          <label class="text-muted small d-block mb-1">TWILIO BALANCE</label>
-                          <div class="h4 mb-0 text-white font-monospace">{{ formatMoney(wallet.twilio && wallet.twilio.balance) }}</div>
-                          <div class="small text-muted">{{ (wallet.twilio && wallet.twilio.currency) || 'USD' }}</div>
-                        </div>
-                      </div>
-                      <!-- OpenRouter -->
-                      <div class="col-md-4">
-                        <div class="p-3 border rounded bg-dark border-secondary border-opacity-25">
-                          <label class="text-muted small d-block mb-1">OPENROUTER</label>
-                          <div class="h4 mb-0 text-white font-monospace">{{ getOpenRouterCredits(wallet) }}</div>
-                          <div class="small text-muted">Credits Available</div>
-                        </div>
-                      </div>
-                      <!-- Deepgram -->
-                      <div class="col-md-4">
-                        <div class="p-3 border rounded bg-dark border-secondary border-opacity-25">
-                          <label class="text-muted small d-block mb-1">DEEPGRAM</label>
-                          <div class="h4 mb-0 text-white font-monospace">{{ getDeepgramBalance(wallet) }}</div>
-                          <div class="small text-muted">Remaining Balance</div>
-                        </div>
-                      </div>
-                      <!-- ElevenLabs -->
-                      <div class="col-12 mt-4">
-                        <label class="text-muted small mb-2">ELEVENLABS USAGE</label>
-                        <div class="progress" style="height: 25px; background: #333;">
-                          <div class="progress-bar bg-warning" role="progressbar" 
-                               :style="{ width: (100 - (((wallet.elevenlabs && wallet.elevenlabs.percent) || 0) * 100)) + '%' }">
-                            {{ formatElevenLabsUsage((wallet.elevenlabs && wallet.elevenlabs.used), (wallet.elevenlabs && wallet.elevenlabs.limit)) }}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  <!-- Rates Tab -->
-                  <div class="tab-pane fade" id="rates" role="tabpanel">
-                    <p class="text-muted small mb-4">
-                      <i class="bi bi-info-circle me-1"></i> These rates determine the deductions from client balances per minute of usage.
-                    </p>
-                    
-                    <div class="mb-3 row align-items-center">
-                      <label class="col-sm-6 col-form-label text-white">Twilio Voice (Per Min)</label>
-                      <div class="col-sm-6 d-flex gap-2">
-                        <div class="input-group">
-                          <span class="input-group-text bg-dark border-secondary text-muted">$</span>
-                          <input type="number" v-model="rates.twilio_cost_per_min" step="0.0001" class="form-control bg-dark text-white border-secondary font-monospace">
-                        </div>
-                        <button class="btn btn-sm btn-outline-success" @click="saveRate('twilio_cost_per_min')">Save</button>
-                      </div>
-                    </div>
 
-                    <div class="mb-3 row align-items-center">
-                      <label class="col-sm-6 col-form-label text-white">STT (Deepgram) (Per Min)</label>
-                      <div class="col-sm-6 d-flex gap-2">
-                        <div class="input-group">
-                          <span class="input-group-text bg-dark border-secondary text-muted">$</span>
-                          <input type="number" v-model="rates.stt_cost_per_min" step="0.0001" class="form-control bg-dark text-white border-secondary font-monospace">
-                        </div>
-                        <button class="btn btn-sm btn-outline-success" @click="saveRate('stt_cost_per_min')">Save</button>
-                      </div>
-                    </div>
-
-                    <div class="mb-3 row align-items-center">
-                      <label class="col-sm-6 col-form-label text-white">TTS (ElevenLabs) (Per Char)</label>
-                      <div class="col-sm-6 d-flex gap-2">
-                        <div class="input-group">
-                          <span class="input-group-text bg-dark border-secondary text-muted">$</span>
-                          <input type="number" v-model="rates.tts_cost_per_char" step="0.00001" class="form-control bg-dark text-white border-secondary font-monospace">
-                        </div>
-                        <button class="btn btn-sm btn-outline-success" @click="saveRate('tts_cost_per_char')">Save</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ADJUST LEDGER MODAL -->
-        <div class="modal fade" id="ledgerModal" tabindex="-1" aria-hidden="true">
+      <!-- ADJUST LEDGER MODAL -->
+      <div class="modal fade" id="ledgerModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
           <div
             class="modal-content"
@@ -751,39 +652,43 @@
                     v-model="ledgerForm.reason"
                     class="form-control bg-dark text-white border-secondary"
                     style="font-family: &quot;JetBrains Mono&quot;"
-                     placeholder="0.00"
-                   />
-                 </div>
+                    placeholder="0.00"
+                  />
+                </div>
 
-                 <div class="mb-3" v-if="ledgerForm.action === 'credit'">
-                   <label class="form-label text-muted small">Revenue (USD)</label>
-                   <input
-                     type="number"
-                     step="0.01"
-                     min="0"
-                     v-model.number="ledgerForm.revenue_usd"
-                     class="form-control bg-dark text-white border-secondary"
-                     placeholder="0.00"
-                   />
-                   <div class="form-text text-muted">Stripe/cash payment logged for P&L.</div>
-                 </div>
+                <div class="mb-3" v-if="ledgerForm.action === 'credit'">
+                  <label class="form-label text-muted small"
+                    >Revenue (USD)</label
+                  >
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    v-model.number="ledgerForm.revenue_usd"
+                    class="form-control bg-dark text-white border-secondary"
+                    placeholder="0.00"
+                  />
+                  <div class="form-text text-muted">
+                    Stripe/cash payment logged for P&L.
+                  </div>
+                </div>
 
-                 <div class="mb-3">
-                   <label class="form-label text-muted small"
-                     >MEMO / REASON</label
-                   >
-                   <input
-                     type="text"
-                     v-model="ledgerForm.reason"
-                     class="form-control bg-dark text-white border-secondary"
-                     style="font-family: 'JetBrains Mono';"
-                     placeholder="e.g. Monthly Top-up"
-                     required
-                   />
-                 </div>
+                <div class="mb-3">
+                  <label class="form-label text-muted small"
+                    >MEMO / REASON</label
+                  >
+                  <input
+                    type="text"
+                    v-model="ledgerForm.reason"
+                    class="form-control bg-dark text-white border-secondary"
+                    style="font-family: &quot;JetBrains Mono&quot;"
+                    placeholder="e.g. Monthly Top-up"
+                    required
+                  />
+                </div>
 
-                 <div class="text-end mt-4">
-                   <button
+                <div class="text-end mt-4">
+                  <button
                     type="button"
                     class="btn btn-outline-secondary me-2"
                     data-bs-dismiss="modal"
@@ -1460,7 +1365,8 @@
         window.location.href = "/static/index.html";
       };
 
-      const { createApp, ref, computed, onMounted, onUnmounted, nextTick } = Vue;
+      const { createApp, ref, computed, onMounted, onUnmounted, nextTick } =
+        Vue;
 
       createApp({
         setup() {
@@ -1475,11 +1381,6 @@
           const userSearch = ref("");
           const token = localStorage.getItem("authToken");
           const isLoading = ref(true);
-
-          // Settings State
-          const wallet = ref({});
-          const rates = ref({});
-          const settingsModal = ref(null);
 
           const voicePresets = [
             {
@@ -1581,41 +1482,9 @@
           const selectedTranscript = ref([]);
           const loadingTranscript = ref(false);
 
-          const fetchSettings = async () => {
-            try {
-              const [balRes, ratesRes] = await Promise.all([
-                axios.get("/api/admin/balances", { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get("/api/admin/settings", { headers: { Authorization: `Bearer ${token}` } })
-              ]);
-              wallet.value = balRes.data;
-              rates.value = ratesRes.data;
-            } catch (e) {
-              console.error("Failed to fetch settings:", e);
-            }
-          };
 
-          const saveRate = async (key) => {
-            try {
-              await axios.post("/api/admin/settings", {
-                key: key,
-                value: String(rates.value[key])
-              }, { headers: { Authorization: `Bearer ${token}` } });
-              alert("Rate updated successfully.");
-            } catch (e) {
-              console.error("Failed to save rate:", e);
-              alert("Failed to update rate.");
-            }
-          };
 
-          const openSettings = async () => {
-             if (!settingsModal.value) {
-              settingsModal.value = new bootstrap.Modal(document.getElementById("settingsModal"));
-            }
-            await fetchSettings();
-            settingsModal.value.show();
-          };
-
-            const fetchData = async () => {
+          const fetchData = async () => {
             if (!token) return (window.location.href = "/static/index.html");
             isLoading.value = true;
             try {
@@ -1628,16 +1497,16 @@
               ledger.value = res.data.ledger || [];
               total_usage_today.value = res.data.total_seconds_today || 0;
               total_usage_month.value = res.data.total_seconds_month || 0;
-              } catch (e) {
-                console.error(e);
-                if (e.response && e.response.status === 403) {
-                  alert("UNAUTHORIZED ACCESS DETECTED. SYSTEM LOCKING.");
-                  window.location.href = "/static/index.html";
-                }
-              } finally {
-                isLoading.value = false;
+            } catch (e) {
+              console.error(e);
+              if (e.response && e.response.status === 403) {
+                alert("UNAUTHORIZED ACCESS DETECTED. SYSTEM LOCKING.");
+                window.location.href = "/static/index.html";
               }
-            };
+            } finally {
+              isLoading.value = false;
+            }
+          };
 
           // --- COMPUTED HELPERS ---
 
@@ -1851,7 +1720,8 @@
                 seconds = -seconds;
               }
 
-              const revenue_usd = parseFloat(ledgerForm.value.revenue_usd || "0") || 0;
+              const revenue_usd =
+                parseFloat(ledgerForm.value.revenue_usd || "0") || 0;
               await axios.post(
                 "/api/admin/adjust-balance",
                 {
@@ -1984,15 +1854,15 @@
             }
           };
 
-            const pollInterval = setInterval(pollActiveCalls, 3000);
-            const tickInterval = setInterval(() => triggerRef(activeCalls), 1000);
+          const pollInterval = setInterval(pollActiveCalls, 3000);
+          const tickInterval = setInterval(() => triggerRef(activeCalls), 1000);
 
-            onUnmounted(() => {
-              clearInterval(pollInterval);
-              clearInterval(tickInterval);
-            });
+          onUnmounted(() => {
+            clearInterval(pollInterval);
+            clearInterval(tickInterval);
+          });
 
-            onMounted(() => {
+          onMounted(() => {
             fetchData();
             pollActiveCalls();
             // Update durations locally every second to keep UI smooth
@@ -2013,11 +1883,7 @@
             clients,
             selectedUser,
             isLoading,
-            // Settings
-            wallet,
-            rates,
-            openSettings,
-            saveRate,
+
             showDebug,
             userSearch,
             filteredUsers,
@@ -2031,29 +1897,7 @@
             getUserTotalUsage,
             formatDuration,
             formatDate,
-            // Formatters
-            formatMoney: (val, currency = 'USD') => {
-              if (val === undefined || val === null) return '---';
-              return '$' + parseFloat(val).toFixed(2);
-            },
-            formatElevenLabsUsage: (used, limit) => {
-              if (!used || !limit) return '0 / 0 Chars';
-              return (used / 1000).toFixed(1) + 'k / ' + (limit / 1000).toFixed(0) + 'k Chars';
-            },
-            getDeepgramBalance: (w) => {
-              if (w && w.deepgram && w.deepgram.balances && w.deepgram.balances[0] && w.deepgram.balances[0].amount) {
-                return '$' + parseFloat(w.deepgram.balances[0].amount).toFixed(2);
-              }
-              return '---';
-            },
-            getOpenRouterCredits: (w) => {
-               if (w && w.openrouter && w.openrouter.data && w.openrouter.data.total_credits) {
-                 const credits = parseFloat(w.openrouter.data.total_credits) || 0;
-                 const usage = parseFloat(w.openrouter.data.total_usage) || 0;
-                 return '$' + (credits - usage).toFixed(2);
-               }
-               return '---';
-            },
+
             // Ledger
             ledgerForm,
             availableClients,

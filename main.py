@@ -33,7 +33,7 @@ from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.frames.frames import TextFrame, InputAudioRawFrame, OutputAudioRawFrame
-from pipecat.serializers.base_serializer import FrameSerializer, FrameSerializerType
+from pipecat.serializers.base_serializer import FrameSerializer
 from pipecat.serializers.twilio import TwilioFrameSerializer
 from pipecat.services.deepgram.stt import DeepgramSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
@@ -140,11 +140,7 @@ active_calls = {}  # call_id -> { client_id, client_name, caller_phone, start_ti
 
 class RawAudioSerializer(FrameSerializer):
     def __init__(self):
-        pass
-
-    @property
-    def type(self) -> FrameSerializerType:
-        return FrameSerializerType.BINARY
+        super().__init__()
 
     async def serialize(self, frame):
         if isinstance(frame, OutputAudioRawFrame):
@@ -651,7 +647,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
         if actual_conv_id:
             # Get LLM model for pricing
             client_config = await get_client_config(client_id)
-            llm_model = client_config.get("llm_model", "openai/gpt-4o-mini") if client_config else "openai/gpt-4o-mini"
+            llm_model = (
+                client_config.get("llm_model", "openai/gpt-4o-mini")
+                if client_config
+                else "openai/gpt-4o-mini"
+            )
 
             # Fetch dynamic system rates
             system_rates = await get_system_rates()
@@ -663,8 +663,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
             # Calculate costs
             model_price = await get_model_price(llm_model)
             if model_price:
-                input_cost = input_tokens * model_price['input']
-                output_cost = output_tokens * model_price['output']
+                input_cost = input_tokens * model_price["input"]
+                output_cost = output_tokens * model_price["output"]
             else:
                 input_cost = 0.0
                 output_cost = 0.0
@@ -676,22 +676,22 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
             tts_cost = tts_chars * cost_tts
 
             costs = {
-                "call_duration": combined_audio_cost,
+                "duration": combined_audio_cost,
                 "llm_tokens_input": input_cost,
                 "llm_tokens_output": output_cost,
-                "tts_characters": tts_cost
+                "tts_characters": tts_cost,
             }
 
             await log_usage_ledger(
                 client_id,
                 actual_conv_id,
                 {
-                    "call_duration": total_seconds,
+                    "duration": total_seconds,
                     "llm_tokens_input": input_tokens,
                     "llm_tokens_output": output_tokens,
                     "tts_characters": tts_chars,
                 },
-                costs
+                costs,
             )
 
         logger.info("Call ended. Cleaning up.")
@@ -847,6 +847,158 @@ async def simulator_endpoint(websocket: WebSocket, client_id: str):
         remainder = total_seconds - accumulated_deduction
         if remainder > 0:
             await deduct_balance(client_id, remainder)
+
+        # 5. METRICS: Count Tokens (The Meter)
+        input_tokens = 0
+        output_tokens = 0
+        tts_chars = 0
+        try:
+            enc = tiktoken.get_encoding("o200k_base")  # GPT-4o standard
+            for msg in context.messages:
+                # Handle both dict and object messages (Pipecat compatibility)
+                if isinstance(msg, dict):
+                    role = msg.get("role", "")
+                    content = str(msg.get("content", ""))
+                else:
+                    role = getattr(msg, "role", "")
+                    content = str(getattr(msg, "content", ""))
+
+                if role == "assistant":
+                    output_tokens += len(enc.encode(content))
+                    tts_chars += len(content)
+                elif role in ["user", "system"]:
+                    input_tokens += len(enc.encode(content))
+        except Exception as e:
+            logger.error(f"Token count failed: {e}")
+
+        # Log Conversation & Get ID
+        # Calculate transcript with timestamps
+        transcript_with_timestamps = []
+        base_time = call_end_time
+
+        # Initial Greeting Timestamp
+        if initial_greeting:
+            greeting_timestamp = base_time - datetime.timedelta(
+                seconds=len(context.messages) + 1
+            )
+            transcript_with_timestamps.insert(
+                0,
+                {
+                    "role": "assistant",
+                    "content": initial_greeting,
+                    "timestamp": greeting_timestamp.isoformat(),
+                },
+            )
+
+        for i, message in enumerate(context.messages):
+            # Skip system messages for transcript
+            msg_tool_calls = None  # 1. Initialize variable
+
+            if isinstance(message, dict):
+                if message.get("role") == "system":
+                    continue
+                msg_role = message.get("role")
+                msg_content = message.get("content")
+                msg_tool_calls = message.get("tool_calls")  # 2. Extract from dict
+            else:
+                if getattr(message, "role", "") == "system":
+                    continue
+                msg_role = getattr(message, "role", "")
+                msg_content = getattr(message, "content", "")
+                msg_tool_calls = getattr(
+                    message, "tool_calls", None
+                )  # 3. Extract from object
+
+            timestamp = base_time - datetime.timedelta(
+                seconds=len(context.messages) - i
+            )
+
+            # 4. Construct entry with optional tool_calls
+            entry = {
+                "role": msg_role,
+                "content": str(msg_content),
+                "timestamp": timestamp.isoformat(),
+                "created_at": timestamp.isoformat(),
+            }
+
+            # 5. Attach tool_calls if they exist (This triggers the ⚡ icon in UI)
+            if msg_tool_calls:
+                entry["tool_calls"] = msg_tool_calls
+
+            transcript_with_timestamps.append(entry)
+
+        # 1. Log Conversation
+        response_obj = await log_conversation(
+            contact_id=None,
+            client_id=client_id,
+            transcript=transcript_with_timestamps,
+            duration=total_seconds,
+        )
+
+        # 2. SAFE EXTRACTION: Get the string ID from the object
+        actual_conv_id = None
+        try:
+            # Check if we got a valid response object with data
+            if response_obj and hasattr(response_obj, "data") and response_obj.data:
+                actual_conv_id = response_obj.data[0]["id"]
+                logger.info(f"CAPTURED CONVERSATION ID: {actual_conv_id}")
+            else:
+                logger.error(
+                    f"LOGGING ERROR: Could not extract ID from: {response_obj}"
+                )
+        except Exception as e:
+            logger.error(f"LOGGING EXCEPTION: {e}")
+
+        # 3. Log to Ledger (Only if we have a valid string ID)
+        if actual_conv_id:
+            # Get LLM model for pricing
+            client_config = await get_client_config(client_id)
+            llm_model = (
+                client_config.get("llm_model", "openai/gpt-4o-mini")
+                if client_config
+                else "openai/gpt-4o-mini"
+            )
+
+            # Fetch dynamic system rates
+            system_rates = await get_system_rates()
+            # Defaults if DB fetch fails
+            cost_twilio = system_rates.get("twilio_cost_per_min", 0.013)
+            cost_stt = system_rates.get("stt_cost_per_min", 0.0043)
+            cost_tts = system_rates.get("tts_cost_per_char", 0.00003)
+
+            # Calculate costs
+            model_price = await get_model_price(llm_model)
+            if model_price:
+                input_cost = input_tokens * model_price["input"]
+                output_cost = output_tokens * model_price["output"]
+            else:
+                input_cost = 0.0
+                output_cost = 0.0
+
+            audio_minutes = total_seconds / 60
+            stt_cost = audio_minutes * cost_stt
+            twilio_cost = audio_minutes * cost_twilio
+            combined_audio_cost = stt_cost + twilio_cost
+            tts_cost = tts_chars * cost_tts
+
+            costs = {
+                "duration": combined_audio_cost,
+                "llm_tokens_input": input_cost,
+                "llm_tokens_output": output_cost,
+                "tts_characters": tts_cost,
+            }
+
+            await log_usage_ledger(
+                client_id,
+                actual_conv_id,
+                {
+                    "duration": total_seconds,
+                    "llm_tokens_input": input_tokens,
+                    "llm_tokens_output": output_tokens,
+                    "tts_characters": tts_chars,
+                },
+                costs,
+            )
 
         if not runner_task.done():
             await task.cancel()
@@ -1043,6 +1195,19 @@ async def get_client(client_id: str):
 async def update_existing_client(
     client_id: str, client: ClientUpdate, token: str = Depends(get_current_user_token)
 ):
+    # 0. Check for Admin Lock
+    current_config = await get_client_config(client_id)
+    if current_config:
+        enabled_tools = current_config.get("enabled_tools") or []
+        if "ADMIN_LOCKED" in enabled_tools:
+            # If trying to enable (is_active=True), block it.
+            # If client.is_active is None, they aren't changing it, so it's fine.
+            if client.is_active is True:
+                raise HTTPException(
+                    status_code=403,
+                    detail="This agent has been locked by the administrator. Please contact support."
+                )
+
     # 1. Handle Late Provisioning (if selected_number is provided)
     if client.selected_number:
         try:
@@ -1584,8 +1749,12 @@ async def stripe_webhook(request: Request):
                 seconds = int(add_seconds)
                 # Extract revenue from Stripe session (amount_total is in cents)
                 revenue_usd = session.get("amount_total", 0) / 100.0
-                logger.info(f"STRIPE WEBHOOK: Adding {seconds}s to client {client_id} for ${revenue_usd}")
-                await adjust_client_balance(client_id, seconds, "STRIPE_TOPUP", revenue_usd)
+                logger.info(
+                    f"STRIPE WEBHOOK: Adding {seconds}s to client {client_id} for ${revenue_usd}"
+                )
+                await adjust_client_balance(
+                    client_id, seconds, "STRIPE_TOPUP", revenue_usd
+                )
             except Exception as e:
                 logger.error(f"Error processing stripe fulfillment: {e}")
                 return Response(status_code=500)
@@ -1609,8 +1778,11 @@ async def main():
 
     # Sync pricing data on startup
     logging.info("Syncing OpenRouter pricing data...")
-    await sync_openrouter_prices()
-    logging.info("Pricing data synced successfully.")
+    try:
+        await sync_openrouter_prices()
+        logging.info("Pricing data synced successfully.")
+    except Exception as e:
+        logging.warning(f"Failed to sync pricing data: {e}. Continuing without price sync.")
 
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
     server = uvicorn.Server(config)

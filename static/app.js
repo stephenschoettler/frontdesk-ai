@@ -231,6 +231,7 @@ if (
         enabled_tools: [],
         enable_scheduling: false,
         enable_contact_memory: false,
+        enable_call_transfer: false,
         is_active: true, // Default active for new clients
       });
 
@@ -644,6 +645,7 @@ if (
           enabled_tools: enabledTools,
           enable_scheduling: enabledTools.includes("book_appointment"),
           enable_contact_memory: enabledTools.includes("save_contact_name"),
+          enable_call_transfer: enabledTools.includes("transfer_call"),
           is_active: client.is_active !== undefined ? client.is_active : true,
           tts_provider: client.tts_provider || "cartesia",  // Default to Cartesia for existing clients
         };
@@ -665,6 +667,8 @@ if (
           enabledTools.includes("book_appointment");
         duplicated.enable_contact_memory =
           enabledTools.includes("save_contact_name");
+        duplicated.enable_call_transfer =
+          enabledTools.includes("transfer_call");
         duplicated.is_active = true; // Default copy to active
         editingClient.value = null;
         clientForm.value = duplicated;
@@ -690,9 +694,13 @@ if (
           if (payload.enable_contact_memory) {
             payload.enabled_tools.push("save_contact_name");
           }
+          if (payload.enable_call_transfer) {
+            payload.enabled_tools.push("transfer_call");
+          }
           // Remove bundle fields from payload
           delete payload.enable_scheduling;
           delete payload.enable_contact_memory;
+          delete payload.enable_call_transfer;
 
           // Provisioning Mapping - REMOVED (Pay First Flow)
           // if (!editingClient.value && payload.cell) {
@@ -1199,6 +1207,7 @@ if (
           enabled_tools: [],
           enable_scheduling: false,
           enable_contact_memory: false,
+          enable_call_transfer: false,
           is_active: true,
         };
         activeClientTab.value = "basic";
@@ -1362,6 +1371,7 @@ if (
           list_my_appointments: "List Appts",
           save_contact_name: "Save Name",
           cancel_appointment: "Cancel",
+          transfer_call: "Transfer",
         };
         return map[toolKey] || toolKey;
       };

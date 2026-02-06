@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Front Desk Admin Panel</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link href="lib/css/bootstrap.min.css" rel="stylesheet" />
     <link
       rel="stylesheet"
@@ -17,7 +18,7 @@
       href="https://www.nerdfonts.com/assets/css/webfont.css"
       rel="stylesheet"
     />
-    <script src="lib/js/vue.global.js"></script>
+    <script src="lib/js/vue.global.prod.js"></script>
     <script src="lib/js/axios.min.js"></script>
     <script src="lib/js/bootstrap.bundle.min.js"></script>
     <script src="https://js.stripe.com/v3/"></script>
@@ -2012,6 +2013,42 @@
                           <div class="text-muted small ms-4 mt-1">
                             Allows the agent to learn and save the caller's name
                             for future personalized greetings.
+                          </div>
+                        </div>
+
+                        <hr class="border-secondary opacity-25 my-3" />
+
+                        <div class="form-check">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            v-model="clientForm.enable_call_transfer"
+                            id="bundle_transfer"
+                          />
+                          <label
+                            class="form-check-label fw-bold"
+                            for="bundle_transfer"
+                            >Call Transfer</label
+                          >
+                          <div class="text-muted small ms-4 mt-1">
+                            Allows the agent to transfer calls to a human when
+                            requested or when issues require human intervention.
+                          </div>
+
+                          <!-- Transfer Phone Number Field (shown when enabled) -->
+                          <div v-if="clientForm.enable_call_transfer" class="ms-4 mt-3">
+                            <label class="form-label small fw-bold">Transfer Phone Number</label>
+                            <input
+                              v-model="clientForm.transfer_phone_number"
+                              type="tel"
+                              class="form-control form-control-sm"
+                              placeholder="+14155551234"
+                              pattern="^\+[1-9]\d{1,14}$"
+                              title="Must be in E.164 format (e.g., +14155551234)"
+                            />
+                            <div class="text-muted small mt-1">
+                              Phone number to transfer calls to. Must be in E.164 format (e.g., +14155551234)
+                            </div>
                           </div>
                         </div>
                       </div>

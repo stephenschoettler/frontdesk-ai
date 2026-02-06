@@ -1,0 +1,53 @@
+{
+  "name": "transfer_call",
+  "description": "Transfer the active call to a human agent. Use this when the caller explicitly requests to speak with a human, when their issue requires human intervention, or when you cannot adequately help them. This will immediately transfer the call to the configured transfer number for this business.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "reason": {
+        "type": "string",
+        "description": "Brief reason for the transfer (optional, for logging purposes)",
+        "enum": [
+          "customer_request",
+          "complex_issue",
+          "complaint",
+          "sales_inquiry",
+          "technical_support",
+          "other"
+        ]
+      }
+    },
+    "required": []
+  },
+  "usage_guidelines": {
+    "when_to_use": [
+      "Caller explicitly asks to speak with a human",
+      "Issue is too complex for AI to handle",
+      "Caller is frustrated or angry",
+      "Sales opportunity that requires human touch",
+      "Technical issue beyond AI capabilities"
+    ],
+    "when_not_to_use": [
+      "Simple questions that AI can answer",
+      "Scheduling appointments (use booking tools instead)",
+      "Checking availability",
+      "Providing basic business information"
+    ],
+    "best_practices": [
+      "Always acknowledge the transfer request: 'Let me transfer you to a team member right now'",
+      "Set expectations: 'Please hold while I connect you'",
+      "Be polite and reassuring",
+      "Provide context to the caller about what will happen"
+    ]
+  },
+  "configuration": {
+    "client_config_field": "transfer_phone_number",
+    "description": "Each client must have a 'transfer_phone_number' field in their Supabase configuration",
+    "format": "E.164 format (e.g., +14155551234)"
+  },
+  "error_handling": {
+    "no_transfer_number": "Tool will return an error and AI should apologize and offer to take a message",
+    "transfer_fails": "Caller hears 'I'm sorry, but the transfer could not be completed' and call ends",
+    "network_issues": "Falls back to AI conversation if transfer cannot be initiated"
+  }
+}

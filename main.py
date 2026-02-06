@@ -120,6 +120,7 @@ from services.llm_tools import (
     handle_reschedule_appointment,
     handle_cancel_appointment,
     handle_list_my_appointments,
+    handle_transfer_call,
 )
 
 # Import Google Calendar functions
@@ -166,6 +167,7 @@ logger.info(f"DIAGNOSTIC: Loaded SUPABASE_URL: {os.environ.get('SUPABASE_URL')}"
 
 # --- Global State ---
 active_calls = {}  # call_id -> { client_id, client_name, caller_phone, start_time, owner_user_id }
+transfer_requests = {}  # "client_id:caller_phone" -> { transfer_number, client_id, caller_phone, timestamp }
 # --------------------
 
 
@@ -310,6 +312,7 @@ async def initialize_client_services(
         "reschedule_appointment": handle_reschedule_appointment,
         "cancel_appointment": handle_cancel_appointment,
         "list_my_appointments": handle_list_my_appointments,
+        "transfer_call": handle_transfer_call,
     }
 
     logger.info(f"Enabling tools for client {client_id}: {enabled_tools}")
@@ -396,6 +399,33 @@ async def voice_handler(request: Request):
     stream = Stream(url=stream_url)
     connect.append(stream)
     response.append(connect)
+    return Response(content=str(response), media_type="application/xml")
+
+
+@app.post("/transfer-callback")
+async def transfer_callback_handler(request: Request):
+    """
+    Handle Twilio's callback after a transfer attempt.
+    If the transfer fails (busy, no-answer, failed), this endpoint is called.
+    We can optionally return the caller to the AI or just end the call.
+    """
+    form_data = await request.form()
+    dial_call_status = form_data.get("DialCallStatus")
+    call_sid = form_data.get("CallSid")
+
+    logger.info(f"[TRANSFER CALLBACK] Call {call_sid} - Status: {dial_call_status}")
+
+    response = VoiceResponse()
+
+    # If the transfer failed, we could return to AI or take a message
+    # For now, we'll just end the call politely
+    if dial_call_status in ["busy", "no-answer", "failed", "canceled"]:
+        logger.warning(f"[TRANSFER] Transfer failed with status: {dial_call_status}")
+        response.say("I'm sorry, but the transfer could not be completed. Please try calling back later. Goodbye.")
+    else:
+        # Transfer succeeded - call is now connected, no need to do anything
+        logger.info(f"[TRANSFER] Transfer completed successfully")
+
     return Response(content=str(response), media_type="application/xml")
 
 
@@ -585,7 +615,44 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
 
     try:
         while websocket.client_state == WebSocketState.CONNECTED:
-            # 3. ENFORCE: Hard Cutoff
+            # 3. CHECK: Transfer Request
+            call_key = f"{client_id}:{caller_phone_decoded}"
+            if call_key in transfer_requests:
+                transfer_info = transfer_requests.pop(call_key)
+                transfer_number = transfer_info["transfer_number"]
+
+                logger.info(f"[TRANSFER] Initiating transfer for {call_key} to {transfer_number}")
+
+                # Close the websocket stream
+                await websocket.close(code=1000, reason="Transferring Call")
+
+                # Use Twilio REST API to update the call with transfer TwiML
+                try:
+                    from twilio.twiml.voice_response import VoiceResponse, Dial
+
+                    # Create TwiML for the transfer
+                    response = VoiceResponse()
+                    response.say("Please hold while I transfer you.")
+                    dial = Dial(
+                        caller_id=os.environ.get("TWILIO_PHONE_NUMBER", caller_phone_decoded),
+                        timeout=30,
+                        action=f"https://{websocket.headers.get('host')}/transfer-callback"
+                    )
+                    dial.number(transfer_number)
+                    response.append(dial)
+
+                    # Update the active call with new TwiML
+                    twilio_client.calls(call_id).update(
+                        twiml=str(response)
+                    )
+
+                    logger.info(f"[TRANSFER] Call {call_id} successfully transferred to {transfer_number}")
+                except Exception as transfer_error:
+                    logger.error(f"[TRANSFER] Failed to transfer call {call_id}: {transfer_error}")
+
+                break
+
+            # 4. ENFORCE: Hard Cutoff
             elapsed = (datetime.datetime.now() - call_start_time).total_seconds()
             if elapsed > balance_seconds:
                 logger.warning(f"CUTOFF: Client {client_id} out of funds.")

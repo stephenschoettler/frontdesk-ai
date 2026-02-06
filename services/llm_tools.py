@@ -439,3 +439,77 @@ async def handle_list_my_appointments(
         await params.result_callback("No upcoming appointments found.")
     else:
         await params.result_callback(appointments)
+
+
+async def handle_transfer_call(
+    params: FunctionCallParams, client_id: Optional[str] = None, caller_phone: Optional[str] = None, **kwargs
+) -> None:
+    """
+    Transfer the active call to a human agent. The transfer number is configured
+    per client in their configuration. This tool signals the transfer request and
+    the websocket handler will execute it.
+    """
+    target_client_id = client_id or os.environ.get("CLIENT_ID")
+    if not target_client_id:
+        await params.result_callback(
+            {"status": "error", "message": "Client ID missing."}
+        )
+        return
+
+    # Get client configuration to retrieve the transfer number
+    client_config = await get_client_config(target_client_id)
+    if not client_config:
+        await params.result_callback(
+            {"status": "error", "message": "Client configuration not found."}
+        )
+        return
+
+    # Get the transfer phone number from client config
+    transfer_number = client_config.get("transfer_phone_number")
+
+    if not transfer_number:
+        logger.warning(f"No transfer_phone_number configured for client {target_client_id}")
+        await params.result_callback(
+            {
+                "status": "error",
+                "message": "Transfer not available - no transfer number configured."
+            }
+        )
+        return
+
+    try:
+        args = params.arguments.get("kwargs", params.arguments)
+        logger.info(f"Transfer call requested for client {target_client_id} to {transfer_number}")
+
+        # Get the caller's phone to identify the active call
+        phone = caller_phone or os.environ.get("CALLER_PHONE")
+        if not phone:
+            raise ValueError("Cannot identify active call - caller phone not available.")
+
+        # Store the transfer request in a global transfer_requests dict
+        # The websocket handler will pick this up and execute the transfer
+        from main import transfer_requests
+
+        call_key = f"{target_client_id}:{phone}"
+        transfer_requests[call_key] = {
+            "transfer_number": transfer_number,
+            "client_id": target_client_id,
+            "caller_phone": phone,
+            "timestamp": datetime.now().isoformat()
+        }
+
+        logger.info(f"Transfer request registered for {call_key} -> {transfer_number}")
+
+        # Return success to the LLM
+        # The LLM should say something like "Let me transfer you to a team member now"
+        result = {
+            "status": "success",
+            "message": "Transfer initiated successfully. Please hold.",
+        }
+        await params.result_callback(result)
+
+    except Exception as e:
+        logger.error(f"Error in handle_transfer_call: {e}")
+        await params.result_callback(
+            {"status": "error", "message": f"Transfer failed: {str(e)}"}
+        )

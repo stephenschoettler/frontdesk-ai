@@ -1,0 +1,68 @@
+2026-02-05 17:59:59,378 - services.calendar_auth - DEBUG - === OAUTH FLOW START ===
+2026-02-05 17:59:59,378 - services.calendar_auth - DEBUG - Client ID: 1661b43b-2545-4659-80f6-941ebdeb4614
+2026-02-05 17:59:59,378 - services.calendar_auth - DEBUG - User ID: f53b4734-60df-4b71-a6a7-7cddf0460b62
+2026-02-05 17:59:59,378 - services.calendar_auth - ERROR - Missing OAuth credentials - CLIENT_ID: False, SECRET: False
+2026-02-05 18:01:52,900 - services.calendar_auth - DEBUG - === OAUTH FLOW START ===
+2026-02-05 18:01:52,900 - services.calendar_auth - DEBUG - Client ID: 1661b43b-2545-4659-80f6-941ebdeb4614
+2026-02-05 18:01:52,900 - services.calendar_auth - DEBUG - User ID: f53b4734-60df-4b71-a6a7-7cddf0460b62
+2026-02-05 18:01:52,900 - services.calendar_auth - DEBUG - OAuth Client ID configured: 604952464655-0ctc1h6...
+2026-02-05 18:01:52,900 - services.calendar_auth - DEBUG - BASE_URL: http://localhost:8000
+2026-02-05 18:01:52,900 - services.calendar_auth - DEBUG - Generated state token: IH1q3fwryXuLrcCZYCf-...
+2026-02-05 18:01:53,128 - services.calendar_auth - DEBUG - State token stored in Supabase successfully
+2026-02-05 18:01:53,128 - services.calendar_auth - DEBUG - Redirect URI: http://localhost:8000/api/clients/1661b43b-2545-4659-80f6-941ebdeb4614/calendar/oauth/callback
+2026-02-05 18:01:53,128 - services.calendar_auth - DEBUG - OAuth Flow created successfully
+2026-02-05 18:01:53,128 - services.calendar_auth - INFO - Generated OAuth URL successfully for client 1661b43b-2545-4659-80f6-941ebdeb4614
+2026-02-05 18:01:53,128 - services.calendar_auth - DEBUG - Authorization URL: https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=604952464655-0ctc1h6p1ph3sn5h...
+2026-02-05 18:06:50,754 - services.calendar_auth - DEBUG - === OAUTH FLOW START ===
+2026-02-05 18:06:50,754 - services.calendar_auth - DEBUG - Client ID: 1661b43b-2545-4659-80f6-941ebdeb4614
+2026-02-05 18:06:50,754 - services.calendar_auth - DEBUG - User ID: f53b4734-60df-4b71-a6a7-7cddf0460b62
+2026-02-05 18:06:50,754 - services.calendar_auth - DEBUG - OAuth Client ID configured: 604952464655-0ctc1h6...
+2026-02-05 18:06:50,754 - services.calendar_auth - DEBUG - BASE_URL: http://localhost:8000
+2026-02-05 18:06:50,755 - services.calendar_auth - DEBUG - Generated state token: xohHimbQoenoIIt_zn1t...
+2026-02-05 18:06:50,999 - services.calendar_auth - DEBUG - State token stored in Supabase successfully
+2026-02-05 18:06:51,000 - services.calendar_auth - DEBUG - Redirect URI: http://localhost:8000/api/calendar/oauth/callback
+2026-02-05 18:06:51,000 - services.calendar_auth - DEBUG - OAuth Flow created successfully
+2026-02-05 18:06:51,000 - services.calendar_auth - INFO - Generated OAuth URL successfully for client 1661b43b-2545-4659-80f6-941ebdeb4614
+2026-02-05 18:06:51,000 - services.calendar_auth - DEBUG - Authorization URL: https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=604952464655-0ctc1h6p1ph3sn5h...
+2026-02-05 18:12:08,357 - services.calendar_auth - DEBUG - === OAUTH FLOW START ===
+2026-02-05 18:12:08,357 - services.calendar_auth - DEBUG - Client ID: 1661b43b-2545-4659-80f6-941ebdeb4614
+2026-02-05 18:12:08,357 - services.calendar_auth - DEBUG - User ID: f53b4734-60df-4b71-a6a7-7cddf0460b62
+2026-02-05 18:12:08,357 - services.calendar_auth - DEBUG - OAuth Client ID configured: 604952464655-0ctc1h6...
+2026-02-05 18:12:08,357 - services.calendar_auth - DEBUG - BASE_URL: http://localhost:8000
+2026-02-05 18:12:08,357 - services.calendar_auth - DEBUG - Generated state token: N7g92f0vmOrnQDhUmLlD...
+2026-02-05 18:12:08,605 - services.calendar_auth - DEBUG - State token stored in Supabase successfully
+2026-02-05 18:12:08,605 - services.calendar_auth - DEBUG - Redirect URI: http://localhost:8000/api/calendar/oauth/callback
+2026-02-05 18:12:08,606 - services.calendar_auth - DEBUG - OAuth Flow created successfully
+2026-02-05 18:12:08,606 - services.calendar_auth - INFO - Generated OAuth URL successfully for client 1661b43b-2545-4659-80f6-941ebdeb4614
+2026-02-05 18:12:08,606 - services.calendar_auth - DEBUG - Authorization URL: https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=604952464655-0ctc1h6p1ph3sn5h...
+2026-02-05 18:14:32,621 - services.calendar_auth - DEBUG - === OAUTH FLOW START ===
+2026-02-05 18:14:32,621 - services.calendar_auth - DEBUG - Client ID: 1661b43b-2545-4659-80f6-941ebdeb4614
+2026-02-05 18:14:32,621 - services.calendar_auth - DEBUG - User ID: f53b4734-60df-4b71-a6a7-7cddf0460b62
+2026-02-05 18:14:32,621 - services.calendar_auth - DEBUG - OAuth Client ID configured: 604952464655-0ctc1h6...
+2026-02-05 18:14:32,621 - services.calendar_auth - DEBUG - BASE_URL: http://localhost:8000
+2026-02-05 18:14:32,621 - services.calendar_auth - DEBUG - Generated state token: ZU2EhCBoKkxKb_cj6x5V...
+2026-02-05 18:14:32,906 - services.calendar_auth - DEBUG - State token stored in Supabase successfully
+2026-02-05 18:14:32,906 - services.calendar_auth - DEBUG - Redirect URI: http://localhost:8000/api/calendar/oauth/callback
+2026-02-05 18:14:32,906 - services.calendar_auth - DEBUG - OAuth Flow created successfully
+2026-02-05 18:14:32,906 - services.calendar_auth - INFO - Generated OAuth URL successfully for client 1661b43b-2545-4659-80f6-941ebdeb4614
+2026-02-05 18:14:32,906 - services.calendar_auth - DEBUG - Authorization URL: https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=604952464655-0ctc1h6p1ph3sn5h...
+2026-02-05 18:14:40,316 - services.calendar_auth - DEBUG - === OAUTH CALLBACK START ===
+2026-02-05 18:14:40,316 - services.calendar_auth - DEBUG - Code received: 4/0ASc3gC1JilRyqGH67...
+2026-02-05 18:14:40,316 - services.calendar_auth - DEBUG - State: ZU2EhCBoKkxKb_cj6x5V...
+2026-02-05 18:14:40,316 - services.calendar_auth - DEBUG - Client ID: 1661b43b-2545-4659-80f6-941ebdeb4614
+2026-02-05 18:14:40,316 - services.calendar_auth - DEBUG - Validating state token...
+2026-02-05 18:14:40,462 - services.calendar_auth - DEBUG - State record found: True
+2026-02-05 18:14:40,462 - services.calendar_auth - DEBUG - State data: client_id=1661b43b-2545-4659-80f6-941ebdeb4614, used=False
+2026-02-05 18:14:40,462 - services.calendar_auth - DEBUG - Marking state token as used...
+2026-02-05 18:14:40,662 - services.calendar_auth - DEBUG - Exchange code for tokens with redirect_uri: http://localhost:8000/api/calendar/oauth/callback
+2026-02-05 18:14:40,662 - services.calendar_auth - DEBUG - OAuth flow created for token exchange
+2026-02-05 18:14:40,662 - services.calendar_auth - DEBUG - Fetching token from Google...
+2026-02-05 18:14:40,924 - services.calendar_auth - DEBUG - Token received - has refresh_token: True
+2026-02-05 18:14:40,925 - services.calendar_auth - DEBUG - Encrypting tokens...
+2026-02-05 18:14:41,245 - services.calendar_auth - DEBUG - Tokens encrypted successfully
+2026-02-05 18:14:41,246 - services.calendar_auth - DEBUG - Deactivating old credentials...
+2026-02-05 18:14:41,445 - services.calendar_auth - DEBUG - Old credentials deactivated
+2026-02-05 18:14:41,445 - services.calendar_auth - DEBUG - Storing new credentials...
+2026-02-05 18:14:41,605 - services.calendar_auth - INFO - Successfully stored OAuth credentials for client 1661b43b-2545-4659-80f6-941ebdeb4614
+2026-02-05 18:14:41,606 - services.calendar_auth - DEBUG - Credential ID: e61d89f7-307a-456a-b2b8-4e844b587c55
+2026-02-06 10:01:13,273 - services.calendar_auth - INFO - Successfully refreshed OAuth token for credential e61d89f7-307a-456a-b2b8-4e844b587c55

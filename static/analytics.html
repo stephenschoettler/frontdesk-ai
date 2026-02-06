@@ -19,28 +19,17 @@
       body {
         padding-bottom: 50px;
       }
-      .admin-header {
-        border-bottom: 1px solid var(--theme-bg-mid);
-        padding-bottom: 20px;
-        margin-bottom: 30px;
-      }
       .stat-card {
-        background: rgba(22, 22, 30, 0.6) !important;
-        border: 1px dashed var(--theme-bg-mid) !important;
-        transition: all 0.2s ease;
-      }
-      .stat-card:hover {
-        border-color: var(--theme-purple) !important;
-        box-shadow: 0 0 15px rgba(187, 154, 247, 0.1);
+        background: var(--theme-bg-transparent) !important;
+        border: 1px solid var(--theme-bg-mid) !important;
       }
       .stat-value {
         font-size: 2rem;
         font-weight: 700;
         color: var(--theme-fg);
-        text-shadow: 0 0 10px rgba(192, 202, 245, 0.3);
       }
       .stat-label {
-        color: var(--theme-comment);
+        color: var(--theme-muted);
         text-transform: uppercase;
         letter-spacing: 2px;
         font-size: 0.75rem;
@@ -53,54 +42,36 @@
         height: 500px;
         margin-top: 30px;
       }
-
-      /* --- FIX FOR VUE MANUAL MODALS (No Backdrop Element) --- */
-      /* Since there is no .modal-backdrop div, we dim the .modal container itself */
-      #app .modal.show {
-        background-color: rgba(0, 0, 0, 0.6) !important; /* The Dim */
-        -webkit-backdrop-filter: blur(8px) !important; /* The Blur */
-        backdrop-filter: blur(8px) !important;
-      }
     </style>
   </head>
   <body>
     <div id="app" class="container-fluid p-4">
-      <div
-        class="d-flex justify-content-between align-items-center admin-header"
-      >
-        <div class="d-flex align-items-center gap-3">
-          <h3 class="mb-0 text-purple" style="letter-spacing: 2px">
-            <i class="bi bi-graph-up me-2"></i>BOARDROOM
-          </h3>
-          <span class="badge bg-secondary text-muted" style="font-size: 0.7rem">
-            FINANCIAL ANALYTICS
+      <!-- Navbar -->
+      <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+          <span class="navbar-brand mb-0">
+            <i class="bi bi-graph-up me-2"></i>ANALYTICS
           </span>
+          <div class="navbar-nav ms-auto d-flex align-items-center gap-2">
+            <a href="monitor.html" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-eye me-1"></i>MONITOR
+            </a>
+            <button class="btn btn-sm btn-outline-secondary" @click="openSettings">
+              <i class="bi bi-wallet2"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" @click="fetchData">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+            <a
+              href="javascript:void(0)"
+              onclick="logout()"
+              class="btn btn-sm btn-outline-secondary"
+            >
+              <i class="bi bi-box-arrow-right"></i>
+            </a>
+          </div>
         </div>
-        <div>
-          <a href="monitor.html" class="btn btn-outline-info btn-sm me-2">
-            <i class="bi bi-eye"></i> Monitor
-          </a>
-          <a href="analytics.html" class="btn btn-primary btn-sm me-2">
-            <i class="bi bi-bar-chart"></i> Analytics
-          </a>
-          <button
-            class="btn btn-sm btn-outline-warning me-2"
-            @click="openSettings"
-          >
-            <i class="bi bi-wallet2"></i> SETTINGS
-          </button>
-          <button class="btn btn-outline-info btn-sm me-2" @click="fetchData">
-            <i class="bi bi-arrow-clockwise"></i> Refresh
-          </button>
-          <a
-            href="javascript:void(0)"
-            onclick="logout()"
-            class="btn btn-sm btn-outline-secondary"
-          >
-            LOGOUT <i class="bi bi-box-arrow-right"></i>
-          </a>
-        </div>
-      </div>
+      </nav>
 
       <div v-if="loading" class="text-center py-5">
         <div
@@ -121,49 +92,125 @@
 
       <div v-else>
         <!-- Summary Cards -->
-        <div class="row mb-5">
+        <div class="row g-3 mb-4">
           <div class="col-md-3">
-            <div class="card stat-card p-4 text-center">
-              <div class="stat-value text-success">
-                ${{ totalRevenue.toFixed(2) }}
-              </div>
-              <div class="stat-label">Total Revenue</div>
+            <div class="card stat-card p-3">
+              <div class="stat-label">REVENUE</div>
+              <div class="stat-value">${{ totalRevenue.toFixed(2) }}</div>
             </div>
           </div>
           <div class="col-md-3">
-            <div class="card stat-card p-4 text-center">
-              <div class="stat-value text-danger">
-                ${{ totalCost.toFixed(2) }}
-              </div>
-              <div class="stat-label">Total Cost</div>
+            <div class="card stat-card p-3">
+              <div class="stat-label">COST</div>
+              <div class="stat-value">${{ totalCost.toFixed(2) }}</div>
             </div>
           </div>
           <div class="col-md-3">
-            <div class="card stat-card p-4 text-center">
-              <div class="stat-value text-info">
-                ${{ totalProfit.toFixed(2) }}
-              </div>
-              <div class="stat-label">Net Profit</div>
+            <div class="card stat-card p-3">
+              <div class="stat-label">PROFIT</div>
+              <div class="stat-value">${{ totalProfit.toFixed(2) }}</div>
             </div>
           </div>
           <div class="col-md-3">
-            <div class="card stat-card p-4 text-center">
-              <div class="stat-value text-warning">
-                {{ margin.toFixed(1) }}%
+            <div class="card stat-card p-3">
+              <div class="stat-label">MARGIN</div>
+              <div class="stat-value">{{ margin.toFixed(1) }}%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cost Breakdown by Service -->
+        <div class="card mb-4">
+          <div class="card-header">
+            <i class="bi bi-pie-chart me-2"></i>COST BREAKDOWN BY SERVICE
+          </div>
+          <div class="card-body">
+            <div v-if="Object.keys(costByService).length === 0" class="text-muted text-center py-4">
+              No service cost data available
+            </div>
+            <div v-else class="row g-3">
+              <div v-for="(data, service) in costByService" :key="service" class="col-md-3">
+                <div class="p-3 border border-secondary border-opacity-25 rounded" style="background: rgba(255,255,255,0.02)">
+                  <div class="text-muted small mb-1 text-uppercase">{{ service.replace('_', ' ') }}</div>
+                  <div class="h5 mb-0 text-fg">${{ data.cost.toFixed(2) }}</div>
+                  <div class="text-muted small">{{ data.quantity.toLocaleString() }} units</div>
+                </div>
               </div>
-              <div class="stat-label">Profit Margin</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Two Column Layout: Top Calls + Client Costs -->
+        <div class="row g-3 mb-4">
+          <!-- Top Expensive Calls -->
+          <div class="col-md-6">
+            <div class="card h-100">
+              <div class="card-header">
+                <i class="bi bi-lightning me-2"></i>TOP EXPENSIVE CALLS
+              </div>
+              <div class="card-body p-0">
+                <div v-if="topCalls.length === 0" class="text-muted text-center py-4">
+                  No call data available
+                </div>
+                <div v-else class="table-responsive">
+                  <table class="table table-custom table-no-hover mb-0">
+                    <thead>
+                      <tr>
+                        <th>Client</th>
+                        <th>Date</th>
+                        <th class="text-end">Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="call in topCalls" :key="call.conversation_id">
+                        <td class="text-purple">{{ call.client_name }}</td>
+                        <td class="text-muted small">{{ new Date(call.created_at).toLocaleDateString() }}</td>
+                        <td class="text-end text-fg fw-bold">${{ call.total_cost }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Client Cost Ranking -->
+          <div class="col-md-6">
+            <div class="card h-100">
+              <div class="card-header">
+                <i class="bi bi-people me-2"></i>CLIENT COST RANKING
+              </div>
+              <div class="card-body p-0">
+                <div v-if="costByClient.length === 0" class="text-muted text-center py-4">
+                  No client cost data available
+                </div>
+                <div v-else class="table-responsive">
+                  <table class="table table-custom table-no-hover mb-0">
+                    <thead>
+                      <tr>
+                        <th>Client</th>
+                        <th class="text-end">Total Cost</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="client in costByClient.slice(0, 10)" :key="client.client_id">
+                        <td class="text-purple">{{ client.client_name }}</td>
+                        <td class="text-end text-fg fw-bold">${{ client.total_cost }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Chart -->
-        <div class="card shadow-lg">
-          <div class="card-header bg-transparent border-0">
-            <h5 class="mb-0 text-white">
-              <i class="bi bi-trending-up me-2"></i>30-Day P&L Trend
-            </h5>
+        <div class="card">
+          <div class="card-header">
+            <i class="bi bi-bar-chart me-2"></i>30-DAY TREND
           </div>
-          <div class="card-body p-0">
+          <div class="card-body">
             <div class="chart-container">
               <canvas id="financialChart"></canvas>
             </div>
@@ -179,27 +226,14 @@
         aria-hidden="true"
       >
         <div class="modal-dialog modal-lg modal-dialog-centered">
-          <div
-            class="modal-content"
-            style="
-              background: var(--theme-bg-dark);
-              border: 1px solid var(--theme-warning);
-              box-shadow: 0 0 20px rgba(255, 193, 7, 0.2);
-            "
-          >
-            <div class="modal-header border-secondary border-opacity-25">
-              <h5
-                class="modal-title text-warning"
-                style="
-                  font-family: &quot;JetBrains Mono&quot;;
-                  letter-spacing: 1px;
-                "
-              >
-                <i class="bi bi-wallet2 me-2"></i>SYSTEM CONFIGURATION
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">
+                <i class="bi bi-gear me-2"></i>SETTINGS
               </h5>
               <button
                 type="button"
-                class="btn-close btn-close-white"
+                class="btn-close"
                 data-bs-dismiss="modal"
                 aria-label="Close"
               ></button>
@@ -246,12 +280,12 @@
                     <!-- Twilio -->
                     <div class="col-md-4">
                       <div
-                        class="p-3 border rounded bg-dark border-secondary border-opacity-25"
+                        class="p-3 border rounded bg-transparent border-secondary border-opacity-25"
                       >
                         <label class="text-muted small d-block mb-1"
                           >TWILIO BALANCE</label
                         >
-                        <div class="h4 mb-0 text-white font-monospace">
+                        <div class="h4 mb-0 text-fg font-monospace">
                           {{ formatMoney(wallet.twilio && wallet.twilio.balance)
                           }}
                         </div>
@@ -264,12 +298,12 @@
                     <!-- OpenRouter -->
                     <div class="col-md-4">
                       <div
-                        class="p-3 border rounded bg-dark border-secondary border-opacity-25"
+                        class="p-3 border rounded bg-transparent border-secondary border-opacity-25"
                       >
                         <label class="text-muted small d-block mb-1"
                           >OPENROUTER</label
                         >
-                        <div class="h4 mb-0 text-white font-monospace">
+                        <div class="h4 mb-0 text-fg font-monospace">
                           {{ getOpenRouterCredits(wallet) }}
                         </div>
                         <div class="small text-muted">Credits Available</div>
@@ -278,12 +312,12 @@
                     <!-- Deepgram -->
                     <div class="col-md-4">
                       <div
-                        class="p-3 border rounded bg-dark border-secondary border-opacity-25"
+                        class="p-3 border rounded bg-transparent border-secondary border-opacity-25"
                       >
                         <label class="text-muted small d-block mb-1"
                           >DEEPGRAM</label
                         >
-                        <div class="h4 mb-0 text-white font-monospace">
+                        <div class="h4 mb-0 text-fg font-monospace">
                           {{ getDeepgramBalance(wallet) }}
                         </div>
                         <div class="small text-muted">Remaining Balance</div>
@@ -320,20 +354,20 @@
                   </p>
 
                   <div class="mb-3 row align-items-center">
-                    <label class="col-sm-6 col-form-label text-white"
+                    <label class="col-sm-6 col-form-label text-fg"
                       >Twilio Voice (Per Min)</label
                     >
                     <div class="col-sm-6 d-flex gap-2">
                       <div class="input-group">
                         <span
-                          class="input-group-text bg-dark border-secondary text-muted"
+                          class="input-group-text bg-transparent border-secondary text-muted"
                           >$</span
                         >
                         <input
                           type="number"
                           v-model="rates.twilio_cost_per_min"
                           step="0.0001"
-                          class="form-control bg-dark text-white border-secondary font-monospace"
+                          class="form-control bg-transparent text-fg border-secondary font-monospace"
                         />
                       </div>
                       <button
@@ -346,20 +380,20 @@
                   </div>
 
                   <div class="mb-3 row align-items-center">
-                    <label class="col-sm-6 col-form-label text-white"
+                    <label class="col-sm-6 col-form-label text-fg"
                       >STT (Deepgram) (Per Min)</label
                     >
                     <div class="col-sm-6 d-flex gap-2">
                       <div class="input-group">
                         <span
-                          class="input-group-text bg-dark border-secondary text-muted"
+                          class="input-group-text bg-transparent border-secondary text-muted"
                           >$</span
                         >
                         <input
                           type="number"
                           v-model="rates.stt_cost_per_min"
                           step="0.0001"
-                          class="form-control bg-dark text-white border-secondary font-monospace"
+                          class="form-control bg-transparent text-fg border-secondary font-monospace"
                         />
                       </div>
                       <button
@@ -372,20 +406,20 @@
                   </div>
 
                   <div class="mb-3 row align-items-center">
-                    <label class="col-sm-6 col-form-label text-white"
+                    <label class="col-sm-6 col-form-label text-fg"
                       >TTS (ElevenLabs) (Per Char)</label
                     >
                     <div class="col-sm-6 d-flex gap-2">
                       <div class="input-group">
                         <span
-                          class="input-group-text bg-dark border-secondary text-muted"
+                          class="input-group-text bg-transparent border-secondary text-muted"
                           >$</span
                         >
                         <input
                           type="number"
                           v-model="rates.tts_cost_per_char"
                           step="0.00001"
-                          class="form-control bg-dark text-white border-secondary font-monospace"
+                          class="form-control bg-transparent text-fg border-secondary font-monospace"
                         />
                       </div>
                       <button
@@ -422,6 +456,213 @@
           const loading = ref(true);
           const token = localStorage.getItem("authToken");
           let chart = null;
+
+          // New detailed analytics data
+          const costByService = ref({});
+          const costByClient = ref([]);
+          const topCalls = ref([]);
+
+          // Theme State
+          const themes = ref([]);
+          const currentTheme = ref(localStorage.getItem("currentTheme") || "tokyo-night-default");
+
+          const loadThemes = () => {
+            const defaultThemes = [
+              {
+                key: "tokyo-night-default",
+                name: "Tokyo Night Default",
+                data: {
+                  background: "#1a1b26",
+                  foreground: "#c0caf5",
+                  cursor: "#7aa2f7",
+                  selection: "#283457",
+                  ansi_colors: {
+                    black: "#15161E",
+                    red: "#F77693",
+                    green: "#9ECE6A",
+                    yellow: "#E0AF68",
+                    blue: "#7AA2F7",
+                    magenta: "#BB9AF7",
+                    cyan: "#7DCFFF",
+                    white: "#A9B1D6",
+                    bright_black: "#414868",
+                    bright_red: "#F77693",
+                    bright_green: "#9ECE6A",
+                    bright_yellow: "#E0AF68",
+                    bright_blue: "#7AA2F7",
+                    bright_magenta: "#BB9AF7",
+                    bright_cyan: "#7DCFFF",
+                    bright_white: "#C0CAF5",
+                  },
+                },
+              },
+              {
+                key: "tokyo-night-day",
+                name: "Tokyo Night Day",
+                data: {
+                  background: "#E2E2E7",
+                  foreground: "#3760BF",
+                  cursor: "#2E7DE9",
+                  selection: "#B7C1E3",
+                  ansi_colors: {
+                    black: "#B3B5B9",
+                    red: "#F52A65",
+                    green: "#587539",
+                    yellow: "#8C6C3E",
+                    blue: "#2E7DE9",
+                    magenta: "#9854F1",
+                    cyan: "#007197",
+                    white: "#6172B0",
+                    bright_black: "#A1A6C5",
+                    bright_red: "#F52A65",
+                    bright_green: "#587539",
+                    bright_yellow: "#8C6C3E",
+                    bright_blue: "#2E7DE9",
+                    bright_magenta: "#9854F1",
+                    bright_cyan: "#007197",
+                    bright_white: "#3760BF",
+                  },
+                },
+              },
+              {
+                key: "iceberg-dark",
+                name: "Iceberg Dark",
+                data: {
+                  background: "#161821",
+                  foreground: "#C7C9D1",
+                  cursor: "#89BFC3",
+                  selection: "#272C41",
+                  ansi_colors: {
+                    black: "#1E212B",
+                    red: "#E2777A",
+                    green: "#B6BA89",
+                    yellow: "#E2A677",
+                    blue: "#83A5AD",
+                    magenta: "#9F91A8",
+                    cyan: "#89BFC3",
+                    white: "#C7C9D1",
+                    bright_black: "#6B7089",
+                    bright_red: "#E98A8A",
+                    bright_green: "#C0CAF5",
+                    bright_yellow: "#E9B18A",
+                    bright_blue: "#91A9C6",
+                    bright_magenta: "#AD9FAD",
+                    bright_cyan: "#95C4CC",
+                    bright_white: "#D2D4DD",
+                  },
+                },
+              },
+              {
+                key: "iceberg-light",
+                name: "Iceberg Light",
+                data: {
+                  background: "#E8E9EC",
+                  foreground: "#33374C",
+                  cursor: "#3F83A6",
+                  selection: "#CAD0D7",
+                  ansi_colors: {
+                    black: "#DCDFE7",
+                    red: "#CC517A",
+                    green: "#668E3D",
+                    yellow: "#C57339",
+                    blue: "#2D539E",
+                    magenta: "#7759B5",
+                    cyan: "#3F83A6",
+                    white: "#33374C",
+                    bright_black: "#838A96",
+                    bright_red: "#CC3768",
+                    bright_green: "#598030",
+                    bright_yellow: "#B6662D",
+                    bright_blue: "#22478E",
+                    bright_magenta: "#6845AD",
+                    bright_cyan: "#327698",
+                    bright_white: "#3D425E",
+                  },
+                },
+              },
+            ];
+            themes.value = defaultThemes;
+            applyTheme(currentTheme.value);
+          };
+
+          const getBrightness = (hexColor) => {
+             const color = hexColor.replace("#", "");
+             const r = parseInt(color.substr(0, 2), 16);
+             const g = parseInt(color.substr(2, 2), 16);
+             const b = parseInt(color.substr(4, 2), 16);
+             return (r * 299 + g * 587 + b * 114) / 1000;
+          };
+
+          const applyTheme = (themeKey) => {
+            const theme = themes.value.find((t) => t.key === themeKey);
+            if (!theme) return;
+            const root = document.documentElement;
+            const themeData = theme.data;
+            root.style.setProperty("--theme-bg", themeData.background || "#1a1b26");
+            root.style.setProperty("--theme-fg", themeData.foreground || "#c0caf5");
+            root.style.setProperty("--theme-cursor", themeData.cursor || "#7aa2f7");
+            root.style.setProperty("--theme-selection", themeData.selection || "#283457");
+
+            const bgBrightness = getBrightness(themeData.background || "#1a1b26");
+            const isLightTheme = bgBrightness > 128;
+            const mutedColor = isLightTheme ? "#555" : "#888";
+            root.style.setProperty("--theme-muted", mutedColor);
+
+            const ansiColors = themeData.ansi_colors;
+            if (ansiColors) {
+               root.style.setProperty("--theme-bg-transparent", ansiColors.black || "#16161e");
+               root.style.setProperty("--theme-bg-mid", ansiColors.bright_black || "#2a2a37");
+               root.style.setProperty("--theme-card-bg", ansiColors.black || "#16161e");
+               root.style.setProperty("--theme-blue", ansiColors.blue || "#7dcfff");
+               root.style.setProperty("--theme-purple", ansiColors.magenta || "#bb9af7");
+               root.style.setProperty("--theme-green", ansiColors.green || "#9ece6a");
+               root.style.setProperty("--theme-yellow", ansiColors.yellow || "#e0af68");
+               root.style.setProperty("--theme-orange", ansiColors.yellow || "#e0af68");
+               root.style.setProperty("--theme-red", ansiColors.red || "#f7768e");
+               root.style.setProperty("--theme-cyan", ansiColors.cyan || "#7dcfff");
+               root.style.setProperty("--theme-comment", ansiColors.bright_black || "#565f89");
+               root.style.setProperty("--theme-logo-white", ansiColors.bright_white || "#ffffff");
+
+               root.style.setProperty("--theme-black-bright", ansiColors.bright_black || "#414868");
+               root.style.setProperty("--theme-red-bright", ansiColors.bright_red || "#f7768e");
+               root.style.setProperty("--theme-green-bright", ansiColors.bright_green || "#9ece6a");
+               root.style.setProperty("--theme-yellow-bright", ansiColors.bright_yellow || "#e0af68");
+               root.style.setProperty("--theme-blue-bright", ansiColors.bright_blue || "#7aa2f7");
+               root.style.setProperty("--theme-magenta-bright", ansiColors.bright_magenta || "#bb9af7");
+               root.style.setProperty("--theme-cyan-bright", ansiColors.bright_cyan || "#7dcfff");
+               root.style.setProperty("--theme-white-bright", ansiColors.bright_white || "#c0caf5");
+            }
+
+            root.style.setProperty("--theme-border-active", "2px");
+            root.style.setProperty("--theme-tools-bg", "transparent");
+            root.style.setProperty("--theme-tools-border", "var(--theme-bg-mid)");
+            root.style.setProperty("--theme-tools-label", "var(--theme-purple)");
+
+            if (isLightTheme) {
+               root.style.setProperty("--theme-bg-transparent", "#ffffff");
+               root.style.setProperty("--theme-card-bg", "#ffffff");
+               root.style.setProperty("--theme-bg-mid", "#b4b9c9");
+               root.style.setProperty("--theme-table-stripe", "rgba(0, 0, 0, 0.03)");
+               root.style.setProperty("--theme-table-hover", "rgba(46, 125, 233, 0.1)");
+               root.style.setProperty("--theme-btn-glow", "rgba(0, 0, 0, 0.1)");
+               root.style.setProperty("--theme-text-glow", "none");
+               root.style.setProperty("--theme-gradient-1", "rgba(55, 96, 191, 0.15)");
+               root.style.setProperty("--theme-gradient-2", "rgba(120, 117, 213, 0.15)");
+               root.style.setProperty("--theme-border-active", "3px");
+               root.style.setProperty("--theme-tools-bg", "rgba(158, 206, 106, 0.15)");
+               root.style.setProperty("--theme-tools-border", "rgba(88, 117, 57, 0.5)");
+               root.style.setProperty("--theme-tools-label", "#3c5220");
+            } else {
+               root.style.setProperty("--theme-gradient-1", "rgba(122, 162, 247, 0.08)");
+               root.style.setProperty("--theme-gradient-2", "rgba(187, 154, 247, 0.08)");
+            }
+
+            currentTheme.value = themeKey;
+            localStorage.setItem("currentTheme", themeKey);
+            
+            // Re-render chart if it exists to pick up new colors
+            if (chart) renderChart();
+          };
 
           // Settings State
           const wallet = ref({});
@@ -494,10 +735,28 @@
             }
             try {
               loading.value = true;
-              const res = await axios.get("/api/admin/analytics", {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              data.value = res.data || [];
+
+              // Fetch all analytics data in parallel
+              const [mainRes, serviceRes, clientRes, callsRes] = await Promise.all([
+                axios.get("/api/admin/analytics", {
+                  headers: { Authorization: `Bearer ${token}` },
+                }),
+                axios.get("/api/admin/analytics/by-service", {
+                  headers: { Authorization: `Bearer ${token}` },
+                }),
+                axios.get("/api/admin/analytics/by-client", {
+                  headers: { Authorization: `Bearer ${token}` },
+                }),
+                axios.get("/api/admin/analytics/top-calls", {
+                  headers: { Authorization: `Bearer ${token}` },
+                }),
+              ]);
+
+              data.value = mainRes.data || [];
+              costByService.value = serviceRes.data || {};
+              costByClient.value = clientRes.data || [];
+              topCalls.value = callsRes.data || [];
+
               renderChart();
             } catch (e) {
               console.error(e);
@@ -519,6 +778,11 @@
             if (!ctx || data.value.length === 0) return;
 
             if (chart) chart.destroy();
+
+            // Get Theme Colors
+            const style = getComputedStyle(document.documentElement);
+            const colorFg = style.getPropertyValue('--theme-fg').trim() || 'white';
+            const colorBgMid = style.getPropertyValue('--theme-bg-mid').trim() || 'rgba(255,255,255,0.1)';
 
             chart = new Chart(ctx, {
               data: {
@@ -563,16 +827,16 @@
                 scales: {
                   y: {
                     beginAtZero: true,
-                    grid: { color: "rgba(255,255,255,0.1)" },
-                    ticks: { color: "white" },
+                    grid: { color: colorBgMid },
+                    ticks: { color: colorFg },
                   },
                   x: {
-                    grid: { color: "rgba(255,255,255,0.05)" },
-                    ticks: { color: "white", maxRotation: 45 },
+                    grid: { color: colorBgMid },
+                    ticks: { color: colorFg, maxRotation: 45 },
                   },
                 },
                 plugins: {
-                  legend: { labels: { color: "white", usePointStyle: true } },
+                  legend: { labels: { color: colorFg, usePointStyle: true } },
                   tooltip: {
                     backgroundColor: "rgba(0,0,0,0.9)",
                     titleColor: "white",
@@ -588,6 +852,7 @@
           };
 
           onMounted(() => {
+            loadThemes();
             fetchData();
           });
 
@@ -596,11 +861,18 @@
           return {
             data,
             loading,
+            themes,
+            currentTheme,
+            applyTheme,
             totalRevenue,
             totalCost,
             totalProfit,
             margin,
             fetchData,
+            // Detailed analytics
+            costByService,
+            costByClient,
+            topCalls,
             // Settings
             wallet,
             rates,

@@ -35,11 +35,19 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.llm_context import LLMContext
-from pipecat.frames.frames import TextFrame, InputAudioRawFrame, OutputAudioRawFrame
+from pipecat.frames.frames import (
+    TextFrame,
+    InputAudioRawFrame,
+    OutputAudioRawFrame,
+    TTSSpeakFrame,
+    StartFrame,
+    TranscriptionFrame,
+)
 from pipecat.serializers.base_serializer import FrameSerializer
 from pipecat.serializers.twilio import TwilioFrameSerializer
 from pipecat.services.deepgram.stt import DeepgramSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
+from pipecat.services.cartesia.tts import CartesiaTTSService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketParams,
@@ -236,6 +244,7 @@ async def initialize_client_services(
     system_prompt = client_config.get("system_prompt", "You are an AI receptionist.")
     llm_model = client_config.get("llm_model", "openai/gpt-4o-mini")
     stt_model = client_config.get("stt_model", "nova-2-phonecall")
+    tts_provider = client_config.get("tts_provider", "cartesia")  # Default to Cartesia for cost savings
     tts_model = client_config.get("tts_model", "eleven_flash_v2_5")
     tts_voice_id = client_config.get("tts_voice_id", "21m00Tcm4TlvDq8ikWAM")
     initial_greeting = client_config.get("initial_greeting")
@@ -254,17 +263,31 @@ async def initialize_client_services(
         vad_events=True,
     )
 
-    logger.info(f"[TTS DEBUG] Initializing ElevenLabs TTS - Voice: {tts_voice_id}, Model: {tts_model}")
-    logger.info(f"[TTS DEBUG] ElevenLabs API Key present: {bool(os.environ.get('ELEVENLABS_API_KEY'))}")
+    # Initialize TTS service based on provider
+    if tts_provider == "cartesia":
+        logger.info(f"[TTS DEBUG] Initializing Cartesia TTS - Voice: {tts_voice_id}")
+        logger.info(f"[TTS DEBUG] Cartesia API Key present: {bool(os.environ.get('CARTESIA_API_KEY'))}")
 
-    tts = ElevenLabsTTSService(
-        api_key=os.environ["ELEVENLABS_API_KEY"],
-        voice_id=tts_voice_id,
-        model_id=tts_model,
-        optimize_streaming_latency=4,
-    )
+        tts = CartesiaTTSService(
+            api_key=os.environ["CARTESIA_API_KEY"],
+            voice_id=tts_voice_id,
+            model="sonic-3",  # Cartesia's default model
+        )
 
-    logger.info(f"[TTS DEBUG] ElevenLabs TTS service created successfully")
+        logger.info(f"[TTS DEBUG] Cartesia TTS service created successfully")
+
+    else:  # elevenlabs
+        logger.info(f"[TTS DEBUG] Initializing ElevenLabs TTS - Voice: {tts_voice_id}, Model: {tts_model}")
+        logger.info(f"[TTS DEBUG] ElevenLabs API Key present: {bool(os.environ.get('ELEVENLABS_API_KEY'))}")
+
+        tts = ElevenLabsTTSService(
+            api_key=os.environ["ELEVENLABS_API_KEY"],
+            voice_id=tts_voice_id,
+            model_id=tts_model,
+            optimize_streaming_latency=4,
+        )
+
+        logger.info(f"[TTS DEBUG] ElevenLabs TTS service created successfully")
 
     class DebugLLM(OpenAILLMService):
         async def run_llm(self, *args, **kwargs):
@@ -476,6 +499,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
         {"role": "system", "content": f"Current date: {current_date}."},
     ]
 
+    # Add initial greeting to context so LLM knows it was said
+    if initial_greeting:
+        messages.append({"role": "assistant", "content": initial_greeting})
+        logger.info(f"[GREETING DEBUG] Added greeting to context: {initial_greeting[:50]}...")
+
     # Tool Registration
     from pipecat.adapters.schemas.tools_schema import ToolsSchema
     from pipecat.adapters.schemas.direct_function import DirectFunctionWrapper
@@ -517,21 +545,22 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
 
     logger.info(f"[PIPELINE DEBUG] PipelineTask created with sample rates: in=8000, out=8000")
 
-    # --- Initial Greeting ---
-    if initial_greeting:
-        logger.info(f"[GREETING DEBUG] Queuing initial greeting: {initial_greeting[:50]}...")
-        parts = initial_greeting.split(".", 1)
-        if len(parts) == 2:
-            await task.queue_frames(
-                [TextFrame(parts[0].strip() + "."), TextFrame(parts[1].strip())]
-            )
-        else:
-            await task.queue_frames([TextFrame(initial_greeting)])
-        logger.info(f"[GREETING DEBUG] Initial greeting frames queued")
-
     logger.info(f"[RUNNER DEBUG] Starting pipeline runner for call")
     runner_task = asyncio.create_task(runner.run(task))
     logger.info(f"[RUNNER DEBUG] Pipeline runner task created and running")
+
+    # --- Trigger Initial Greeting ---
+    # If initial greeting is configured, send it directly as TTS output
+    if initial_greeting:
+        async def trigger_greeting():
+            logger.info(f"[GREETING DEBUG] Waiting for transport to be ready...")
+            await asyncio.sleep(1.0)  # Wait for transport to be ready
+            logger.info(f"[GREETING DEBUG] Sending greeting as TTS: {initial_greeting[:50]}...")
+            # Send greeting directly to TTS
+            await task.queue_frames([TTSSpeakFrame(initial_greeting)])
+            logger.info(f"[GREETING DEBUG] Greeting sent to TTS")
+
+        asyncio.create_task(trigger_greeting())
 
     # 2. MONITOR: Safety Valve & Cutoff
     call_start_time = datetime.datetime.now()

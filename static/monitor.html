@@ -19,28 +19,20 @@
       body {
         padding-bottom: 50px;
       }
-      .admin-header {
-        border-bottom: 1px solid var(--theme-bg-mid);
-        padding-bottom: 20px;
-        margin-bottom: 30px;
+      .border-red {
+        border-color: var(--theme-red) !important;
       }
       .stat-card {
-        background: rgba(22, 22, 30, 0.6) !important;
-        border: 1px dashed var(--theme-bg-mid) !important;
-        transition: all 0.2s ease;
-      }
-      .stat-card:hover {
-        border-color: var(--theme-purple) !important;
-        box-shadow: 0 0 15px rgba(187, 154, 247, 0.1);
+        background: var(--theme-bg-dark) !important;
+        border: 1px solid var(--theme-bg-mid) !important;
       }
       .stat-value {
         font-size: 2rem;
         font-weight: 700;
         color: var(--theme-fg);
-        text-shadow: 0 0 10px rgba(192, 202, 245, 0.3);
       }
       .stat-label {
-        color: var(--theme-comment);
+        color: var(--theme-muted);
         text-transform: uppercase;
         letter-spacing: 2px;
         font-size: 0.75rem;
@@ -96,12 +88,43 @@
   </head>
   <body>
     <div id="app" class="container-fluid p-4">
-      <div
-        class="d-flex justify-content-between align-items-center admin-header"
-      ></div>
+      <!-- Navbar -->
+      <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container-fluid">
+          <span class="navbar-brand mb-0">
+            <i class="bi bi-eye-fill me-2"></i>OVERWATCH
+          </span>
+          <div class="navbar-nav ms-auto d-flex align-items-center gap-2">
+            <a href="analytics.html" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-bar-chart me-1"></i>ANALYTICS
+            </a>
+            <button class="btn btn-sm btn-outline-secondary" @click="openSettings">
+              <i class="bi bi-gear"></i>
+            </button>
+            <button
+              class="btn btn-sm btn-outline-secondary"
+              @click="showDebug = !showDebug"
+            >
+              <i class="bi bi-bug me-1"></i>{{ showDebug ? 'HIDE DEBUG' : 'DEBUG' }}
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" @click="fetchData">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+            <a
+              href="javascript:void(0)"
+              onclick="logout()"
+              class="btn btn-sm btn-outline-secondary"
+            >
+              <i class="bi bi-box-arrow-right"></i>
+            </a>
+          </div>
+        </div>
+      </nav>
+
       <div
         v-if="isLoading"
-        class="d-flex justify-content-center align-items-center min-vh-50 mt-5"
+        class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
+        style="z-index: 2000; background: var(--theme-bg);"
       >
         <div class="text-center">
           <div
@@ -114,172 +137,90 @@
         </div>
       </div>
       <div v-else>
-        <div class="d-flex align-items-center gap-3">
-          <h3 class="mb-0 text-purple" style="letter-spacing: 2px">
-            <i class="bi bi-eye-fill me-2"></i>OVERWATCH
-          </h3>
-          <span class="badge bg-secondary text-muted" style="font-size: 0.7rem"
-            >ADMIN CONSOLE</span
-          >
-        </div>
-        <div>
-          <a href="analytics.html" class="btn btn-outline-info btn-sm me-2">
-            <i class="bi bi-bar-chart"></i> Analytics
-          </a>
-          <button
-            class="btn btn-sm btn-outline-warning me-2"
-            @click="showDebug = !showDebug"
-          >
-            <i class="bi bi-bug"></i> {{ showDebug ? 'HIDE X-RAY' : 'X-RAY' }}
-          </button>
 
-          <button class="btn btn-outline-info btn-sm" @click="fetchData">
-            <i class="bi bi-arrow-clockwise"></i> REFRESH DATA
-          </button>
-          <a
-            href="javascript:void(0)"
-            onclick="logout()"
-            class="btn btn-sm btn-outline-secondary ms-2"
-          >
-            LOGOUT <i class="bi bi-box-arrow-right"></i>
-          </a>
-        </div>
-      </div>
-
-      <div class="row mb-4">
+      <!-- Stats Row -->
+      <div class="row g-3 mb-4">
         <div class="col-md-3">
           <div class="card stat-card p-3">
-            <div class="stat-value text-blue">{{ users.length }}</div>
-            <div class="stat-label">Total Users</div>
+            <div class="stat-label">USERS</div>
+            <div class="stat-value">{{ users.length }}</div>
           </div>
         </div>
         <div class="col-md-3">
           <div class="card stat-card p-3">
-            <div class="stat-value text-purple">{{ clients.length }}</div>
-            <div class="stat-label">Total Clients</div>
+            <div class="stat-label">CLIENTS</div>
+            <div class="stat-value">{{ clients.length }}</div>
           </div>
         </div>
         <div class="col-md-3">
           <div class="card stat-card p-3">
-            <div class="stat-value text-success">
-              {{ formatDuration(totalSystemBalance) }}
-            </div>
-            <div class="stat-label">Global Balance Reserve</div>
+            <div class="stat-label">BALANCE RESERVE</div>
+            <div class="stat-value">{{ formatDuration(totalSystemBalance) }}</div>
           </div>
         </div>
         <div class="col-md-3">
           <div class="card stat-card p-3">
-            <div class="stat-value text-warning">{{ orphanClients }}</div>
-            <div class="stat-label">Orphaned Clients (No Owner)</div>
+            <div class="stat-label">ORPHANED</div>
+            <div class="stat-value">{{ orphanClients }}</div>
           </div>
         </div>
       </div>
 
-      <div v-if="showDebug" class="card mb-4 border-warning">
-        <div class="card-header text-warning bg-transparent border-warning">
-          <i class="bi bi-code-slash"></i> RAW DATA STREAM
+      <!-- Debug Info -->
+      <div v-if="showDebug" class="card mb-4">
+        <div class="card-header">
+          <i class="bi bi-bug me-2"></i>DEBUG INFO
         </div>
-        <div
-          class="card-body bg-black p-3"
-          style="
-            font-family: monospace;
-            max-height: 200px;
-            overflow-y: auto;
-            color: #0f0;
-          "
-        >
-          <div>> FETCH_TIMESTAMP: {{ new Date().toISOString() }}</div>
-          <div>> USERS_LOADED: {{ users.length }}</div>
-          <div>> CLIENTS_LOADED: {{ clients.length }}</div>
-          <div v-for="u in users.slice(0,3)" :key="u.id" class="text-muted">
-            > USER_PREVIEW: {{ u.email }} [{{ u.id }}]
+        <div class="card-body p-3" style="font-family: 'JetBrains Mono', monospace; max-height: 200px; overflow-y: auto; font-size: 0.85rem;">
+          <div class="text-muted">> TIMESTAMP: {{ new Date().toISOString() }}</div>
+          <div class="text-fg">> USERS: {{ users.length }}</div>
+          <div class="text-fg">> CLIENTS: {{ clients.length }}</div>
+          <div v-for="u in users.slice(0,3)" :key="u.id" class="text-muted small">
+            > {{ u.email }} [{{ u.id }}]
           </div>
         </div>
       </div>
 
-      <div v-if="activeCalls.length > 0" class="row mb-4">
-        <div class="col-12">
-          <div
-            class="card border-danger"
-            style="background: rgba(255, 0, 0, 0.05) !important"
-          >
+      <!-- Live Calls -->
+      <div v-if="activeCalls.length > 0" class="mb-4">
+        <div class="card border-red" style="background: color-mix(in srgb, var(--theme-red), transparent 95%)">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-broadcast me-2 pulse-icon"></i>LIVE CALLS</span>
+            <span class="badge bg-danger">{{ activeCalls.length }}</span>
+          </div>
+          <div class="card-body d-flex gap-3 overflow-auto">
             <div
-              class="card-header border-danger text-danger d-flex justify-content-between align-items-center"
+              v-for="call in activeCalls"
+              :key="call.call_id"
+              class="card p-3 flex-shrink-0"
+              style="width: 280px; background: var(--theme-bg-dark) !important;"
             >
-              <span
-                ><i class="bi bi-broadcast me-2 pulse-icon"></i>LIVE
-                TRANSMISSIONS</span
-              >
-              <span class="badge bg-danger text-white"
-                >{{ activeCalls.length }} ACTIVE</span
-              >
-            </div>
-            <div class="card-body d-flex gap-3 overflow-auto">
-              <div
-                v-for="call in activeCalls"
-                :key="call.call_id"
-                class="card p-3 border-danger flex-shrink-0"
-                style="
-                  width: 300px;
-                  background: #000 !important;
-                  box-shadow: 0 0 15px rgba(255, 0, 0, 0.2);
-                "
-              >
-                <div class="d-flex justify-content-between mb-2">
-                  <span class="text-danger fw-bold small">ON AIR</span>
-                  <span class="font-monospace small text-muted"
-                    >{{ formatDuration(calculateDuration(call.start_time))
-                    }}</span
-                  >
-                </div>
-                <h5 class="text-white mb-1">{{ call.client_name }}</h5>
-                <div class="text-muted small font-monospace">
-                  {{ call.caller_phone }}
-                </div>
-                <div
-                  class="mt-2 pt-2 border-top border-secondary border-opacity-25 text-end"
-                >
-                  <small class="text-secondary"
-                    >OWNER: {{ truncateId(call.owner_user_id) }}</small
-                  >
-                </div>
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-red fw-bold small text-uppercase">ACTIVE</span>
+                <span class="small text-muted">{{ formatDuration(calculateDuration(call.start_time)) }}</span>
+              </div>
+              <div class="text-purple fw-bold mb-1">{{ call.client_name }}</div>
+              <div class="text-muted small">{{ call.caller_phone }}</div>
+              <div class="mt-2 pt-2 border-top border-secondary border-opacity-25">
+                <small class="text-muted">{{ truncateId(call.owner_user_id) }}</small>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="row mb-4">
+      <!-- Usage Stats -->
+      <div class="row g-3 mb-4">
         <div class="col-md-6">
-          <div class="card stat-card p-3 border-info">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <div class="stat-label text-info">Global Daily Usage</div>
-                <div class="stat-value text-white">
-                  {{ formatDuration(total_usage_today) }}
-                </div>
-              </div>
-              <i
-                class="bi bi-calendar-day text-info"
-                style="font-size: 2rem; opacity: 0.5"
-              ></i>
-            </div>
+          <div class="card stat-card p-3">
+            <div class="stat-label">DAILY USAGE</div>
+            <div class="stat-value">{{ formatDuration(total_usage_today) }}</div>
           </div>
         </div>
         <div class="col-md-6">
-          <div class="card stat-card p-3 border-success">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <div class="stat-label text-success">Global Monthly Usage</div>
-                <div class="stat-value text-white">
-                  {{ formatDuration(total_usage_month) }}
-                </div>
-              </div>
-              <i
-                class="bi bi-calendar-month text-success"
-                style="font-size: 2rem; opacity: 0.5"
-              ></i>
-            </div>
+          <div class="card stat-card p-3">
+            <div class="stat-label">MONTHLY USAGE</div>
+            <div class="stat-value">{{ formatDuration(total_usage_month) }}</div>
           </div>
         </div>
       </div>
@@ -301,7 +242,7 @@
             </div>
             <div
               class="card-body p-0 table-responsive"
-              style="max-height: 600px"
+              style="max-height: calc(100vh - 400px); min-height: 500px;"
             >
               <table class="table table-custom table-hover mb-0">
                 <thead>
@@ -365,73 +306,45 @@
           <div
             v-if="!selectedUser"
             class="h-100 d-flex flex-column justify-content-center align-items-center text-muted border border-secondary border-opacity-25 rounded p-5"
-            style="border-style: dashed !important"
           >
-            <i
-              class="bi bi-terminal mb-3"
-              style="font-size: 3rem; opacity: 0.3"
-            ></i>
-            <h5 style="letter-spacing: 2px">SELECT A USER TARGET</h5>
-            <p class="small">View clients, balances, and ledger history.</p>
+            <i class="bi bi-terminal mb-3" style="font-size: 3rem; opacity: 0.3"></i>
+            <div class="text-uppercase" style="letter-spacing: 2px">SELECT USER</div>
+            <p class="small text-muted">View clients, balances, and activity</p>
           </div>
 
-          <div v-else class="card border-purple shadow-lg h-100">
-            <div
-              class="card-header bg-transparent border-purple d-flex justify-content-between align-items-center"
-            >
+          <div v-else class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
               <div>
-                <span class="text-muted small d-block">TARGET IDENTIFIER</span>
-                <h4 class="text-white mb-0">{{ selectedUser.email }}</h4>
+                <div class="text-muted small text-uppercase">USER</div>
+                <div class="text-purple fw-bold">{{ selectedUser.email }}</div>
               </div>
-              <div class="text-end font-monospace text-muted small">
-                ID: {{ selectedUser.id }}
-              </div>
+              <div class="text-muted small">{{ selectedUser.id }}</div>
             </div>
 
             <div class="card-body">
               <div class="row mb-4 g-2">
                 <div class="col-md-3">
-                  <div
-                    class="p-3 border border-secondary border-opacity-25 rounded bg-dark"
-                  >
-                    <label class="text-warning small mb-1"
-                      >AGGREGATE BALANCE</label
-                    >
-                    <div class="h4 mb-0 font-monospace">
-                      {{ formatDuration(getUserTotalBalance(selectedUser.id)) }}
-                    </div>
+                  <div class="p-3 border border-secondary border-opacity-25 rounded" style="background: rgba(255,255,255,0.02)">
+                    <div class="text-muted small mb-1">BALANCE</div>
+                    <div class="h5 mb-0 text-fg">{{ formatDuration(getUserTotalBalance(selectedUser.id)) }}</div>
                   </div>
                 </div>
                 <div class="col-md-3">
-                  <div
-                    class="p-3 border border-secondary border-opacity-25 rounded bg-dark"
-                  >
-                    <label class="text-success small mb-1">USER DAILY</label>
-                    <div class="h4 mb-0 font-monospace">
-                      {{ formatDuration(getUserTotalUsage(selectedUser.id,
-                      'usage_today')) }}
-                    </div>
+                  <div class="p-3 border border-secondary border-opacity-25 rounded" style="background: rgba(255,255,255,0.02)">
+                    <div class="text-muted small mb-1">DAILY</div>
+                    <div class="h5 mb-0 text-fg">{{ formatDuration(getUserTotalUsage(selectedUser.id, 'usage_today')) }}</div>
                   </div>
                 </div>
                 <div class="col-md-3">
-                  <div
-                    class="p-3 border border-secondary border-opacity-25 rounded bg-dark"
-                  >
-                    <label class="text-purple small mb-1">USER MONTHLY</label>
-                    <div class="h4 mb-0 font-monospace">
-                      {{ formatDuration(getUserTotalUsage(selectedUser.id,
-                      'usage_month')) }}
-                    </div>
+                  <div class="p-3 border border-secondary border-opacity-25 rounded" style="background: rgba(255,255,255,0.02)">
+                    <div class="text-muted small mb-1">MONTHLY</div>
+                    <div class="h5 mb-0 text-fg">{{ formatDuration(getUserTotalUsage(selectedUser.id, 'usage_month')) }}</div>
                   </div>
                 </div>
                 <div class="col-md-3">
-                  <div
-                    class="p-3 border border-secondary border-opacity-25 rounded bg-dark"
-                  >
-                    <label class="text-info small mb-1">CLIENT COUNT</label>
-                    <div class="h4 mb-0 font-monospace">
-                      {{ getClientCount(selectedUser.id) }} active
-                    </div>
+                  <div class="p-3 border border-secondary border-opacity-25 rounded" style="background: rgba(255,255,255,0.02)">
+                    <div class="text-muted small mb-1">CLIENTS</div>
+                    <div class="h5 mb-0 text-fg">{{ getClientCount(selectedUser.id) }}</div>
                   </div>
                 </div>
               </div>
@@ -449,7 +362,7 @@
                 No clients provisioned for this user.
               </div>
 
-              <div v-else class="table-responsive">
+              <div v-else class="table-responsive" style="max-height: calc(100vh - 600px); overflow-y: auto;">
                 <table class="table table-custom align-middle">
                   <thead>
                     <tr>
@@ -466,6 +379,9 @@
                     <tr
                       v-for="c in getUserClients(selectedUser.id)"
                       :key="c.id"
+                      @click="selectClient(c)"
+                      class="user-row"
+                      :class="{ 'active-row': selectedClient && selectedClient.id === c.id }"
                     >
                       <td>
                         <span class="fw-bold">{{ c.name }}</span><br />
@@ -496,22 +412,22 @@
                       <td class="font-monospace">
                         {{ formatDuration(c.balance_seconds || 0) }}
                       </td>
-                      <td class="font-monospace text-muted small">
+                      <td class="font-monospace text-info small">
                         {{ formatDuration(c.usage_today) }}
                       </td>
-                      <td class="font-monospace text-muted small">
+                      <td class="font-monospace text-success small">
                         {{ formatDuration(c.usage_month) }}
                       </td>
                       <td class="text-end">
                         <button
                           class="btn btn-sm btn-outline-primary me-1"
-                          @click="openEditModal(c)"
+                          @click.stop="openEditModal(c)"
                         >
                           <i class="bi bi-pencil"></i>
                         </button>
                         <button
-                          class="btn btn-sm btn-outline-secondary"
-                          @click="openHistoryModal(c)"
+                          class="btn btn-sm btn-outline-secondary border-0"
+                          @click.stop="openHistoryModal(c)"
                         >
                           <i class="bi bi-clock-history"></i>
                         </button>
@@ -525,6 +441,19 @@
               class="card-footer bg-transparent border-top border-secondary border-opacity-25 text-end"
             >
               <button
+                v-if="getUserClients(selectedUser.id).length > 0"
+                class="btn btn-sm me-2"
+                :class="selectedClient && selectedClient.is_active ? 'btn-outline-danger' : 'btn-outline-success'"
+                @click="selectedClient && toggleClientStatus(selectedClient)"
+                :disabled="!selectedClient"
+              >
+                <i
+                  class="bi"
+                  :class="selectedClient && selectedClient.is_active ? 'bi-power' : 'bi-plug'"
+                ></i>
+                {{ selectedClient ? (selectedClient.is_active ? 'DISABLE CLIENT' : 'ENABLE CLIENT') : 'SELECT A CLIENT' }}
+              </button>
+              <button
                 class="btn btn-sm"
                 :class="selectedUser.is_active ? 'btn-outline-danger' : 'btn-outline-success'"
                 @click="toggleUserStatus(selectedUser)"
@@ -536,7 +465,7 @@
                 {{ selectedUser.is_active ? 'DISABLE USER' : 'ENABLE USER' }}
               </button>
               <button
-                class="btn btn-sm btn-outline-info ms-2"
+                class="btn btn-sm btn-outline-secondary ms-2"
                 @click="openLedgerModal"
               >
                 <i class="bi bi-credit-card"></i> ADJUST LEDGER
@@ -545,7 +474,6 @@
           </div>
         </div>
       </div>
-
 
       <!-- ADJUST LEDGER MODAL -->
       <div class="modal fade" id="ledgerModal" tabindex="-1" aria-hidden="true">
@@ -729,33 +657,23 @@
               box-shadow: 0 0 20px rgba(187, 154, 247, 0.2);
             "
           >
-            <div class="modal-header border-secondary border-opacity-25">
-              <h5
-                class="modal-title text-purple"
-                style="
-                  font-family: &quot;JetBrains Mono&quot;;
-                  letter-spacing: 1px;
-                "
-              >
-                <i class="bi bi-pencil-square me-2"></i>EDIT CLIENT
+            <div class="modal-header">
+              <h5 class="modal-title">
+                Edit Client
               </h5>
 
               <div class="ms-auto d-flex align-items-center gap-3">
                 <button
                   type="submit"
                   form="editClientForm"
-                  class="btn btn-sm btn-primary"
+                  class="btn btn-sm btn-edit"
                   :disabled="isSubmitting"
                 >
-                  <span
-                    v-if="isSubmitting"
-                    class="spinner-border spinner-border-sm me-2"
-                  ></span>
                   {{ isSubmitting ? 'SAVING...' : 'SAVE' }}
                 </button>
                 <button
                   type="button"
-                  class="btn-close btn-close-white"
+                  class="btn-close m-0"
                   data-bs-dismiss="modal"
                   aria-label="Close"
                 ></button>
@@ -805,9 +723,7 @@
                 id="editClientForm"
                 @submit.prevent="submitEditClient"
               >
-                <ul
-                  class="nav nav-tabs mb-3 border-secondary border-opacity-25"
-                >
+                <ul class="nav nav-tabs mb-3">
                   <li class="nav-item">
                     <a
                       class="nav-link"
@@ -851,24 +767,20 @@
                     <div class="row">
                       <div class="col-md-6">
                         <div class="mb-3">
-                          <label class="form-label text-muted small"
-                            >Name *</label
-                          >
+                          <label class="form-label">Name *</label>
                           <input
                             v-model="editForm.name"
                             type="text"
-                            class="form-control bg-dark text-white border-secondary"
+                            class="form-control"
                             required
                           />
                         </div>
                         <div class="mb-3">
-                          <label class="form-label text-muted small"
-                            >Cell Phone</label
-                          >
+                          <label class="form-label">Cell Phone</label>
                           <input
                             v-model="editForm.cell"
                             type="text"
-                            class="form-control bg-dark text-white border-secondary"
+                            class="form-control"
                           />
                           <div class="form-text text-muted">
                             Admin Override: Enter full E.164 format (e.g.
@@ -876,39 +788,32 @@
                           </div>
                         </div>
                         <div class="mb-3">
-                          <label class="form-label text-muted small"
-                            >Calendar ID</label
-                          >
+                          <label class="form-label">Calendar ID</label>
                           <input
                             v-model="editForm.calendar_id"
                             type="text"
-                            class="form-control bg-dark text-white border-secondary"
+                            class="form-control"
                           />
                         </div>
-                        <div
-                          class="form-check form-switch p-3 border border-secondary border-opacity-25 rounded bg-dark mb-3"
-                        >
-                          <input
-                            class="form-check-input"
-                            type="checkbox"
-                            id="clientActiveSwitch"
-                            v-model="editForm.is_active"
-                          />
-                          <label
-                            class="form-check-label text-white ms-2"
-                            for="clientActiveSwitch"
-                            >Agent Active Status</label
-                          >
+                        
+                        <!-- Admin Specific Active Switch -->
+                        <div class="mb-3 p-3 border rounded">
+                           <div class="form-check form-switch">
+                             <input class="form-check-input" type="checkbox" id="clientLockSwitch" v-model="editForm.is_locked" />
+                             <label class="form-check-label ms-2" for="clientLockSwitch">LOCK AGENT (Admin Only)</label>
+                           </div>
+                           <div class="form-text text-muted small mt-2">
+                             <i class="bi bi-shield-lock"></i> Prevents the user from enabling this agent.
+                           </div>
                         </div>
+
                       </div>
                       <div class="col-md-6">
                         <div class="mb-3">
-                          <label class="form-label text-muted small"
-                            >Business Timezone</label
-                          >
+                          <label class="form-label">Business Timezone</label>
                           <select
                             v-model="editForm.business_timezone"
-                            class="form-select bg-dark text-white border-secondary"
+                            class="form-select"
                           >
                             <option value="America/Los_Angeles">
                               America/Los_Angeles
@@ -927,12 +832,10 @@
                         <div class="row">
                           <div class="col-md-6">
                             <div class="mb-3">
-                              <label class="form-label text-muted small"
-                                >Start Hour</label
-                              >
+                              <label class="form-label">Start Hour</label>
                               <select
                                 v-model.number="editForm.business_start_hour"
-                                class="form-select bg-dark text-white border-secondary"
+                                class="form-select"
                               >
                                 <option v-for="h in 24" :key="h-1" :value="h-1">
                                   {{ formatHour(h-1) }}
@@ -942,12 +845,10 @@
                           </div>
                           <div class="col-md-6">
                             <div class="mb-3">
-                              <label class="form-label text-muted small"
-                                >End Hour</label
-                              >
+                              <label class="form-label">End Hour</label>
                               <select
                                 v-model.number="editForm.business_end_hour"
-                                class="form-select bg-dark text-white border-secondary"
+                                class="form-select"
                               >
                                 <option v-for="h in 24" :key="h-1" :value="h-1">
                                   {{ formatHour(h-1) }}
@@ -964,12 +865,10 @@
                     <div class="row">
                       <div class="col-md-6">
                         <div class="mb-3">
-                          <label class="form-label text-muted small"
-                            >LLM Model</label
-                          >
+                          <label class="form-label">LLM Model</label>
                           <select
                             v-model="editForm.llm_model"
-                            class="form-select bg-dark text-white border-secondary"
+                            class="form-select"
                           >
                             <option value="openai/gpt-4o-mini">
                               openai/gpt-4o-mini
@@ -987,12 +886,10 @@
                           </select>
                         </div>
                         <div class="mb-3">
-                          <label class="form-label text-muted small"
-                            >STT Model</label
-                          >
+                          <label class="form-label">STT Model</label>
                           <select
                             v-model="editForm.stt_model"
-                            class="form-select bg-dark text-white border-secondary"
+                            class="form-select"
                           >
                             <option value="nova-2-phonecall">
                               Deepgram Nova 2 Phonecall
@@ -1011,12 +908,10 @@
                       </div>
                       <div class="col-md-6">
                         <div class="mb-3">
-                          <label class="form-label text-muted small"
-                            >TTS Model</label
-                          >
+                          <label class="form-label">TTS Model</label>
                           <select
                             v-model="editForm.tts_model"
-                            class="form-select bg-dark text-white border-secondary"
+                            class="form-select"
                           >
                             <option value="eleven_flash_v2_5">
                               ElevenLabs Flash v2.5
@@ -1033,13 +928,11 @@
                           </select>
                         </div>
                         <div class="mb-3">
-                          <label class="form-label text-muted small"
-                            >TTS Voice ID</label
-                          >
+                          <label class="form-label">TTS Voice ID</label>
 
                           <div class="input-group">
                             <select
-                              class="form-select bg-dark text-white border-secondary"
+                              class="form-select"
                               style="max-width: 160px; border-right: none"
                               @change="editForm.tts_voice_id = $event.target.value"
                             >
@@ -1058,7 +951,7 @@
                             <input
                               v-model="editForm.tts_voice_id"
                               type="text"
-                              class="form-control bg-dark text-white border-secondary"
+                              class="form-control"
                               placeholder="Paste ID here or select preset..."
                             />
                           </div>
@@ -1069,18 +962,16 @@
 
                   <div v-if="activeClientTab === 'prompting'">
                     <div class="mb-3">
-                      <label class="form-label text-muted small"
-                        >Initial Greeting</label
-                      >
+                      <label class="form-label">Initial Greeting</label>
                       <textarea
                         v-model="editForm.initial_greeting"
-                        class="form-control bg-dark text-white border-secondary"
+                        class="form-control"
                         rows="2"
                       ></textarea>
                     </div>
                     <div class="mb-3">
                       <label
-                        class="form-label d-flex justify-content-between align-items-center text-muted small"
+                        class="form-label d-flex justify-content-between align-items-center"
                       >
                         System Prompt
                         <button
@@ -1093,8 +984,7 @@
                       </label>
                       <textarea
                         v-model="editForm.system_prompt"
-                        class="form-control bg-dark text-white border-secondary"
-                        style="font-family: &quot;JetBrains Mono&quot;"
+                        class="form-control"
                         rows="12"
                       ></textarea>
                     </div>
@@ -1122,7 +1012,7 @@
                           id="bundle_scheduling"
                         />
                         <label
-                          class="form-check-label fw-bold text-white"
+                          class="form-check-label fw-bold"
                           for="bundle_scheduling"
                           >Enable Scheduling</label
                         >
@@ -1143,7 +1033,7 @@
                           id="bundle_contact"
                         />
                         <label
-                          class="form-check-label fw-bold text-white"
+                          class="form-check-label fw-bold"
                           for="bundle_contact"
                           >Contact Memory</label
                         >
@@ -1168,7 +1058,7 @@
         tabindex="-1"
         aria-hidden="true"
       >
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
           <div
             class="modal-content"
             style="
@@ -1203,52 +1093,127 @@
                 <table class="table table-custom table-sm table-hover mb-0">
                   <thead>
                     <tr>
-                      <th class="ps-3">Time</th>
-                      <th>Type</th>
-                      <th>Amount</th>
-                      <th>Detail</th>
+                      <th class="ps-3">Type</th>
+                      <th>Time</th>
+                      <th>Duration / STT</th>
+                      <th>LLM (In/Out)</th>
+                      <th>TTS</th>
+                      <th>Conversation ID</th>
+                      <th class="text-end">Cost</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-if="clientLedger.length === 0">
-                      <td colspan="4" class="text-center py-4 text-muted">
+                      <td colspan="7" class="text-center py-4 text-muted">
                         No records found.
                       </td>
                     </tr>
-                    <tr v-for="entry in clientLedger" :key="entry.id">
-                      <td class="ps-3 text-muted">
-                        {{ formatDate(entry.created_at) }}
-                      </td>
-                      <td>
-                        <span
-                          class="badge border"
-                          :class="entry.metric_type.includes('CREDIT') ? 'border-success text-success' : 'border-secondary text-muted'"
+                    <template
+                      v-for="group in clientLedger"
+                      :key="group.id || group.created_at"
+                    >
+                      <!-- MANUAL ENTRY -->
+                      <tr v-if="group.type === 'MANUAL'">
+                        <td class="ps-3">
+                          <span
+                            class="badge border"
+                            :class="(group.metric_type || '').includes('CREDIT') ? 'border-success text-success' : ((group.metric_type || '').includes('DEBIT') ? 'border-danger text-danger' : 'border-secondary text-muted')"
+                          >
+                            {{ group.metric_type === 'MANUAL_CREDIT' ? 'CREDIT'
+                            : (group.metric_type === 'MANUAL_DEBIT' ? 'DEBIT' :
+                            group.metric_type) }}
+                          </span>
+                        </td>
+                        <td class="text-info small font-monospace">
+                          {{ formatDate(group.created_at) }}
+                        </td>
+
+                        <!-- Empty columns for metrics -->
+                        <td></td>
+                        <td></td>
+                        <td></td>
+
+                        <!-- Memo -->
+                        <td class="text-muted small fst-italic">
+                          Manual Adjustment
+                        </td>
+
+                        <!-- Total Amount -->
+                        <td
+                          class="font-monospace text-end"
+                          :class="(group.metric_type || '').includes('CREDIT') ? 'text-success' : ((group.metric_type || '').includes('DEBIT') ? 'text-danger' : 'text-secondary')"
                         >
-                          {{ entry.metric_type }}
-                        </span>
-                      </td>
-                      <td
-                        :class="entry.metric_type.includes('CREDIT') ? 'text-success' : 'text-secondary'"
-                      >
-                        {{ entry.metric_type.includes('CREDIT') ? '+' : '-' }}{{
-                        formatDuration(entry.quantity) }}
-                      </td>
-                      <td
-                        class="text-truncate"
-                        style="max-width: 200px"
-                        :title="entry.conversation_id"
-                      >
-                        <span
-                          v-if="entry.conversation_id"
-                          @click="viewTranscript(entry.conversation_id)"
-                          class="text-info text-decoration-underline cursor-pointer"
-                          style="cursor: pointer"
-                        >
-                          {{ entry.conversation_id }}
-                        </span>
-                        <span v-else class="text-muted">Manual Adjustment</span>
-                      </td>
-                    </tr>
+                          {{ (group.metric_type || '').includes('CREDIT') ? '+'
+                          : '-' }}{{ formatQuantity(group) }}
+                        </td>
+                      </tr>
+
+                      <!-- CONVERSATION GROUP -->
+                      <tr v-else>
+                        <td class="ps-3">
+                          <span class="badge border border-purple text-purple"
+                            >CALL</span
+                          >
+                        </td>
+                        <td class="text-info small font-monospace">
+                          {{ formatDate(group.created_at) }}
+                        </td>
+
+                        <!-- Duration -->
+                        <td>
+                          <div class="font-monospace">
+                            {{ formatDuration(group.duration_sec) }}
+                          </div>
+                          <div class="small text-muted opacity-50">
+                            ${{ group.duration_cost.toFixed(4) }}
+                          </div>
+                        </td>
+
+                        <!-- LLM -->
+                        <td>
+                          <div class="font-monospace small">
+                            <i class="bi bi-arrow-down-short text-success"></i
+                            >{{ group.llm_input.toLocaleString() }}
+                            <span class="text-muted">/</span>
+                            <i class="bi bi-arrow-up-short text-info"></i>{{
+                            group.llm_output.toLocaleString() }}
+                          </div>
+                          <div class="small text-muted opacity-50">
+                            ${{ group.llm_cost.toFixed(4) }}
+                          </div>
+                        </td>
+
+                        <!-- TTS -->
+                        <td>
+                          <div class="font-monospace">
+                            {{ group.tts_chars.toLocaleString() }} ch
+                          </div>
+                          <div class="small text-muted opacity-50">
+                            ${{ group.tts_cost.toFixed(4) }}
+                          </div>
+                        </td>
+
+                        <!-- ID -->
+                        <td>
+                          <a
+                            href="#"
+                            @click.prevent="viewTranscript(group.id)"
+                            class="text-info text-decoration-underline font-monospace small"
+                          >
+                            {{ truncateId(group.id) }}
+                          </a>
+                        </td>
+
+                        <!-- Total -->
+                        <td class="text-end">
+                          <span
+                            class="badge bg-dark border border-secondary text-muted"
+                          >
+                            -${{ group.total_cost.toFixed(4) }}
+                          </span>
+                        </td>
+                      </tr>
+                    </template>
                   </tbody>
                 </table>
               </div>
@@ -1353,6 +1318,30 @@
           </div>
         </div>
       </div>
+      <!-- SETTINGS MODAL -->
+      <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content" style="background: var(--theme-bg-dark); border: 1px solid var(--theme-bg-mid);">
+            <div class="modal-header border-secondary border-opacity-25">
+              <h5 class="modal-title text-muted" style="font-family: 'JetBrains Mono'; letter-spacing: 1px;">
+                <i class="bi bi-gear me-2"></i>SETTINGS
+              </h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label text-muted small">THEME PRESET</label>
+                <select v-model="currentTheme" @change="applyTheme(currentTheme)" class="form-select bg-dark text-white border-secondary" style="font-family: 'JetBrains Mono'">
+                  <option v-for="theme in themes" :key="theme.key" :value="theme.key">
+                    {{ theme.name }}
+                  </option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -1377,10 +1366,218 @@
           const total_usage_today = ref(0);
           const total_usage_month = ref(0);
           const selectedUser = ref(null);
+          const selectedClient = ref(null);
           const showDebug = ref(false); // Default off for cleaner UI
           const userSearch = ref("");
           const token = localStorage.getItem("authToken");
           const isLoading = ref(true);
+
+          // Theme State
+          const themes = ref([]);
+          const currentTheme = ref(localStorage.getItem("currentTheme") || "tokyo-night-default");
+          const settingsModal = ref(null);
+
+          const openSettings = () => {
+             if (!settingsModal.value) {
+                settingsModal.value = new bootstrap.Modal(document.getElementById("settingsModal"));
+             }
+             settingsModal.value.show();
+          };
+
+          const loadThemes = () => {
+            const defaultThemes = [
+              {
+                key: "tokyo-night-default",
+                name: "Tokyo Night Default",
+                data: {
+                  background: "#1a1b26",
+                  foreground: "#c0caf5",
+                  cursor: "#7aa2f7",
+                  selection: "#283457",
+                  ansi_colors: {
+                    black: "#15161E",
+                    red: "#F77693",
+                    green: "#9ECE6A",
+                    yellow: "#E0AF68",
+                    blue: "#7AA2F7",
+                    magenta: "#BB9AF7",
+                    cyan: "#7DCFFF",
+                    white: "#A9B1D6",
+                    bright_black: "#414868",
+                    bright_red: "#F77693",
+                    bright_green: "#9ECE6A",
+                    bright_yellow: "#E0AF68",
+                    bright_blue: "#7AA2F7",
+                    bright_magenta: "#BB9AF7",
+                    bright_cyan: "#7DCFFF",
+                    bright_white: "#C0CAF5",
+                  },
+                },
+              },
+              {
+                key: "tokyo-night-day",
+                name: "Tokyo Night Day",
+                data: {
+                  background: "#E2E2E7",
+                  foreground: "#3760BF",
+                  cursor: "#2E7DE9",
+                  selection: "#B7C1E3",
+                  ansi_colors: {
+                    black: "#B3B5B9",
+                    red: "#F52A65",
+                    green: "#587539",
+                    yellow: "#8C6C3E",
+                    blue: "#2E7DE9",
+                    magenta: "#9854F1",
+                    cyan: "#007197",
+                    white: "#6172B0",
+                    bright_black: "#A1A6C5",
+                    bright_red: "#F52A65",
+                    bright_green: "#587539",
+                    bright_yellow: "#8C6C3E",
+                    bright_blue: "#2E7DE9",
+                    bright_magenta: "#9854F1",
+                    bright_cyan: "#007197",
+                    bright_white: "#3760BF",
+                  },
+                },
+              },
+              {
+                key: "iceberg-dark",
+                name: "Iceberg Dark",
+                data: {
+                  background: "#161821",
+                  foreground: "#C7C9D1",
+                  cursor: "#89BFC3",
+                  selection: "#272C41",
+                  ansi_colors: {
+                    black: "#1E212B",
+                    red: "#E2777A",
+                    green: "#B6BA89",
+                    yellow: "#E2A677",
+                    blue: "#83A5AD",
+                    magenta: "#9F91A8",
+                    cyan: "#89BFC3",
+                    white: "#C7C9D1",
+                    bright_black: "#6B7089",
+                    bright_red: "#E98A8A",
+                    bright_green: "#C0CAF5",
+                    bright_yellow: "#E9B18A",
+                    bright_blue: "#91A9C6",
+                    bright_magenta: "#AD9FAD",
+                    bright_cyan: "#95C4CC",
+                    bright_white: "#D2D4DD",
+                  },
+                },
+              },
+              {
+                key: "iceberg-light",
+                name: "Iceberg Light",
+                data: {
+                  background: "#E8E9EC",
+                  foreground: "#33374C",
+                  cursor: "#3F83A6",
+                  selection: "#CAD0D7",
+                  ansi_colors: {
+                    black: "#DCDFE7",
+                    red: "#CC517A",
+                    green: "#668E3D",
+                    yellow: "#C57339",
+                    blue: "#2D539E",
+                    magenta: "#7759B5",
+                    cyan: "#3F83A6",
+                    white: "#33374C",
+                    bright_black: "#838A96",
+                    bright_red: "#CC3768",
+                    bright_green: "#598030",
+                    bright_yellow: "#B6662D",
+                    bright_blue: "#22478E",
+                    bright_magenta: "#6845AD",
+                    bright_cyan: "#327698",
+                    bright_white: "#3D425E",
+                  },
+                },
+              },
+            ];
+            themes.value = defaultThemes;
+            applyTheme(currentTheme.value);
+          };
+
+          const getBrightness = (hexColor) => {
+             const color = hexColor.replace("#", "");
+             const r = parseInt(color.substr(0, 2), 16);
+             const g = parseInt(color.substr(2, 2), 16);
+             const b = parseInt(color.substr(4, 2), 16);
+             return (r * 299 + g * 587 + b * 114) / 1000;
+          };
+
+          const applyTheme = (themeKey) => {
+            const theme = themes.value.find((t) => t.key === themeKey);
+            if (!theme) return;
+            const root = document.documentElement;
+            const themeData = theme.data;
+            root.style.setProperty("--theme-bg", themeData.background || "#1a1b26");
+            root.style.setProperty("--theme-fg", themeData.foreground || "#c0caf5");
+            root.style.setProperty("--theme-cursor", themeData.cursor || "#7aa2f7");
+            root.style.setProperty("--theme-selection", themeData.selection || "#283457");
+
+            const bgBrightness = getBrightness(themeData.background || "#1a1b26");
+            const isLightTheme = bgBrightness > 128;
+            const mutedColor = isLightTheme ? "#555" : "#888";
+            root.style.setProperty("--theme-muted", mutedColor);
+
+            const ansiColors = themeData.ansi_colors;
+            if (ansiColors) {
+               root.style.setProperty("--theme-bg-dark", ansiColors.black || "#16161e");
+               root.style.setProperty("--theme-bg-mid", ansiColors.bright_black || "#2a2a37");
+               root.style.setProperty("--theme-card-bg", ansiColors.black || "#16161e");
+               root.style.setProperty("--theme-blue", ansiColors.blue || "#7dcfff");
+               root.style.setProperty("--theme-purple", ansiColors.magenta || "#bb9af7");
+               root.style.setProperty("--theme-green", ansiColors.green || "#9ece6a");
+               root.style.setProperty("--theme-yellow", ansiColors.yellow || "#e0af68");
+               root.style.setProperty("--theme-orange", ansiColors.yellow || "#e0af68");
+               root.style.setProperty("--theme-red", ansiColors.red || "#f7768e");
+               root.style.setProperty("--theme-cyan", ansiColors.cyan || "#7dcfff");
+               root.style.setProperty("--theme-comment", ansiColors.bright_black || "#565f89");
+               root.style.setProperty("--theme-logo-white", ansiColors.bright_white || "#ffffff");
+
+               root.style.setProperty("--theme-black-bright", ansiColors.bright_black || "#414868");
+               root.style.setProperty("--theme-red-bright", ansiColors.bright_red || "#f7768e");
+               root.style.setProperty("--theme-green-bright", ansiColors.bright_green || "#9ece6a");
+               root.style.setProperty("--theme-yellow-bright", ansiColors.bright_yellow || "#e0af68");
+               root.style.setProperty("--theme-blue-bright", ansiColors.bright_blue || "#7aa2f7");
+               root.style.setProperty("--theme-magenta-bright", ansiColors.bright_magenta || "#bb9af7");
+               root.style.setProperty("--theme-cyan-bright", ansiColors.bright_cyan || "#7dcfff");
+               root.style.setProperty("--theme-white-bright", ansiColors.bright_white || "#c0caf5");
+            }
+
+            root.style.setProperty("--theme-border-active", "2px");
+            root.style.setProperty("--theme-tools-bg", "transparent");
+            root.style.setProperty("--theme-tools-border", "var(--theme-bg-mid)");
+            root.style.setProperty("--theme-tools-label", "var(--theme-purple)");
+
+            if (isLightTheme) {
+               root.style.setProperty("--theme-bg-dark", "#ffffff");
+               root.style.setProperty("--theme-card-bg", "#ffffff");
+               root.style.setProperty("--theme-bg-mid", "#b4b9c9");
+               root.style.setProperty("--theme-table-stripe", "rgba(0, 0, 0, 0.03)");
+               root.style.setProperty("--theme-table-hover", "rgba(46, 125, 233, 0.1)");
+               root.style.setProperty("--theme-btn-glow", "rgba(0, 0, 0, 0.1)");
+               root.style.setProperty("--theme-text-glow", "none");
+               root.style.setProperty("--theme-gradient-1", "rgba(55, 96, 191, 0.15)");
+               root.style.setProperty("--theme-gradient-2", "rgba(120, 117, 213, 0.15)");
+               root.style.setProperty("--theme-border-active", "3px");
+               root.style.setProperty("--theme-tools-bg", "rgba(158, 206, 106, 0.15)");
+               root.style.setProperty("--theme-tools-border", "rgba(88, 117, 57, 0.5)");
+               root.style.setProperty("--theme-tools-label", "#3c5220");
+            } else {
+               root.style.setProperty("--theme-gradient-1", "rgba(122, 162, 247, 0.08)");
+               root.style.setProperty("--theme-gradient-2", "rgba(187, 154, 247, 0.08)");
+            }
+
+            currentTheme.value = themeKey;
+            localStorage.setItem("currentTheme", themeKey);
+          };
 
           const voicePresets = [
             {
@@ -1458,6 +1655,7 @@
             name: "",
             cell: "",
             is_active: true,
+            is_locked: false, // New Lock Field
             system_prompt: "",
             llm_model: "openai/gpt-4o-mini",
             stt_model: "nova-2-phonecall",
@@ -1575,7 +1773,14 @@
             );
           };
 
-          const selectUser = (u) => (selectedUser.value = u);
+          const selectUser = (u) => {
+            selectedUser.value = u;
+            selectedClient.value = null; // Reset client selection
+          };
+
+          const selectClient = (c) => {
+            selectedClient.value = c;
+          };
 
           const formatDuration = (seconds) => {
             if (!seconds) return "0s";
@@ -1583,6 +1788,24 @@
             const s = seconds % 60;
             if (m === 0) return `${s}s`;
             return `${m}m ${s}s`;
+          };
+
+          const formatQuantity = (entry) => {
+            if (!entry || entry.quantity === undefined || entry.quantity === null)
+              return "0";
+            const type = entry.metric_type || "";
+            const qty = entry.quantity;
+            if (
+              [
+                "duration",
+                "call_seconds",
+                "MANUAL_CREDIT",
+                "MANUAL_DEBIT",
+              ].includes(type)
+            ) {
+              return formatDuration(qty);
+            }
+            return qty.toLocaleString();
           };
 
           const formatHour = (h) => {
@@ -1612,6 +1835,7 @@
               name: client.name,
               cell: client.cell || "",
               is_active: client.is_active !== false,
+              is_locked: tools.includes("ADMIN_LOCKED"), // Set Lock State
               system_prompt: client.system_prompt || "",
               llm_model: client.llm_model || "openai/gpt-4o-mini",
               stt_model: client.stt_model || "nova-2-phonecall",
@@ -1652,6 +1876,10 @@
               if (editForm.value.enable_memory) {
                 tools.push("save_contact_name");
               }
+              // Admin Lock Tool
+              if (editForm.value.is_locked) {
+                tools.push("ADMIN_LOCKED");
+              }
 
               const payload = {
                 name: editForm.value.name,
@@ -1689,6 +1917,30 @@
             } finally {
               isSubmitting.value = false;
             }
+          };
+
+          const toggleClientStatus = async (client) => {
+             if (!confirm(`Are you sure you want to ${client.is_active ? 'DISABLE' : 'ENABLE'} this client?`)) return;
+             try {
+                // If enabling, we need to make sure we don't accidentally remove the lock if it exists
+                // But for a simple toggle, we just send is_active. 
+                // The backend handles the lock check on enabling.
+                
+                await axios.put(`/api/admin/client/${client.id}`, { is_active: !client.is_active }, {
+                   headers: { Authorization: `Bearer ${token}` }
+                });
+                
+                // Refresh data to reflect changes
+                await fetchData();
+                
+                // Re-select the client to keep the view updated
+                if (selectedClient.value && selectedClient.value.id === client.id) {
+                   const updatedClient = clients.value.find(c => c.id === client.id);
+                   if (updatedClient) selectedClient.value = updatedClient;
+                }
+             } catch (e) {
+                alert("Failed to toggle status: " + (e.response?.data?.detail || e.message));
+             }
           };
 
           // --- LEDGER METHODS ---
@@ -1751,6 +2003,63 @@
 
           // --- HISTORY METHODS ---
 
+          const groupTransactions = (rawLedger) => {
+            const groups = {};
+            const result = [];
+
+            rawLedger.forEach((entry) => {
+              if (entry.conversation_id) {
+                if (!groups[entry.conversation_id]) {
+                  groups[entry.conversation_id] = {
+                    type: "CONVERSATION",
+                    id: entry.conversation_id,
+                    created_at: entry.created_at,
+                    total_cost: 0,
+                    duration_sec: 0,
+                    duration_cost: 0,
+                    llm_input: 0,
+                    llm_output: 0,
+                    llm_cost: 0,
+                    tts_chars: 0,
+                    tts_cost: 0,
+                    items: [],
+                  };
+                  result.push(groups[entry.conversation_id]);
+                }
+                const group = groups[entry.conversation_id];
+                group.items.push(entry);
+                const cost = entry.cost_usd || 0;
+                group.total_cost += cost;
+
+                const mType = entry.metric_type;
+                const qty = entry.quantity || 0;
+
+                if (mType === "duration" || mType === "call_seconds") {
+                  group.duration_sec += qty;
+                  group.duration_cost += cost;
+                } else if (mType === "llm_tokens_input") {
+                  group.llm_input += qty;
+                  group.llm_cost += cost;
+                } else if (mType === "llm_tokens_output") {
+                  group.llm_output += qty;
+                  group.llm_cost += cost;
+                } else if (mType === "tts_characters") {
+                  group.tts_chars += qty;
+                  group.tts_cost += cost;
+                }
+              } else {
+                result.push({
+                  type: "MANUAL",
+                  ...entry,
+                });
+              }
+            });
+
+            return result.sort(
+              (a, b) => new Date(b.created_at) - new Date(a.created_at),
+            );
+          };
+
           const openHistoryModal = async (client) => {
             if (!historyModal.value) {
               historyModal.value = new bootstrap.Modal(
@@ -1763,12 +2072,12 @@
 
             try {
               const res = await axios.get(
-                `/api/admin/client/${client.id}/ledger`,
+                `/api/admin/client/${client.id}/ledger?_=${new Date().getTime()}`,
                 {
                   headers: { Authorization: `Bearer ${token}` },
                 },
               );
-              clientLedger.value = res.data.ledger;
+              clientLedger.value = groupTransactions(res.data.ledger);
             } catch (e) {
               console.error("History fetch failed:", e);
               alert("Failed to fetch history.");
@@ -1863,6 +2172,7 @@
           });
 
           onMounted(() => {
+            loadThemes();
             fetchData();
             pollActiveCalls();
             // Update durations locally every second to keep UI smooth
@@ -1883,7 +2193,10 @@
             clients,
             selectedUser,
             isLoading,
-
+            themes,
+            currentTheme,
+            applyTheme,
+            openSettings,
             showDebug,
             userSearch,
             filteredUsers,
@@ -1896,6 +2209,7 @@
             getUserTotalBalance,
             getUserTotalUsage,
             formatDuration,
+            formatQuantity,
             formatDate,
 
             // Ledger

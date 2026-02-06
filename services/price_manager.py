@@ -4,6 +4,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+SUPPORTED_MODELS = [
+    "openai/gpt-4o-mini",
+    "anthropic/claude-3-haiku",
+    "google/gemini-2.5-flash-lite",
+    "x-ai/grok-4-fast",
+]
+
 
 async def sync_openrouter_prices():
     """
@@ -17,6 +24,9 @@ async def sync_openrouter_prices():
     models = data.get("data", [])
     records = []
     for model in models:
+        if model["id"] not in SUPPORTED_MODELS:
+            continue
+
         pricing = model.get("pricing", {})
         record = {
             "id": model["id"],
@@ -32,12 +42,22 @@ async def sync_openrouter_prices():
         logger.error("Failed to get Supabase client")
         return None
 
-    result = supabase.table('model_prices').upsert(records).execute()
+    # Optional: Delete entries not in SUPPORTED_MODELS to clean up
+    # Using neq to 'placeholder' is a common pattern to select all rows for deletion if no where clause is strict
+    # However, to be safe and precise, we can delete where id is NOT in our list, if the client supports it easily.
+    # For now, per instructions, we stick to the required filtering for upsert.
+    # If we wanted to clean up:
+    # try:
+    #     supabase.table('model_prices').delete().not_.in_('id', SUPPORTED_MODELS).execute()
+    # except Exception as e:
+    #     logger.warning(f"Could not clean up old models: {e}")
+
+    result = supabase.table("model_prices").upsert(records).execute()
     logger.info(f"Synced {len(records)} model prices")
     return result
 
 
-def get_model_price(model_id):
+async def get_model_price(model_id):
     """
     Retrieves pricing information for a specific model from the database.
     Returns a dict with input, output, per_request, image prices or None if not found.
@@ -47,7 +67,7 @@ def get_model_price(model_id):
         logger.error("Failed to get Supabase client")
         return None
 
-    result = supabase.table('model_prices').select('*').eq('id', model_id).execute()
+    result = supabase.table("model_prices").select("*").eq("id", model_id).execute()
     if result.data and len(result.data) > 0:
         row = result.data[0]
         if isinstance(row, dict):

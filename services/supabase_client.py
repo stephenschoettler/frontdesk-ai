@@ -158,7 +158,11 @@ async def log_conversation(
         data_to_insert["duration"] = duration
 
     try:
-        response = supabase.table("conversations").insert(data_to_insert).execute()
+        response = (
+            supabase.table("conversations")
+            .insert(data_to_insert, returning="representation")
+            .execute()
+        )
         logger.info(f"Conversation logged successfully for contact_id {contact_id}.")
         return response
     except APIError as e:
@@ -655,7 +659,10 @@ async def deduct_balance(client_id: str, seconds: int) -> None:
 
 
 async def log_usage_ledger(
-    client_id: str, conversation_id: Optional[str], metrics: dict, costs: Optional[Dict[str, float]] = None
+    client_id: str,
+    conversation_id: Optional[str],
+    metrics: dict,
+    costs: Optional[Dict[str, float]] = None,
 ):
     """
     COMMIT: Writes the detailed breakdown to the ledger.
@@ -913,9 +920,153 @@ async def get_financial_history(days: int = 30) -> list[Dict[str, Any]]:
         return []
 
     try:
-        response = supabase.rpc("get_daily_financials", {"days_history": days}).execute()
+        response = supabase.rpc(
+            "get_daily_financials", {"days_history": days}
+        ).execute()
         return response.data or []
     except Exception as e:
         logger.error(f"Error fetching financial history: {e}")
         return []
 
+
+async def get_cost_by_service(days: int = 30) -> Dict[str, Any]:
+    """
+    Returns cost breakdown by service/metric type for the last N days.
+    Groups by metric_type and sums costs and quantities.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return {}
+
+    try:
+        from datetime import datetime, timedelta
+        cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
+        response = (
+            supabase.table("usage_ledger")
+            .select("metric_type, quantity, cost_usd")
+            .gte("created_at", cutoff_date)
+            .execute()
+        )
+
+        # Aggregate by metric_type
+        breakdown = {}
+        for row in response.data or []:
+            metric = row.get("metric_type", "unknown")
+            qty = row.get("quantity", 0)
+            cost = row.get("cost_usd", 0) or 0
+
+            if metric not in breakdown:
+                breakdown[metric] = {"quantity": 0, "cost": 0}
+
+            breakdown[metric]["quantity"] += qty
+            breakdown[metric]["cost"] += cost
+
+        return breakdown
+    except Exception as e:
+        logger.error(f"Error fetching cost by service: {e}")
+        return {}
+
+
+async def get_cost_by_client(days: int = 30) -> list[Dict[str, Any]]:
+    """
+    Returns cost and revenue breakdown by client for profitability analysis.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return []
+
+    try:
+        from datetime import datetime, timedelta
+        cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
+        # Get cost per client from usage_ledger
+        cost_response = (
+            supabase.table("usage_ledger")
+            .select("client_id, cost_usd, quantity")
+            .gte("created_at", cutoff_date)
+            .execute()
+        )
+
+        # Aggregate costs by client
+        client_costs = {}
+        for row in cost_response.data or []:
+            client_id = row.get("client_id")
+            cost = row.get("cost_usd", 0) or 0
+
+            if client_id not in client_costs:
+                client_costs[client_id] = 0
+            client_costs[client_id] += cost
+
+        # Get client names
+        clients_response = supabase.table("clients").select("id, name").execute()
+        client_names = {c["id"]: c["name"] for c in clients_response.data or []}
+
+        # Build result with client names
+        result = []
+        for client_id, total_cost in client_costs.items():
+            result.append({
+                "client_id": client_id,
+                "client_name": client_names.get(client_id, "Unknown"),
+                "total_cost": round(total_cost, 2)
+            })
+
+        # Sort by cost descending
+        result.sort(key=lambda x: x["total_cost"], reverse=True)
+        return result
+    except Exception as e:
+        logger.error(f"Error fetching cost by client: {e}")
+        return []
+
+
+async def get_top_expensive_calls(limit: int = 10) -> list[Dict[str, Any]]:
+    """
+    Returns the top N most expensive calls/conversations.
+    """
+    supabase = get_supabase_client()
+    if not supabase:
+        return []
+
+    try:
+        # Aggregate costs by conversation_id
+        response = (
+            supabase.table("usage_ledger")
+            .select("conversation_id, cost_usd, quantity, metric_type, created_at, client_id")
+            .not_.is_("conversation_id", "null")
+            .execute()
+        )
+
+        # Group by conversation
+        conv_costs = {}
+        for row in response.data or []:
+            conv_id = row.get("conversation_id")
+            cost = row.get("cost_usd", 0) or 0
+            client_id = row.get("client_id")
+            created_at = row.get("created_at")
+
+            if conv_id not in conv_costs:
+                conv_costs[conv_id] = {
+                    "conversation_id": conv_id,
+                    "total_cost": 0,
+                    "client_id": client_id,
+                    "created_at": created_at
+                }
+            conv_costs[conv_id]["total_cost"] += cost
+
+        # Sort and limit
+        result = sorted(conv_costs.values(), key=lambda x: x["total_cost"], reverse=True)[:limit]
+
+        # Get client names
+        if result:
+            client_ids = [r["client_id"] for r in result if r.get("client_id")]
+            clients_response = supabase.table("clients").select("id, name").in_("id", client_ids).execute()
+            client_names = {c["id"]: c["name"] for c in clients_response.data or []}
+
+            for r in result:
+                r["client_name"] = client_names.get(r["client_id"], "Unknown")
+                r["total_cost"] = round(r["total_cost"], 2)
+
+        return result
+    except Exception as e:
+        logger.error(f"Error fetching top expensive calls: {e}")
+        return []

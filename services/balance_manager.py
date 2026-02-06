@@ -9,6 +9,7 @@ from .supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
+
 async def get_service_balances() -> Dict[str, Any]:
     """
     Fetches live balances from external providers.
@@ -84,6 +85,7 @@ async def get_service_balances() -> Dict[str, Any]:
 
     return balances
 
+
 async def get_system_rates() -> Dict[str, float]:
     """
     Fetches system rates from DB as dict.
@@ -100,6 +102,7 @@ async def get_system_rates() -> Dict[str, float]:
         logger.error(f"Failed to fetch system rates: {e}")
         return {}
 
+
 async def update_system_rate(key: str, value: str) -> bool:
     """
     Updates/inserts a system rate in DB.
@@ -110,9 +113,11 @@ async def update_system_rate(key: str, value: str) -> bool:
         return False
 
     try:
-        resp = supabase.table("system_settings").upsert(
-            {"key": key, "value": str(value)}
-        ).execute()
+        resp = (
+            supabase.table("system_settings")
+            .upsert({"key": key, "value": str(value)})
+            .execute()
+        )
         logger.info(f"Updated system rate {key} = {value}")
         return bool(resp.data)
     except Exception as e:

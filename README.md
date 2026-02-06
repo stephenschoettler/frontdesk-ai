@@ -1,170 +1,215 @@
-# Front Desk: AI Receptionist
+# 🤖 FrontDesk AI
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
+[![Pipecat](https://img.shields.io/badge/Pipecat-0.0.101-green.svg)](https://pipecat.ai/)
 
-Front Desk is an open-source, real-time, conversational AI receptionist built to run on a local server. It uses Pipecat to orchestrate multiple AI services and connects to a public phone number via Twilio.
+**FrontDesk AI** is an open-source, production-ready AI receptionist platform that answers phone calls, schedules appointments, and manages customer interactions 24/7. Built with Pipecat, it provides a complete multi-tenant SaaS solution with a beautiful web dashboard.
 
-This project is designed to be a foundation for a fully-featured AI agent that can be customized to handle real-world business tasks, such as calendar management and lead capture.
+## ✨ Key Features
 
-## Table of Contents
+- 📞 **Real-time Voice Conversations** - Natural phone interactions powered by advanced AI
+- 📅 **Smart Scheduling** - Automatic appointment booking via Google Calendar integration
+- 🏢 **Multi-Client Support** - Manage multiple businesses from one dashboard
+- 🔐 **Google OAuth Integration** - One-click calendar authorization
+- 💳 **Built-in Billing** - Stripe integration with usage-based pricing
+- 🎙️ **Dual TTS Options** - Choose between Cartesia (5x cheaper) or ElevenLabs
+- 📊 **Real-time Call Dashboard** - Monitor active calls and view conversation logs
+- 💬 **Conversation History** - Full transcripts stored and searchable
+- 🔔 **Contact Management** - Automatic caller identification and history
+- ⚡ **Production Ready** - Complete with authentication, authorization, and error handling
 
-- [Screenshots](#screenshots)
-- [Core Tech Stack](#core-tech-stack)
-- [Service Provisioning](#1-service-provisioning-the-gathering-phase)
-- [Project Installation & Setup](#2-project-installation--setup)
-- [Running the Receptionist](#3-running-the-receptionist)
+## 📸 Screenshots
 
-## Screenshots
-
-| Main | Edit Client |
+| Dashboard | Client Management |
 | :---: | :---: |
-| <img src="screenshots/main.png" width="400" /> | <img src="screenshots/edit.png" width="400" /> |
+| <img src="screenshots/main.png" width="400" alt="Main Dashboard"/> | <img src="screenshots/edit.png" width="400" alt="Edit Client"/> |
 
 | Contacts | Call Logs |
 | :---: | :---: |
-| <img src="screenshots/contacts.png" width="400" /> | <img src="screenshots/call_logs.png" width="400" /> |
+| <img src="screenshots/contacts.png" width="400" alt="Contacts"/> | <img src="screenshots/call_logs.png" width="400" alt="Call Logs"/> |
 
 | Settings |
 | :---: |
-| <img src="screenshots/settings.png" width="400" /> |
+| <img src="screenshots/settings.png" width="400" alt="Settings"/> |
 
-## Core Tech Stack
+## 🏗️ Architecture
 
-- **Orchestration:** [Pipecat](https://pipecat.ai/)
-- **Web Server:** [FastAPI](https://fastapi.tiangolo.com/) & Uvicorn
-- **Telephony:** [Twilio](https://www.twilio.com/) (Voice Webhooks)
-- **Database:** [Supabase](https://supabase.com/) (Postgres)
+**Core Stack:**
+- **Orchestration:** [Pipecat](https://pipecat.ai/) - Real-time AI pipeline framework
+- **Backend:** [FastAPI](https://fastapi.tiangolo.com/) + Python 3.11
+- **Database:** [Supabase](https://supabase.com/) (PostgreSQL with Row Level Security)
+- **Frontend:** Vue.js 3 with Bootstrap 5
+- **Telephony:** [Twilio](https://www.twilio.com/) Voice WebSocket
 - **Tunneling (Dev):** [ngrok](https://ngrok.com/)
-- **AI Services:**
-  - **LLM:** [OpenRouter](https://openrouter.ai/) (for access to Grok, Llama, GPT, etc.)
-  - **STT:** [Deepgram](https://deepgram.com/) (Real-time transcription)
-  - **TTS:** [ElevenLabs](https://elevenlabs.io/) (Real-time voice generation)
-  - **Calendar:** [Google Calendar API](https://developers.google.com/calendar/api)
 
-## 1. Service Provisioning (The "Gathering" Phase)
+**AI Services:**
+- **LLM:** [OpenRouter](https://openrouter.ai/) (supports GPT-4o, Claude, Llama, Grok, etc.)
+- **STT:** [Deepgram](https://deepgram.com/) Nova-2 (real-time transcription)
+- **TTS:** [Cartesia](https://cartesia.ai/) Sonic-3 (default, $0.05/min) or [ElevenLabs](https://elevenlabs.io/) ($0.24/min)
+- **Calendar:** [Google Calendar API](https://developers.google.com/calendar/api) with OAuth 2.0
 
-Before you can run this application, you must sign up for all of the following services and acquire the necessary API keys and credentials.
+**Payment Processing:**
+- [Stripe](https://stripe.com/) - Subscription billing and usage tracking
 
-### ☐ 1.1. Twilio (The Phone Number)
+## 🚀 Quick Start
 
-1. **Create Account:** Sign up for a [Twilio](https://www.twilio.com/) account.
-2. **Upgrade Account:** You **must** upgrade from a trial account by adding a payment method and a starting balance (e.g., $20). This is required to remove the "trial account" message from calls.
-3. **Buy a Number:** Navigate to "Phone Numbers" → "Manage" → "Buy a number" and purchase a local number with **Voice** capability.
-4. **Get Credentials:** From your main Account Dashboard, find and save your:
-   - `TWILIO_ACCOUNT_SID`
-   - `TWILIO_AUTH_TOKEN`
-   - `TWILIO_PHONE_NUMBER` (the number you just bought, in +1... format)
+### Prerequisites
 
-### **☐ 1.2. Supabase (The "Memory")**
+- Python 3.11+
+- Accounts for: Twilio, Supabase, Deepgram, Cartesia/ElevenLabs, OpenRouter, Google Cloud, Stripe
+- ngrok (for development)
 
-1. **Create Project:** Sign up at [Supabase](https://supabase.com/) and create a new project.  
-2. **Get Credentials:** Go to your project's **Settings** \-\> **API**:  
-   * Find the **Project ID** (e.g., your-project-id). Your URL is https://\[your-project-id\].supabase.co.  
-   * Find the **anon public Key**.  
-   * Save both for your .env file.  
-3. **Create Tables:** Go to the **SQL Editor** in your project, paste the contents of `setup.sql` (located in the project root), and click **RUN**.
+### 1. Clone and Install
 
-4. **Seed Default Data:** In the same **SQL Editor**, paste the contents of `seed.sql` (located in the project root), and click **RUN**.
-
-See `setup.sql` in the project root for the SQL schema and `seed.sql` for default client data.
-
-### **☐ 1.3. Google Calendar (The "Tool")**
-
-1. **Create Project:** Go to the [Google Cloud Console](https://console.cloud.google.com/) and create a new project.  
-2. **Enable API:** In "APIs & Services," enable the **Google Calendar API**.  
-3. **Create Service Account:**  
-   * Go to "Credentials" and create a **Service Account**.  
-   * Select your new service account and go to its **KEYS** tab.  
-   * Click **"ADD KEY"** \-\> **"Create new key"** \-\> **"JSON"** and download the file.  
-4. **Save Key:** Place this JSON key file in your project directory (e.g., google-service-key.json).  
-5. **Grant Permissions:**  
-   * Open the JSON file and copy the client\_email address (e.g., ...gserviceaccount.com).  
-   * Go to your Google Calendar settings and share your calendar with this email, granting it **"Make changes to events"** permissions.
-
-### **☐ 1.4. AI Services (The "Brains")**
-
-Sign up for the following services and get an API key from each:
-
-* [**OpenRouter**](https://openrouter.ai/) (for the LLM)  
-* [**Deepgram**](https://deepgram.com/) (for STT)  
-* [**ElevenLabs**](https://elevenlabs.io/) (for TTS)
-
-### **☐ 1.5. ngrok (The "Tunnel")**
-
-1. **Create Account:** Sign up for a free account at [ngrok](https://ngrok.com/).  
-2. **Get Authtoken:** Follow the "Getting Started" steps to get your authtoken.  
-3. **Configure ngrok:** Authenticate your ngrok CLI (this is a one-time setup):  
-   ngrok config add-authtoken <YOUR_NGROK_AUTHTOKEN>
-
-## **2\. Project Installation & Setup**
-
-1. **Clone the Repo:**  
-   git clone \[https://github.com/your-username/frontdesk-ai.git\](https://github.com/your-username/frontdesk-ai.git)  
-   cd frontdesk-ai
-
-2. **Create Virtual Environment:**  
-   python \-m venv venv  
-   source venv/bin/activate
-
-3. **Install Dependencies:**  
-    pip install \-r requirements.txt  
-    # For development  
-    pip install pytest ruff
-
-4. Create .env File:
-   Copy the `.env.example` file to `.env`. This file will hold your secret keys.
-   ```sh
-   cp .env.example .env
-   ```
-   Next, open `.env` and fill it with all the credentials you gathered in Step 1.
-
-## **3\. Running the Receptionist**
-
-This requires two terminals running at the same time.
-
-### **Terminal 1: Run the Server**
-
-In your project directory, activate your environment and run the app:
-
-source venv/bin/activate  
-python main.py
-
-The server is now running on http://localhost:8000.
-
-### **Terminal 2: Run ngrok**
-
-In a **new** terminal, start ngrok to expose your server to the internet:
-
-ngrok http 8000
-
-**Troubleshooting:** If Twilio fails to connect (you get an "application error" but see no traffic in your ngrok terminal), ngrok might have assigned you a URL that Twilio can't reach. Stop ngrok (Ctrl+C) and restart it using a different region to get a new URL:
-
-ngrok http 8000 \--region eu
-
-ngrok will give you a public "Forwarding" URL. Copy the https URL.  
-Example: https://abcd-1234.ngrok-free.dev
-
-### **Final Step: Configure Twilio**
-
-1. Go to your **Twilio Console** \-\> **Phone Numbers** \-\> **Active numbers**.  
-2. Click on your phone number.  
-3. Scroll to the **"Voice Configuration"** section.  
-4. Under **"A CALL COMES IN"**:  
-   * Set the first dropdown to **"Webhook"**.  
-   * In the URL box, paste your ngrok URL and add /voice at the end.  
-   * **Full URL Example:** https://abcd-1234.ngrok-free.dev/voice  
-   * Set the method to **HTTP POST**.  
-5. Click **"Save"**.
-
-### **You are LIVE.**
-
-Call your Twilio number. Your AI receptionist will answer.
-
-### Testing
-
-Run unit tests:
 ```bash
-pytest
+git clone https://github.com/yourusername/frontdesk-ai.git
+cd frontdesk-ai
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
-This verifies that tool code is stripped from spoken responses.
+
+### 2. Set Up Services
+
+Follow the detailed setup guide in [docs/INSTALLATION.md](docs/INSTALLATION.md) to:
+1. Create Twilio account and buy a phone number
+2. Set up Supabase project and run migrations
+3. Configure Google Calendar (OAuth or Service Account)
+4. Get API keys for AI services
+5. Set up Stripe for billing
+6. Configure ngrok for development
+
+### 3. Configure Environment
+
+```bash
+cp .env.example .env
+# Edit .env with your API keys and credentials
+```
+
+See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for detailed environment variable documentation.
+
+### 4. Run Database Migrations
+
+```bash
+# Install Supabase CLI
+npm install -g supabase
+
+# Run migrations
+cd supabase
+supabase db push
+```
+
+### 5. Start the Server
+
+```bash
+# Development mode
+./start_server.sh
+
+# Or manually
+python main.py
+```
+
+The server will start on `http://localhost:8000`
+
+### 6. Expose with ngrok
+
+```bash
+# In a new terminal
+ngrok http 8000
+```
+
+Copy the https URL (e.g., `https://abc123.ngrok-free.app`) and configure it in Twilio as your webhook URL: `https://abc123.ngrok-free.app/voice`
+
+### 7. Make a Test Call
+
+Call your Twilio number - your AI receptionist will answer! 🎉
+
+## 📚 Documentation
+
+- [Installation Guide](docs/INSTALLATION.md) - Detailed setup instructions
+- [Features Documentation](docs/FEATURES.md) - Complete feature breakdown
+- [Architecture Overview](docs/ARCHITECTURE.md) - System design and components
+- [API Reference](docs/API_REFERENCE.md) - REST API documentation
+- [Configuration](docs/CONFIGURATION.md) - Environment variables and settings
+- [Google Calendar Setup](docs/GOOGLE_CALENDAR_SETUP.md) - Calendar integration guide
+- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment
+- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [Contributing](CONTRIBUTING.md) - How to contribute
+
+## 🎯 Use Cases
+
+- **Medical Offices** - Schedule patient appointments, handle basic inquiries
+- **Law Firms** - Initial client intake, consultation booking
+- **Service Businesses** - Book service calls, answer common questions
+- **Restaurants** - Reservation management, hours/menu information
+- **Real Estate** - Property viewing appointments, inquiry handling
+- **Any Business** - 24/7 phone coverage without hiring staff
+
+## 🔒 Security Features
+
+- **Row Level Security (RLS)** - Database-level access control
+- **Encrypted Credentials** - AES encryption for OAuth tokens and service account keys
+- **CSRF Protection** - State tokens for OAuth flows
+- **JWT Authentication** - Secure user sessions
+- **API Key Validation** - Protected endpoints with authentication
+- **Audit Logging** - Complete conversation and action history
+
+## 💰 Cost Optimization
+
+FrontDesk AI is designed to be cost-effective:
+
+- **Cartesia TTS** - Default option at $0.05/min (5x cheaper than ElevenLabs)
+- **Deepgram Nova-2** - Affordable real-time STT at $0.0043/min
+- **OpenRouter** - Access to cheaper models (Llama 3.1 70B at $0.35/$0.40 per 1M tokens)
+- **Usage-Based Billing** - Clients only pay for minutes used
+- **Efficient Architecture** - Minimal overhead, maximum performance
+
+**Example costs for 1 hour of calls:**
+- STT (Deepgram): $0.26
+- TTS (Cartesia): $3.00
+- LLM (Llama 3.1 70B): ~$0.50
+- **Total: ~$3.76/hour** vs $14.40/hour with ElevenLabs
+
+## 🧪 Testing
+
+```bash
+# Run unit tests
+pytest
+
+# Run with coverage
+pytest --cov=services --cov-report=html
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Pipecat](https://pipecat.ai/) - For the amazing real-time AI framework
+- [Twilio](https://www.twilio.com/) - For reliable telephony infrastructure
+- [Supabase](https://supabase.com/) - For the excellent PostgreSQL platform
+- All the AI service providers making this possible
+
+## 🔗 Links
+
+- [Documentation](docs/)
+- [Issue Tracker](https://github.com/yourusername/frontdesk-ai/issues)
+- [Discussions](https://github.com/yourusername/frontdesk-ai/discussions)
+
+## ⭐ Star History
+
+If you find this project useful, please consider giving it a star! ⭐
+
+---
+
+**Built with ❤️ by developers who believe AI should be accessible to everyone.**

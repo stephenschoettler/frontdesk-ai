@@ -5,8 +5,14 @@ from datetime import datetime, timedelta
 from typing import Optional
 import pytz
 from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials as OAuthCredentials
+from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-import urllib.parse  # NEW IMPORT: Required to parse embed URLs
+import urllib.parse
+import json
+
+# Import calendar auth functions
+from services.calendar_auth import get_calendar_credentials, refresh_oauth_token
 
 logger = logging.getLogger(__name__)
 
@@ -31,14 +37,75 @@ def _clean_calendar_id(
     return calendar_id
 
 
-def get_calendar_service():
+async def get_calendar_service(client_id: Optional[str] = None, supabase=None):
     """
     Initializes and returns a Google Calendar service object.
+
+    Priority:
+    1. Client-specific OAuth credentials
+    2. Client-specific service account
+    3. Global service account fallback
+
+    Args:
+        client_id: Optional client UUID for per-client credentials
+        supabase: Supabase client for credential retrieval
+
+    Returns:
+        Google Calendar service object or None
     """
+    # Try to get client-specific credentials
+    if client_id and supabase:
+        try:
+            cred_data = await get_calendar_credentials(client_id, supabase)
+
+            if cred_data:
+                if cred_data['credential_type'] == 'oauth':
+                    # Build service with OAuth credentials
+                    logger.info(f"Using OAuth credentials for client {client_id}")
+
+                    credentials = OAuthCredentials(
+                        token=cred_data['access_token'],
+                        refresh_token=cred_data['refresh_token'],
+                        token_uri="https://oauth2.googleapis.com/token",
+                        client_id=os.environ.get("GOOGLE_OAUTH_CLIENT_ID"),
+                        client_secret=os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"),
+                        scopes=cred_data['scopes']
+                    )
+
+                    # Check if token is expired and refresh if needed
+                    if cred_data['token_expiry']:
+                        expiry = datetime.fromisoformat(cred_data['token_expiry'].replace("Z", "+00:00"))
+                        if datetime.utcnow().replace(tzinfo=expiry.tzinfo) >= expiry:
+                            logger.info(f"OAuth token expired for client {client_id}, refreshing...")
+                            credentials = await refresh_oauth_token(cred_data['id'], supabase)
+
+                    service = build("calendar", "v3", credentials=credentials)
+                    logger.info(f"Google Calendar service created with OAuth for client {client_id}")
+                    return service
+
+                elif cred_data['credential_type'] == 'service_account':
+                    # Build service with service account
+                    logger.info(f"Using service account credentials for client {client_id}")
+
+                    sa_info = json.loads(cred_data['service_account_json'])
+                    credentials = service_account.Credentials.from_service_account_info(
+                        sa_info,
+                        scopes=SCOPES
+                    )
+
+                    service = build("calendar", "v3", credentials=credentials)
+                    logger.info(f"Google Calendar service created with service account for client {client_id}")
+                    return service
+
+        except Exception as e:
+            logger.warning(f"Failed to use client-specific credentials for {client_id}: {e}")
+            logger.info("Falling back to global service account")
+
+    # Fallback to global service account
     key_file_path = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE_PATH")
     if not key_file_path:
         logger.critical(
-            "GOOGLE_SERVICE_ACCOUNT_FILE_PATH environment variable not set."
+            "GOOGLE_SERVICE_ACCOUNT_FILE_PATH environment variable not set and no client credentials available."
         )
         return None
 
@@ -47,7 +114,7 @@ def get_calendar_service():
             key_file_path, scopes=SCOPES
         )
         service = build("calendar", "v3", credentials=creds)
-        logger.info("Google Calendar service created successfully.")
+        logger.info("Google Calendar service created with global service account.")
         return service
     except Exception as e:
         logger.error(f"Failed to create Google Calendar service: {e}")
@@ -58,7 +125,8 @@ async def get_available_slots(
     calendar_id: str,
     start_time: datetime,
     end_time: datetime,
-    # Removed time_range param
+    client_id: Optional[str] = None,
+    supabase = None,
 ) -> list[dict]:
     """
     Fetches free/busy information and returns a list of available 1-hour slots.
@@ -75,7 +143,7 @@ async def get_available_slots(
         f"Checking calendar [{calendar_id}] for slots between {start_time} and {end_time}"
     )
 
-    service = get_calendar_service()
+    service = await get_calendar_service(client_id, supabase)
     if not service:
         logger.error("Google Calendar service is not available.")
         return []
@@ -154,6 +222,8 @@ async def book_appointment(
     end_time: datetime,
     summary: str,
     description: Optional[str] = None,
+    client_id: Optional[str] = None,
+    supabase = None,
 ) -> Optional[dict]:
     """
     Creates a new event on the Google Calendar.
@@ -163,7 +233,7 @@ async def book_appointment(
 
     logger.info(f"Attempting to book appointment on [{calendar_id}]: {summary}")
 
-    service = get_calendar_service()
+    service = await get_calendar_service(client_id, supabase)
     if not service:
         logger.error("Google Calendar service is not available.")
         return None
@@ -215,6 +285,8 @@ async def reschedule_appointment(
     event_id: str,
     new_start_time: datetime,
     new_end_time: Optional[datetime] = None,
+    client_id: Optional[str] = None,
+    supabase = None,
 ) -> Optional[dict]:
     """
     Updates an existing event's start and end times on the Google Calendar.
@@ -225,7 +297,7 @@ async def reschedule_appointment(
         f"Attempting to reschedule event [{event_id}] on [{calendar_id}] to {new_start_time}"
     )
 
-    service = get_calendar_service()
+    service = await get_calendar_service(client_id, supabase)
     if not service:
         logger.error("Google Calendar service is not available.")
         return None
@@ -277,14 +349,19 @@ async def reschedule_appointment(
         return None
 
 
-async def cancel_appointment(calendar_id: str, event_id: str) -> bool:
+async def cancel_appointment(
+    calendar_id: str,
+    event_id: str,
+    client_id: Optional[str] = None,
+    supabase = None,
+) -> bool:
     """
     Cancels (deletes) an event from the Google Calendar.
     """
     calendar_id = _clean_calendar_id(calendar_id)
     logger.info(f"Attempting to cancel event [{event_id}] on [{calendar_id}]")
 
-    service = get_calendar_service()
+    service = await get_calendar_service(client_id, supabase)
     if not service:
         logger.error("Google Calendar service is not available.")
         return False
@@ -304,13 +381,18 @@ async def cancel_appointment(calendar_id: str, event_id: str) -> bool:
         return False
 
 
-async def get_upcoming_appointments(calendar_id: str, phone_number: str) -> str:
+async def get_upcoming_appointments(
+    calendar_id: str,
+    phone_number: str,
+    client_id: Optional[str] = None,
+    supabase = None,
+) -> str:
     """
     Searches for future events containing the phone number in the description/summary.
     Returns a context string for the LLM.
     """
     calendar_id = _clean_calendar_id(calendar_id)
-    service = get_calendar_service()
+    service = await get_calendar_service(client_id, supabase)
     if not service:
         return ""
 
@@ -350,12 +432,17 @@ async def get_upcoming_appointments(calendar_id: str, phone_number: str) -> str:
     return "\n".join(context_lines)
 
 
-async def list_my_appointments(calendar_id: str, phone_number: str) -> list[dict]:
+async def list_my_appointments(
+    calendar_id: str,
+    phone_number: str,
+    client_id: Optional[str] = None,
+    supabase = None,
+) -> list[dict]:
     """
     Tool: Returns structured list of upcoming appointments matching caller phone.
     """
     calendar_id = _clean_calendar_id(calendar_id)
-    service = get_calendar_service()
+    service = await get_calendar_service(client_id, supabase)
     if not service:
         logger.warning("Calendar service unavailable.")
         return []

@@ -14,7 +14,7 @@ from services.google_calendar import (
 )
 
 # Import our new database function and the new client config function
-from services.supabase_client import update_contact_name, get_client_config
+from services.supabase_client import update_contact_name, get_client_config, get_supabase_client
 from pipecat.services.llm_service import FunctionCallParams
 
 
@@ -73,8 +73,14 @@ async def handle_get_available_slots(
         start_time_utc = start_time.astimezone(pytz.utc)
         end_time_utc = end_time.astimezone(pytz.utc)
 
+        # Get supabase client for credential retrieval
+        supabase = get_supabase_client()
+
         # Get slots from Google (returns UTC ISO strings)
-        raw_slots = await get_available_slots(calendar_id, start_time_utc, end_time_utc)
+        raw_slots = await get_available_slots(
+            calendar_id, start_time_utc, end_time_utc,
+            client_id=target_client_id, supabase=supabase
+        )
 
         # --- FORMAT SLOTS FOR HUMAN READABILITY ---
         human_slots = []
@@ -193,12 +199,17 @@ async def handle_book_appointment(
 
         logger.info(f"Booking event: {summary} at {start_dt}")
 
+        # Get supabase client for credential retrieval
+        supabase = get_supabase_client()
+
         event = await book_appointment(
             calendar_id=calendar_id,
             start_time=start_dt,
             end_time=end_dt,
             summary=summary,
             description=description,
+            client_id=target_client_id,
+            supabase=supabase,
         )
 
         if event:
@@ -314,11 +325,16 @@ async def handle_reschedule_appointment(
             # Default to 1 hour if not specified
             new_end = new_start + timedelta(hours=1)
 
+        # Get supabase client for credential retrieval
+        supabase = get_supabase_client()
+
         event = await reschedule_appointment(
             calendar_id=calendar_id,
             event_id=booking_id,
             new_start_time=new_start,
             new_end_time=new_end,
+            client_id=target_client_id,
+            supabase=supabase,
         )
 
         if event:
@@ -368,9 +384,14 @@ async def handle_cancel_appointment(
         if not booking_id:
             raise ValueError("booking_id is required.")
 
+        # Get supabase client for credential retrieval
+        supabase = get_supabase_client()
+
         success = await cancel_appointment(
             calendar_id=calendar_id,
             event_id=booking_id,
+            client_id=target_client_id,
+            supabase=supabase,
         )
 
         if success:
@@ -406,7 +427,14 @@ async def handle_list_my_appointments(
     if not phone:
         await params.result_callback([{"error": "No caller phone."}])
         return
-    appointments = await list_my_appointments(calendar_id, phone)
+
+    # Get supabase client for credential retrieval
+    supabase = get_supabase_client()
+
+    appointments = await list_my_appointments(
+        calendar_id, phone,
+        client_id=target_client_id, supabase=supabase
+    )
     if not appointments:
         await params.result_callback("No upcoming appointments found.")
     else:

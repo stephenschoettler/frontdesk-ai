@@ -20,15 +20,18 @@ if (
       console.log("Vue setup running...");
       const authToken = ref(localStorage.getItem("authToken"));
       const currentUser = ref(null);
-      const currentView = ref(authToken.value ? "dashboard" : "login");
+      const currentView = ref(authToken.value ? "dashboard" : "landing");
 
       const clients = ref([]);
       const filteredClients = ref([]);
       const selectedClients = ref([]);
 
-      const allSelected = computed(
-        () => selectedClients.value.length === filteredClients.value.length,
-      );
+      const allSelected = computed(() => {
+        if (filteredClients.value.length === 0) return false;
+        return filteredClients.value.every((client) =>
+          selectedClients.value.includes(client.id),
+        );
+      });
       const selectedCallLogs = ref([]);
       const searchQuery = ref("");
       const filterStatus = ref("");
@@ -40,20 +43,47 @@ if (
       const showBulkModal = ref(false);
       const showEditContactModal = ref(false);
       const showSettingsModal = ref(false);
+      const showUserProfileModal = ref(false);
       const showTopUpModal = ref(false);
       const selectedTopUpClient = ref(null);
+      const savingProfile = ref(false);
+      const userProfile = ref({
+        displayName: "",
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
       const showSubscriptionModal = ref(false);
       const showProvisionModal = ref(false);
+      const showAuthModal = ref(false);
       const provisioningClient = ref(null);
       const showAuditLog = ref(false);
       const auditModal = ref(null);
       const openAuditLog = () => auditModal.value?.show();
       const closeAuditLog = () => auditModal.value?.hide();
       const systemPromptExpanded = ref(false);
+      const showUserMenu = ref(false);
+      const bulkSelectMode = ref(false);
       const saving = ref(false);
       const savingContact = ref(false);
       const selectedTemplate = ref("");
       const templates = ref({});
+
+      // Calendar authentication state
+      const calendarAuthStatus = ref({
+        has_credentials: false,
+        credential_type: null,
+        fallback_available: false,
+        service_account_email: null,
+        last_used_at: null
+      });
+      const initiatingOAuth = ref(false);
+      const serviceAccountFile = ref(null);
+      const uploadingServiceAccount = ref(false);
+      const revokingCredentials = ref(false);
+
+      // Google OAuth login state
+      const googleLoginInProgress = ref(false);
 
       const voicePresets = [
         { name: "Rachel (American, Calm, Pro)", id: "21m00Tcm4TlvDq8ikWAM" },
@@ -154,6 +184,7 @@ if (
         password: "",
       });
       const authError = ref(null);
+      const authSuccess = ref(null);
 
       const clientForm = ref({
         name: "",
@@ -321,11 +352,12 @@ if (
             currentUser.value = "User";
           }
           currentView.value = "dashboard";
+          showAuthModal.value = false;
         } else {
           localStorage.removeItem("authToken");
           delete axios.defaults.headers.common["Authorization"];
           currentUser.value = null;
-          currentView.value = "login";
+          currentView.value = "landing";
         }
       };
 
@@ -355,13 +387,16 @@ if (
 
       const register = async () => {
         authError.value = null;
+        authSuccess.value = null;
         try {
           const response = await axios.post(
             "/api/auth/register",
             authForm.value,
           );
-          alert(response.data.message + ". Please login.");
-          toggleAuthView();
+          // Switch to login view and keep modal open
+          currentView.value = "login";
+          authForm.value.password = "";
+          authSuccess.value = "Account created successfully! Please login.";
         } catch (error) {
           console.error("Registration failed:", error);
           authError.value =
@@ -380,9 +415,71 @@ if (
 
       const toggleAuthView = () => {
         authError.value = null;
+        authSuccess.value = null;
         authForm.value.password = "";
         currentView.value =
           currentView.value === "login" ? "register" : "login";
+      };
+
+      const initiateGoogleLogin = async () => {
+        googleLoginInProgress.value = true;
+        try {
+          const response = await axios.post("/api/auth/google/initiate");
+          const authUrl = response.data.authorization_url;
+
+          // Open Google OAuth popup
+          const width = 500;
+          const height = 600;
+          const left = (screen.width - width) / 2;
+          const top = (screen.height - height) / 2;
+
+          const popup = window.open(
+            authUrl,
+            "GoogleLoginPopup",
+            `width=${width},height=${height},left=${left},top=${top}`
+          );
+
+          // Listen for OAuth callback
+          const messageHandler = async (event) => {
+            if (event.data.type === "google_login_success") {
+              window.removeEventListener("message", messageHandler);
+              popup?.close();
+
+              // Store auth token and user data
+              const { user, token } = event.data;
+              setAuthToken(token);
+              currentUser.value = user;
+              currentView.value = "dashboard";
+              showAuthModal.value = false;
+
+              // Clear auth form
+              authForm.value.email = "";
+              authForm.value.password = "";
+              authError.value = null;
+
+              // Load data
+              await loadClients();
+              await loadTemplates();
+              await loadContacts();
+              await loadCallLogs();
+
+              console.log("Google login successful:", user.email);
+            }
+          };
+
+          window.addEventListener("message", messageHandler);
+
+          // Check if popup was blocked
+          if (!popup || popup.closed) {
+            alert("Popup was blocked. Please allow popups for this site and try again.");
+            window.removeEventListener("message", messageHandler);
+          }
+        } catch (error) {
+          console.error("Failed to initiate Google login:", error);
+          authError.value = "Failed to initiate Google login. Please try again.";
+        } finally {
+          googleLoginInProgress.value = false;
+        }
       };
 
       const loadClients = async () => {
@@ -398,6 +495,23 @@ if (
             enabled_tools: c.enabled_tools || [],
             is_active: c.is_active !== undefined ? c.is_active : true, // Default to true if missing
           }));
+
+          // Fetch calendar auth status for each client (in parallel)
+          if (authToken.value) {
+            const statusPromises = clients.value.map(async (client) => {
+              try {
+                const statusResponse = await axios.get(
+                  `/api/clients/${client.id}/calendar/status`,
+                  { headers: { Authorization: `Bearer ${authToken.value}` } }
+                );
+                client.calendar_auth_status = statusResponse.data;
+              } catch (error) {
+                // Silently fail for individual clients - they'll just show no status
+                client.calendar_auth_status = null;
+              }
+            });
+            await Promise.all(statusPromises);
+          }
 
           // Update Local Storage
           localStorage.setItem("clients", JSON.stringify(clients.value));
@@ -493,7 +607,7 @@ if (
         }
       };
 
-      const editClient = (client) => {
+      const editClient = async (client) => {
         editingClient.value = client.id;
         const enabledTools = client.enabled_tools || [];
         clientForm.value = {
@@ -505,6 +619,9 @@ if (
         };
         activeClientTab.value = "basic";
         showEditModal.value = true;
+
+        // Fetch calendar auth status for this client
+        await fetchCalendarAuthStatus(client.id);
       };
 
       const duplicateClient = (client) => {
@@ -667,6 +784,153 @@ if (
         }
       };
 
+      // Calendar Authentication Methods
+      const fetchCalendarAuthStatus = async (clientId) => {
+        try {
+          const response = await axios.get(
+            `/api/clients/${clientId}/calendar/status`,
+            { headers: { Authorization: `Bearer ${authToken.value}` } }
+          );
+          calendarAuthStatus.value = response.data;
+        } catch (error) {
+          console.error("Failed to fetch calendar auth status:", error);
+          calendarAuthStatus.value = {
+            has_credentials: false,
+            credential_type: null,
+            fallback_available: false
+          };
+        }
+      };
+
+      const initiateOAuthFlow = async () => {
+        if (!editingClient.value) return;
+
+        initiatingOAuth.value = true;
+        try {
+          const response = await axios.post(
+            `/api/clients/${editingClient.value}/calendar/oauth/initiate`,
+            {},
+            { headers: { Authorization: `Bearer ${authToken.value}` } }
+          );
+
+          const authUrl = response.data.authorization_url;
+
+          // Open OAuth popup
+          const width = 600;
+          const height = 700;
+          const left = (screen.width - width) / 2;
+          const top = (screen.height - height) / 2;
+
+          const popup = window.open(
+            authUrl,
+            'GoogleOAuthPopup',
+            `width=${width},height=${height},left=${left},top=${top}`
+          );
+
+          // Listen for OAuth callback
+          const messageHandler = async (event) => {
+            if (event.data.type === 'oauth_success') {
+              window.removeEventListener('message', messageHandler);
+              popup?.close();
+
+              // Refresh auth status
+              await fetchCalendarAuthStatus(editingClient.value);
+              alert('Calendar authentication successful!');
+            }
+          };
+
+          window.addEventListener('message', messageHandler);
+
+          // Check if popup was blocked
+          if (!popup || popup.closed) {
+            alert('Popup was blocked. Please allow popups for this site and try again.');
+          }
+
+        } catch (error) {
+          console.error("Failed to initiate OAuth:", error);
+          alert("Failed to initiate OAuth flow. Please try again.");
+        } finally {
+          initiatingOAuth.value = false;
+        }
+      };
+
+      const handleServiceAccountFileSelect = (event) => {
+        const file = event.target.files[0];
+        if (file && file.type === 'application/json') {
+          serviceAccountFile.value = file;
+        } else {
+          alert('Please select a valid JSON file.');
+          event.target.value = '';
+        }
+      };
+
+      const uploadServiceAccount = async () => {
+        if (!editingClient.value || !serviceAccountFile.value) return;
+
+        uploadingServiceAccount.value = true;
+        try {
+          const fileContent = await serviceAccountFile.value.text();
+
+          // Validate JSON
+          try {
+            JSON.parse(fileContent);
+          } catch (e) {
+            alert('Invalid JSON file. Please check the file and try again.');
+            return;
+          }
+
+          const response = await axios.post(
+            `/api/clients/${editingClient.value}/calendar/service-account`,
+            { service_account_json: fileContent },
+            { headers: { Authorization: `Bearer ${authToken.value}` } }
+          );
+
+          // Clear file input
+          serviceAccountFile.value = null;
+          const fileInput = document.getElementById('serviceAccountFileInput');
+          if (fileInput) fileInput.value = '';
+
+          // Refresh auth status
+          await fetchCalendarAuthStatus(editingClient.value);
+
+          alert(`Service account uploaded successfully!\nEmail: ${response.data.service_account_email}`);
+
+        } catch (error) {
+          console.error("Failed to upload service account:", error);
+          const errorMsg = error.response?.data?.detail || "Failed to upload service account.";
+          alert(errorMsg);
+        } finally {
+          uploadingServiceAccount.value = false;
+        }
+      };
+
+      const revokeCalendarCredentials = async () => {
+        if (!editingClient.value) return;
+
+        if (!confirm('Are you sure you want to revoke calendar credentials? This will disconnect calendar access.')) {
+          return;
+        }
+
+        revokingCredentials.value = true;
+        try {
+          await axios.delete(
+            `/api/clients/${editingClient.value}/calendar/credentials`,
+            { headers: { Authorization: `Bearer ${authToken.value}` } }
+          );
+
+          // Refresh auth status
+          await fetchCalendarAuthStatus(editingClient.value);
+
+          alert('Calendar credentials revoked successfully.');
+
+        } catch (error) {
+          console.error("Failed to revoke credentials:", error);
+          alert("Failed to revoke credentials. Please try again.");
+        } finally {
+          revokingCredentials.value = false;
+        }
+      };
+
       const deleteCallLogs = async () => {
         if (selectedCallLogs.value.length === 0) return;
         if (
@@ -739,10 +1003,17 @@ if (
       };
 
       const toggleBulkSelect = () => {
-        if (selectedClients.value.length === filteredClients.value.length) {
-          selectedClients.value = [];
+        if (allSelected.value) {
+          // Deselect all filtered clients
+          selectedClients.value = selectedClients.value.filter(
+            (id) => !filteredClients.value.some((client) => client.id === id),
+          );
         } else {
-          selectedClients.value = filteredClients.value.map((c) => c.id);
+          // Select all filtered clients
+          const filteredIds = filteredClients.value.map((client) => client.id);
+          selectedClients.value = [
+            ...new Set([...selectedClients.value, ...filteredIds]),
+          ];
         }
       };
 
@@ -902,6 +1173,101 @@ if (
         };
         activeClientTab.value = "basic";
         selectedTemplate.value = "";
+      };
+
+      const toggleUserMenu = () => {
+        showUserMenu.value = !showUserMenu.value;
+      };
+
+      const openSettings = () => {
+        showUserMenu.value = false;
+        showSettingsModal.value = true;
+      };
+
+      const openCreateModal = () => {
+        showCreateModal.value = true;
+        editingClient.value = null;
+        activeClientTab.value = "basic";
+      };
+
+      const selectClient = (client) => {
+        if (!bulkSelectMode.value) {
+          editClient(client);
+        }
+      };
+
+      const testClient = async (client) => {
+        try {
+          const response = await axios.post(
+            "/test_call",
+            { client_id: client.id },
+            { headers: { Authorization: `Bearer ${authToken.value}` } }
+          );
+          if (response.data.success) {
+            alert(`Test call initiated for ${client.name}`);
+          }
+        } catch (error) {
+          console.error("Test call error:", error);
+          alert("Failed to initiate test call");
+        }
+      };
+
+      const formatMinutes = (seconds) => {
+        if (!seconds) return "0 min";
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes} min`;
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        return remainingMinutes > 0
+          ? `${hours}h ${remainingMinutes}m`
+          : `${hours}h`;
+      };
+
+      const saveUserProfile = async () => {
+        try {
+          savingProfile.value = true;
+
+          // Validate password fields if changing password
+          if (userProfile.value.newPassword) {
+            if (!userProfile.value.currentPassword) {
+              alert("Please enter your current password");
+              return;
+            }
+            if (userProfile.value.newPassword !== userProfile.value.confirmPassword) {
+              alert("New passwords do not match");
+              return;
+            }
+            if (userProfile.value.newPassword.length < 6) {
+              alert("New password must be at least 6 characters");
+              return;
+            }
+          }
+
+          // Save display name to localStorage (could be sent to backend later)
+          if (userProfile.value.displayName) {
+            localStorage.setItem("userDisplayName", userProfile.value.displayName);
+          }
+
+          // TODO: Send to backend API to update password
+          // For now, just show success message
+          if (userProfile.value.newPassword) {
+            alert("Profile updated! (Password change will be implemented with backend)");
+          } else {
+            alert("Profile updated!");
+          }
+
+          // Clear password fields
+          userProfile.value.currentPassword = "";
+          userProfile.value.newPassword = "";
+          userProfile.value.confirmPassword = "";
+
+          showUserProfileModal.value = false;
+        } catch (error) {
+          console.error("Error saving profile:", error);
+          alert("Failed to save profile");
+        } finally {
+          savingProfile.value = false;
+        }
       };
 
       const addAuditLog = (type, action) => {
@@ -1688,6 +2054,16 @@ if (
             "rgba(88, 117, 57, 0.5)",
           );
           root.style.setProperty("--theme-tools-label", "#3c5220");
+        } else {
+          // Dark Mode Gradients (Reset)
+          root.style.setProperty(
+            "--theme-gradient-1",
+            "rgba(122, 162, 247, 0.08)",
+          );
+          root.style.setProperty(
+            "--theme-gradient-2",
+            "rgba(187, 154, 247, 0.08)",
+          );
         }
 
         currentTheme.value = themeKey;
@@ -1707,6 +2083,17 @@ if (
 
       watch([searchQuery, filterStatus], () => {
         filterClients();
+      });
+
+      // Watch modal state to manage body overflow
+      watch(showAuthModal, (isOpen) => {
+        if (isOpen) {
+          document.body.style.overflow = 'hidden';
+          document.body.style.paddingRight = '0px';
+        } else {
+          document.body.style.overflow = '';
+          document.body.style.paddingRight = '';
+        }
       });
 
       // --- Axios Interceptor for 401 ---
@@ -1822,7 +2209,8 @@ if (
             loadLogs();
           }
         } else {
-          currentView.value = "login";
+          // Keep currentView as "landing" for the landing page
+          // Don't change it here
 
           nextTick(() => {
             const modalEl = document.getElementById("auditLogModal");
@@ -1835,6 +2223,21 @@ if (
             }
           });
         }
+
+        // Load user profile data from localStorage
+        const savedDisplayName = localStorage.getItem("userDisplayName");
+        if (savedDisplayName) {
+          userProfile.value.displayName = savedDisplayName;
+        }
+
+        // Global fix: blur buttons after click to prevent lingering hover state
+        document.addEventListener("click", (e) => {
+          if (e.target.closest("button")) {
+            setTimeout(() => {
+              e.target.closest("button").blur();
+            }, 100);
+          }
+        });
       });
 
       const hasScheduling = (client) => {
@@ -1887,6 +2290,26 @@ if (
         return type.charAt(0).toUpperCase() + type.slice(1);
       };
 
+      const goToRegister = () => {
+        currentView.value = "register";
+        showAuthModal.value = true;
+      };
+
+      const goToLogin = () => {
+        currentView.value = "login";
+        showAuthModal.value = true;
+      };
+
+      const closeAuthModal = () => {
+        showAuthModal.value = false;
+        authError.value = null;
+        authSuccess.value = null;
+        // Reset to landing if not authenticated
+        if (!authToken.value) {
+          currentView.value = "landing";
+        }
+      };
+
       return {
         formatName,
         formatSttModel,
@@ -1904,10 +2327,17 @@ if (
         showEditModal,
         showBulkModal,
         showEditContactModal,
+        bulkSelectMode,
+        openCreateModal,
+        selectClient,
+        testClient,
         showAuditLog,
         auditModal,
         openAuditLog,
         closeAuditLog,
+        showUserMenu,
+        toggleUserMenu,
+        openSettings,
         saving,
         savingContact,
         selectedTemplate,
@@ -1921,6 +2351,10 @@ if (
         closeEditContactModal,
         showSettingsModal,
         closeSettingsModal,
+        showUserProfileModal,
+        userProfile,
+        savingProfile,
+        saveUserProfile,
         showTopUpModal,
         selectedTopUpClient,
         openTopUpModal,
@@ -1966,9 +2400,11 @@ if (
         formatTimestamp,
         formatToolName,
         formatDuration, // Added formatDuration export
+        formatMinutes,
         jumpToContact, // Added jumpToContact export
         activeTab,
         isLoading,
+        loading: isLoading,
         contacts,
         selectedContacts,
         callLogs,
@@ -2008,10 +2444,17 @@ if (
         currentView,
         authForm,
         authError,
+        authSuccess,
         login,
         register,
         logout,
         toggleAuthView,
+        goToRegister,
+        goToLogin,
+        closeAuthModal,
+        showAuthModal,
+        googleLoginInProgress,
+        initiateGoogleLogin,
         hasScheduling,
         hasMemory,
         activeClientTab, // Added for Tab UI
@@ -2020,6 +2463,17 @@ if (
         truncateId,
         activeCalls,
         calculateDuration,
+        // Calendar auth exports
+        calendarAuthStatus,
+        initiatingOAuth,
+        serviceAccountFile,
+        uploadingServiceAccount,
+        revokingCredentials,
+        fetchCalendarAuthStatus,
+        initiateOAuthFlow,
+        handleServiceAccountFileSelect,
+        uploadServiceAccount,
+        revokeCalendarCredentials,
         // Provisioning exports
         searchNumbers,
         availableNumbers,

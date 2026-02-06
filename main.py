@@ -7,6 +7,9 @@ import urllib.parse
 from dotenv import load_dotenv
 import jwt
 
+# Load environment variables FIRST before any other imports
+load_dotenv()
+
 from fastapi import (
     FastAPI,
     WebSocket,
@@ -76,12 +79,29 @@ from services.supabase_client import (
     get_client_usage_stats,
     get_global_usage_stats,
     get_financial_history,
+    get_cost_by_service,
+    get_cost_by_client,
+    get_top_expensive_calls,
 )
 
 from services.balance_manager import (
     get_service_balances,
     get_system_rates,
     update_system_rate,
+)
+
+# Import calendar auth functions
+from services.calendar_auth import (
+    generate_oauth_url,
+    handle_oauth_callback,
+    upload_service_account,
+    revoke_credentials,
+)
+
+# Import user OAuth functions
+from services.user_auth import (
+    generate_user_oauth_url,
+    handle_user_oauth_callback,
 )
 
 # Import tool handlers
@@ -109,10 +129,6 @@ from services.price_manager import sync_openrouter_prices, get_model_price
 from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 
-
-# Load environment variables
-load_dotenv()
-
 # Initialize Twilio Client
 twilio_client = Client(
     os.environ["TWILIO_ACCOUNT_SID"], os.environ["TWILIO_AUTH_TOKEN"]
@@ -128,6 +144,13 @@ logging.basicConfig(
     ],
 )
 logger = logging.getLogger(__name__)
+
+# Add file handler for debugging
+file_handler = logging.FileHandler('frontdesk_calls.log')
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
+logging.getLogger().addHandler(file_handler)  # Also add to root logger for all modules
 
 # --- Diagnostic ---
 logger.info(f"DIAGNOSTIC: Loaded SUPABASE_URL: {os.environ.get('SUPABASE_URL')}")
@@ -231,12 +254,17 @@ async def initialize_client_services(
         vad_events=True,
     )
 
+    logger.info(f"[TTS DEBUG] Initializing ElevenLabs TTS - Voice: {tts_voice_id}, Model: {tts_model}")
+    logger.info(f"[TTS DEBUG] ElevenLabs API Key present: {bool(os.environ.get('ELEVENLABS_API_KEY'))}")
+
     tts = ElevenLabsTTSService(
         api_key=os.environ["ELEVENLABS_API_KEY"],
         voice_id=tts_voice_id,
         model_id=tts_model,
         optimize_streaming_latency=4,
     )
+
+    logger.info(f"[TTS DEBUG] ElevenLabs TTS service created successfully")
 
     class DebugLLM(OpenAILLMService):
         async def run_llm(self, *args, **kwargs):
@@ -462,6 +490,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
     context_aggregator = LLMContextAggregatorPair(context)
     assistant_aggregator = ToolStrippingAssistantAggregator(context)
 
+    logger.info(f"[PIPELINE DEBUG] Building pipeline with components: STT={type(stt).__name__}, LLM={type(llm).__name__}, TTS={type(tts).__name__}")
+
     pipeline = Pipeline(
         [
             transport.input(),
@@ -474,6 +504,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
         ]
     )
 
+    logger.info(f"[PIPELINE DEBUG] Pipeline created successfully")
+
     task = PipelineTask(
         pipeline,
         params=PipelineParams(
@@ -483,8 +515,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
         ),
     )
 
+    logger.info(f"[PIPELINE DEBUG] PipelineTask created with sample rates: in=8000, out=8000")
+
     # --- Initial Greeting ---
     if initial_greeting:
+        logger.info(f"[GREETING DEBUG] Queuing initial greeting: {initial_greeting[:50]}...")
         parts = initial_greeting.split(".", 1)
         if len(parts) == 2:
             await task.queue_frames(
@@ -492,8 +527,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
             )
         else:
             await task.queue_frames([TextFrame(initial_greeting)])
+        logger.info(f"[GREETING DEBUG] Initial greeting frames queued")
 
+    logger.info(f"[RUNNER DEBUG] Starting pipeline runner for call")
     runner_task = asyncio.create_task(runner.run(task))
+    logger.info(f"[RUNNER DEBUG] Pipeline runner task created and running")
 
     # 2. MONITOR: Safety Valve & Cutoff
     call_start_time = datetime.datetime.now()
@@ -526,8 +564,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
                 break
             await asyncio.sleep(0.1)
     except asyncio.CancelledError:
+        logger.info(f"[CALL DEBUG] Call cancelled for {call_id}")
         pass
     finally:
+        logger.info(f"[CALL DEBUG] Call ending - Duration: {(datetime.datetime.now() - call_start_time).total_seconds():.2f}s")
+
         # --- Cleanup Active Call ---
         active_calls.pop(call_id, None)
         # ---------------------------
@@ -537,6 +578,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
         # 4. COMMIT: Finalize Billing
         call_end_time = datetime.datetime.now()
         total_seconds = int((call_end_time - call_start_time).total_seconds())
+
+        logger.info(f"[BILLING DEBUG] Total call duration: {total_seconds}s")
 
         remainder = total_seconds - accumulated_deduction
         if remainder > 0:
@@ -564,6 +607,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str, caller_phone:
                     input_tokens += len(enc.encode(content))
         except Exception as e:
             logger.error(f"Token count failed: {e}")
+
+        logger.info(f"[METRICS DEBUG] Input tokens: {input_tokens}, Output tokens: {output_tokens}, TTS chars: {tts_chars}")
 
         # Log Conversation & Get ID
         # Calculate transcript with timestamps
@@ -871,6 +916,8 @@ async def simulator_endpoint(websocket: WebSocket, client_id: str):
         except Exception as e:
             logger.error(f"Token count failed: {e}")
 
+        logger.info(f"[METRICS DEBUG] Input tokens: {input_tokens}, Output tokens: {output_tokens}, TTS chars: {tts_chars}")
+
         # Log Conversation & Get ID
         # Calculate transcript with timestamps
         transcript_with_timestamps = []
@@ -1140,6 +1187,131 @@ async def login_user(user: UserLogin):
         raise HTTPException(500, "Internal server error")
 
 
+# === Google OAuth User Authentication Endpoints ===
+
+@app.post("/api/auth/google/initiate")
+async def initiate_google_login():
+    """Initiate Google OAuth flow for user login."""
+    try:
+        logger.info("=== GOOGLE USER LOGIN INITIATE ===")
+        authorization_url, state = generate_user_oauth_url()
+
+        return {
+            "authorization_url": authorization_url,
+            "state": state
+        }
+
+    except ValueError as e:
+        logger.error(f"ValueError in Google login initiate: {e}")
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.error(f"Error initiating Google login: {e}", exc_info=True)
+        raise HTTPException(500, "Failed to initiate Google login")
+
+
+@app.get("/api/auth/google/callback")
+async def google_login_callback(code: str, state: str):
+    """Handle Google OAuth callback for user login."""
+    try:
+        logger.info("=== GOOGLE USER LOGIN CALLBACK ===")
+        supabase = get_supabase_client()
+        if not supabase:
+            return Response(
+                content="<html><body><h1>Error</h1><p>Database unavailable</p></body></html>",
+                media_type="text/html"
+            )
+
+        # Handle OAuth callback
+        result = await handle_user_oauth_callback(code, state, supabase)
+
+        # Return HTML that closes popup and sends data to parent window
+        html_content = f"""
+        <html>
+        <head>
+            <title>Login Successful</title>
+            <style>
+                body {{
+                    font-family: system-ui, -apple-system, sans-serif;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                }}
+                .container {{
+                    background: white;
+                    padding: 2rem;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    text-align: center;
+                }}
+                .success {{
+                    color: #10b981;
+                    font-size: 3rem;
+                    margin-bottom: 1rem;
+                }}
+                h1 {{
+                    color: #1f2937;
+                    margin: 0 0 0.5rem 0;
+                }}
+                p {{
+                    color: #6b7280;
+                    margin: 0;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="success">✓</div>
+                <h1>Login Successful</h1>
+                <p>Redirecting to dashboard...</p>
+            </div>
+            <script>
+                // Send user data to parent window
+                if (window.opener) {{
+                    window.opener.postMessage({{
+                        type: 'google_login_success',
+                        user: {result['user']},
+                        token: '{result['token']}'
+                    }}, '*');
+                    setTimeout(() => window.close(), 1500);
+                }}
+            </script>
+        </body>
+        </html>
+        """
+
+        return Response(content=html_content, media_type="text/html")
+
+    except ValueError as e:
+        logger.error(f"ValueError in Google login callback: {e}")
+        error_html = f"""
+        <html>
+        <head><title>Login Error</title></head>
+        <body>
+            <h1>Login Error</h1>
+            <p>{str(e)}</p>
+            <p>Please close this window and try again.</p>
+        </body>
+        </html>
+        """
+        return Response(content=error_html, media_type="text/html", status_code=400)
+    except Exception as e:
+        logger.error(f"Error in Google login callback: {e}", exc_info=True)
+        error_html = """
+        <html>
+        <head><title>Login Error</title></head>
+        <body>
+            <h1>Login Error</h1>
+            <p>An unexpected error occurred. Please try again.</p>
+            <p>You can close this window.</p>
+        </body>
+        </html>
+        """
+        return Response(content=error_html, media_type="text/html", status_code=500)
+
+
 @app.get("/api/twilio/available-numbers")
 async def get_available_numbers(
     area_code: str, token: str = Depends(get_current_user_token)
@@ -1270,6 +1442,295 @@ async def delete_existing_client(
     if not await delete_client(client_id, token):
         raise HTTPException(500, "Failed to delete")
     return {"message": "Deleted"}
+
+
+# === Calendar Credentials Endpoints ===
+
+@app.get("/api/clients/{client_id}/calendar/status")
+async def get_calendar_auth_status(
+    client_id: str, token: str = Depends(get_current_user_token)
+):
+    """Get calendar authentication status for a client."""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(500, "Database unavailable")
+
+        # Verify user owns this client
+        user_id = jwt.decode(token, options={"verify_signature": False})["sub"]
+        client_data = await get_client_config(client_id)
+        if not client_data or client_data.get("owner_user_id") != user_id:
+            raise HTTPException(403, "Unauthorized")
+
+        # Check for active credentials
+        result = supabase.table("calendar_credentials").select(
+            "credential_type, created_at, last_used_at, service_account_email"
+        ).eq("client_id", client_id).eq("is_active", True).execute()
+
+        # Check if global fallback is available
+        global_fallback = bool(os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE_PATH"))
+
+        if result.data:
+            cred = result.data[0]
+            return {
+                "has_credentials": True,
+                "credential_type": cred["credential_type"],
+                "created_at": cred["created_at"],
+                "last_used_at": cred["last_used_at"],
+                "service_account_email": cred.get("service_account_email"),
+                "fallback_available": global_fallback
+            }
+        else:
+            return {
+                "has_credentials": False,
+                "credential_type": None,
+                "fallback_available": global_fallback
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting calendar auth status: {e}")
+        raise HTTPException(500, "Failed to get calendar auth status")
+
+
+@app.post("/api/clients/{client_id}/calendar/oauth/initiate")
+async def initiate_oauth_flow(
+    client_id: str, token: str = Depends(get_current_user_token)
+):
+    """Initiate OAuth flow for Google Calendar authentication."""
+    logger.info(f"=== OAUTH INITIATE ENDPOINT ===")
+    logger.info(f"Client ID: {client_id}")
+    try:
+        logger.debug(f"Getting Supabase client...")
+        supabase = get_supabase_client()
+        if not supabase:
+            logger.error("Supabase client is None")
+            raise HTTPException(500, "Database unavailable")
+
+        # Verify user owns this client
+        logger.debug(f"Decoding JWT token...")
+        user_id = jwt.decode(token, options={"verify_signature": False})["sub"]
+        logger.debug(f"User ID from token: {user_id}")
+
+        logger.debug(f"Getting client config for {client_id}...")
+        client_data = await get_client_config(client_id)
+        if not client_data:
+            logger.error(f"Client not found: {client_id}")
+            raise HTTPException(403, "Client not found")
+
+        if client_data.get("owner_user_id") != user_id:
+            logger.error(f"User {user_id} does not own client {client_id}")
+            raise HTTPException(403, "Unauthorized")
+
+        logger.info(f"Generating OAuth URL for client {client_id}...")
+        # Generate OAuth URL
+        authorization_url, state = generate_oauth_url(client_id, user_id, supabase)
+
+        logger.info(f"OAuth URL generated successfully")
+        return {
+            "authorization_url": authorization_url,
+            "state": state
+        }
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        logger.error(f"ValueError in OAuth initiate: {e}")
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.error(f"Error initiating OAuth flow: {e}", exc_info=True)
+        raise HTTPException(500, "Failed to initiate OAuth flow")
+
+
+@app.get("/api/calendar/oauth/callback")
+async def oauth_callback(
+    code: str,
+    state: str
+):
+    """Handle OAuth callback from Google."""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            return Response(
+                content="<html><body><h1>Error</h1><p>Database unavailable</p></body></html>",
+                media_type="text/html"
+            )
+
+        # Get client_id from state token
+        state_record = supabase.table("oauth_state_tokens").select("client_id").eq("state", state).execute()
+        if not state_record.data:
+            return Response(
+                content="<html><body><h1>Error</h1><p>Invalid state token</p></body></html>",
+                media_type="text/html",
+                status_code=400
+            )
+
+        client_id = state_record.data[0]["client_id"]
+
+        # Handle OAuth callback
+        result = await handle_oauth_callback(code, state, client_id, supabase)
+
+        # Return HTML that closes the popup and notifies the parent window
+        html_content = """
+        <html>
+        <head>
+            <title>Authentication Successful</title>
+            <style>
+                body {
+                    font-family: system-ui, -apple-system, sans-serif;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                }
+                .container {
+                    background: white;
+                    padding: 2rem;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    text-align: center;
+                }
+                .success {
+                    color: #10b981;
+                    font-size: 3rem;
+                    margin-bottom: 1rem;
+                }
+                h1 {
+                    color: #1f2937;
+                    margin: 0 0 0.5rem 0;
+                }
+                p {
+                    color: #6b7280;
+                    margin: 0;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="success">✓</div>
+                <h1>Authentication Successful</h1>
+                <p>You can close this window now.</p>
+            </div>
+            <script>
+                // Notify parent window and close popup
+                if (window.opener) {
+                    window.opener.postMessage({
+                        type: 'oauth_success',
+                        credential_type: '""" + result["credential_type"] + """'
+                    }, '*');
+                    setTimeout(() => window.close(), 2000);
+                }
+            </script>
+        </body>
+        </html>
+        """
+
+        return Response(content=html_content, media_type="text/html")
+
+    except ValueError as e:
+        error_html = f"""
+        <html>
+        <head><title>Authentication Error</title></head>
+        <body>
+            <h1>Authentication Error</h1>
+            <p>{str(e)}</p>
+            <p>You can close this window.</p>
+        </body>
+        </html>
+        """
+        return Response(content=error_html, media_type="text/html", status_code=400)
+    except Exception as e:
+        logger.error(f"Error in OAuth callback: {e}")
+        error_html = f"""
+        <html>
+        <head><title>Authentication Error</title></head>
+        <body>
+            <h1>Authentication Error</h1>
+            <p>An unexpected error occurred. Please try again.</p>
+            <p>You can close this window.</p>
+        </body>
+        </html>
+        """
+        return Response(content=error_html, media_type="text/html", status_code=500)
+
+
+@app.post("/api/clients/{client_id}/calendar/service-account")
+async def upload_service_account_key(
+    client_id: str,
+    request: Request,
+    token: str = Depends(get_current_user_token)
+):
+    """Upload service account JSON key for a client."""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(500, "Database unavailable")
+
+        # Verify user owns this client
+        user_id = jwt.decode(token, options={"verify_signature": False})["sub"]
+        client_data = await get_client_config(client_id)
+        if not client_data or client_data.get("owner_user_id") != user_id:
+            raise HTTPException(403, "Unauthorized")
+
+        # Get JSON from request body
+        data = await request.json()
+        service_account_json = data.get("service_account_json")
+
+        if not service_account_json:
+            raise HTTPException(400, "service_account_json is required")
+
+        # Upload and store credentials
+        result = await upload_service_account(
+            client_id, user_id, service_account_json, supabase
+        )
+
+        return {
+            "success": True,
+            "credential_type": result["credential_type"],
+            "service_account_email": result["service_account_email"]
+        }
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.error(f"Error uploading service account: {e}")
+        raise HTTPException(500, "Failed to upload service account")
+
+
+@app.delete("/api/clients/{client_id}/calendar/credentials")
+async def revoke_calendar_credentials(
+    client_id: str, token: str = Depends(get_current_user_token)
+):
+    """Revoke calendar credentials for a client."""
+    try:
+        supabase = get_supabase_client()
+        if not supabase:
+            raise HTTPException(500, "Database unavailable")
+
+        # Verify user owns this client
+        user_id = jwt.decode(token, options={"verify_signature": False})["sub"]
+        client_data = await get_client_config(client_id)
+        if not client_data or client_data.get("owner_user_id") != user_id:
+            raise HTTPException(403, "Unauthorized")
+
+        # Revoke credentials
+        success = await revoke_credentials(client_id, user_id, supabase)
+
+        if success:
+            return {"success": True, "message": "Credentials revoked"}
+        else:
+            raise HTTPException(500, "Failed to revoke credentials")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error revoking credentials: {e}")
+        raise HTTPException(500, "Failed to revoke credentials")
 
 
 @app.get("/api/contacts")
@@ -1558,6 +2019,75 @@ async def get_analytics(token: str = Depends(get_current_user_token)):
         raise HTTPException(status_code=403, detail="Forbidden")
 
     data = await get_financial_history(30)
+    return data
+
+
+@app.get("/api/admin/analytics/by-service")
+async def get_analytics_by_service(
+    days: int = 30,
+    token: str = Depends(get_current_user_token)
+):
+    """
+    Admin endpoint for cost breakdown by service/metric type.
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    data = await get_cost_by_service(days)
+    return data
+
+
+@app.get("/api/admin/analytics/by-client")
+async def get_analytics_by_client(
+    days: int = 30,
+    token: str = Depends(get_current_user_token)
+):
+    """
+    Admin endpoint for cost breakdown by client (profitability).
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    data = await get_cost_by_client(days)
+    return data
+
+
+@app.get("/api/admin/analytics/top-calls")
+async def get_analytics_top_calls(
+    limit: int = 10,
+    token: str = Depends(get_current_user_token)
+):
+    """
+    Admin endpoint for most expensive calls.
+    """
+    ADMIN_EMAIL = "admin@frontdesk.com"
+
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        user_email = payload.get("email")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+    if user_email != ADMIN_EMAIL:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    data = await get_top_expensive_calls(limit)
     return data
 
 
